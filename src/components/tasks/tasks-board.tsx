@@ -486,7 +486,7 @@ function TaskLane({
   const Icon = lane.icon;
 
   return (
-    <section className="flex min-h-[420px] flex-col overflow-hidden border border-border/70 bg-background">
+    <section className="flex min-w-[260px] flex-1 flex-col overflow-hidden border-r border-border/70 bg-background last:border-r-0">
       <div className="flex items-start justify-between gap-3 border-b border-border/70 bg-muted/30 px-3 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -512,8 +512,8 @@ function TaskLane({
         {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
       </div>
 
-      <div className="min-h-0 flex-1">
-        <ScrollArea className="h-[58vh] min-h-[320px] max-h-[640px]">
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
           {tasks.length === 0 ? (
             <div className="px-3 py-8 text-[12px] leading-6 text-muted-foreground">
               {status === "pending"
@@ -1074,52 +1074,46 @@ export function TasksBoard({
         onSubmit={() => void createTask()}
       />
 
-      <div className="min-h-0 flex-1">
-        <ScrollArea className="h-full">
-          <div className="mx-auto w-full max-w-7xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-            {loading ? (
-              <div className="flex min-h-[480px] items-center justify-center gap-3 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Loading the task board…
-              </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  {LANE_ORDER.map((status) => (
-                    <TaskLane
-                      key={status}
-                      status={status}
-                      tasks={groupedTasks[status]}
-                      liveConversationIds={liveConversationIds}
-                      agentByKey={agentByKey}
-                      onRun={(task) => void runTask(task)}
-                      onOpenRun={openRun}
-                      onUpdateStatus={(task, nextStatus) =>
-                        void updateTaskStatus(task, nextStatus)
-                      }
-                      runningTaskId={runningTaskId}
-                      updatingTaskId={updatingTaskId}
-                      headerAction={
-                        status === "pending" ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-[10px]"
-                            onClick={() => setCreateDialogOpen(true)}
-                            disabled={visibleAgents.length === 0}
-                          >
-                            <Plus data-icon="inline-start" />
-                            Add
-                          </Button>
-                        ) : undefined
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+      <div className="min-h-0 flex-1 overflow-x-auto">
+        {loading ? (
+          <div className="flex h-full items-center justify-center gap-3 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Loading the task board…
           </div>
-        </ScrollArea>
+        ) : (
+          <div className="flex h-full min-w-max">
+            {LANE_ORDER.map((status) => (
+              <TaskLane
+                key={status}
+                status={status}
+                tasks={groupedTasks[status]}
+                liveConversationIds={liveConversationIds}
+                agentByKey={agentByKey}
+                onRun={(task) => void runTask(task)}
+                onOpenRun={openRun}
+                onUpdateStatus={(task, nextStatus) =>
+                  void updateTaskStatus(task, nextStatus)
+                }
+                runningTaskId={runningTaskId}
+                updatingTaskId={updatingTaskId}
+                headerAction={
+                  status === "pending" ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-[10px]"
+                      onClick={() => setCreateDialogOpen(true)}
+                      disabled={visibleAgents.length === 0}
+                    >
+                      <Plus data-icon="inline-start" />
+                      Add
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
