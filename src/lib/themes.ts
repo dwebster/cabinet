@@ -55,6 +55,7 @@ export const THEMES: ThemeDefinition[] = [
     name: "white",
     label: "White",
     type: "light",
+    font: "var(--font-sans)",
     accent: "#737373",
     vars: {
       "--background": "oklch(1 0 0)",
@@ -89,6 +90,7 @@ export const THEMES: ThemeDefinition[] = [
     name: "black",
     label: "Black",
     type: "dark",
+    font: "var(--font-sans)",
     accent: "#737373",
     vars: {
       "--background": "oklch(0.1 0 0)",

@@ -3,13 +3,18 @@ import path from "path";
 
 const REPO_OWNER = "hilash";
 const REPO_NAME = "cabinets";
-const API_BASE = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents`;
+const API_BASE = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
+const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/HEAD`;
 
-interface GitHubEntry {
-  name: string;
+interface TreeEntry {
   path: string;
-  type: "file" | "dir";
-  download_url: string | null;
+  type: "blob" | "tree";
+  sha: string;
+}
+
+interface TreeResponse {
+  tree: TreeEntry[];
+  truncated: boolean;
 }
 
 async function ghFetch(url: string): Promise<Response> {
@@ -22,45 +27,54 @@ async function ghFetch(url: string): Promise<Response> {
   return fetch(url, { headers });
 }
 
-async function listDirectory(repoPath: string): Promise<GitHubEntry[]> {
-  const res = await ghFetch(`${API_BASE}/${repoPath}`);
-  if (!res.ok) throw new Error(`GitHub API error ${res.status}: ${repoPath}`);
-  return res.json();
-}
-
-async function downloadFile(downloadUrl: string): Promise<string> {
-  const res = await fetch(downloadUrl);
-  if (!res.ok) throw new Error(`Download failed: ${downloadUrl}`);
-  return res.text();
-}
-
 /**
- * Recursively download a directory from the cabinets registry repo
- * and write it to a local target directory.
+ * Fetch the full recursive tree for the repo in a single API call,
+ * then filter to the requested slug prefix.
+ * Downloads files via raw.githubusercontent.com (no API rate limit).
  */
 export async function downloadRegistryTemplate(
   slug: string,
   targetDir: string
 ): Promise<void> {
-  await downloadDirectory(slug, targetDir);
-}
+  // 1. Get the full repo tree in one API call
+  const treeRes = await ghFetch(`${API_BASE}/git/trees/HEAD?recursive=1`);
+  if (!treeRes.ok) {
+    throw new Error(`GitHub API error ${treeRes.status}: failed to fetch repo tree`);
+  }
+  const treeData = (await treeRes.json()) as TreeResponse;
 
-async function downloadDirectory(
-  repoPath: string,
-  localDir: string
-): Promise<void> {
-  await fs.mkdir(localDir, { recursive: true });
+  const prefix = `${slug}/`;
+  const files = treeData.tree.filter(
+    (e) => e.type === "blob" && e.path.startsWith(prefix)
+  );
 
-  const entries = await listDirectory(repoPath);
+  if (files.length === 0) {
+    throw new Error(`Template "${slug}" not found in registry`);
+  }
 
-  for (const entry of entries) {
-    const localPath = path.join(localDir, entry.name);
+  // 2. For each file, download from raw.githubusercontent.com and write locally
+  await fs.mkdir(targetDir, { recursive: true });
 
-    if (entry.type === "dir") {
-      await downloadDirectory(entry.path, localPath);
-    } else if (entry.type === "file" && entry.download_url) {
-      const content = await downloadFile(entry.download_url);
-      await fs.writeFile(localPath, content, "utf-8");
+  for (const entry of files) {
+    // Relative path within the template (strip the slug/ prefix)
+    const relPath = entry.path.slice(prefix.length);
+    const localPath = path.join(targetDir, relPath);
+
+    // Ensure parent directory exists
+    await fs.mkdir(path.dirname(localPath), { recursive: true });
+
+    const rawUrl = `${RAW_BASE}/${encodeURIComponent(slug)}/${relPath
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}`;
+
+    const fileRes = await fetch(rawUrl);
+    if (!fileRes.ok) {
+      throw new Error(`Download failed (${fileRes.status}): ${entry.path}`);
     }
+
+    // Write as buffer to handle binary files (images, etc.)
+    const buf = Buffer.from(await fileRes.arrayBuffer());
+    await fs.writeFile(localPath, buf);
   }
 }
