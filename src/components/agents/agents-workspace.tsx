@@ -400,6 +400,7 @@ export function AgentsWorkspace({
   >(undefined);
   const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget>(null);
+  const [settingsAgentCabinetPath, setSettingsAgentCabinetPath] = useState<string | undefined>(undefined);
   const [settingsPersona, setSettingsPersona] = useState<AgentListItem | null>(null);
   const [settingsBody, setSettingsBody] = useState("");
   const [settingsJobs, setSettingsJobs] = useState<JobConfig[]>([]);
@@ -688,7 +689,8 @@ export function AgentsWorkspace({
 
   async function refreshSettings(
     agentSlug: string,
-    options?: { resetJobEditor?: boolean }
+    options?: { resetJobEditor?: boolean },
+    cabinetPathOverride?: string
   ) {
     const resetJobEditor = options?.resetJobEditor ?? true;
 
@@ -715,8 +717,9 @@ export function AgentsWorkspace({
       return;
     }
 
-    const cabinetQuery = effectiveCabinetPath
-      ? `?cabinetPath=${encodeURIComponent(effectiveCabinetPath)}`
+    const resolvedCabinetPath = cabinetPathOverride ?? effectiveCabinetPath;
+    const cabinetQuery = resolvedCabinetPath
+      ? `?cabinetPath=${encodeURIComponent(resolvedCabinetPath)}`
       : "";
     const [personaResponse, jobsResponse] = await Promise.all([
       fetch(`/api/agents/personas/${agentSlug}${cabinetQuery}`),
@@ -878,6 +881,7 @@ export function AgentsWorkspace({
     setSelectedConversationCabinetPath(undefined);
     setSelectedConversation(null);
     setSettingsTarget(agentSlug);
+    setSettingsAgentCabinetPath(agentCabinetPath);
     setMode("settings");
     setSection(buildAgentSection(agentSlug, agentCabinetPath));
   }
@@ -912,9 +916,9 @@ export function AgentsWorkspace({
 
   useEffect(() => {
     if (mode === "settings" && settingsAgentSlug) {
-      void refreshSettings(settingsAgentSlug, { resetJobEditor: true });
+      void refreshSettings(settingsAgentSlug, { resetJobEditor: true }, settingsAgentCabinetPath);
     }
-  }, [mode, settingsAgentSlug]);
+  }, [mode, settingsAgentSlug, settingsAgentCabinetPath]);
 
   useEffect(() => {
     if (!settingsAgentSlug) {
@@ -1528,6 +1532,7 @@ export function AgentsWorkspace({
       setSelectedConversationCabinetPath(undefined);
       setSelectedConversation(null);
       setSettingsTarget("directory");
+      setSettingsAgentCabinetPath(undefined);
       setSettingsPersona(null);
       setSettingsBody("");
       handleSettingsEditorOpenChange(false);
