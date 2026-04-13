@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
+  Archive,
   Bot,
   Clock,
   Download,
@@ -849,9 +850,10 @@ export function RegistryBrowser() {
       <div className="border-b px-6 py-5 shrink-0" style={{ borderColor: P.border, backgroundColor: P.bgWarm }}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold" style={{ color: P.textPrimary }}>
-              Cabinets{" "}
-              <span className="font-normal" style={{ color: P.textSecondary }}>
+            <h1 className="flex items-center gap-2 text-xl font-bold">
+              <Archive className="h-5 w-5 shrink-0" style={{ color: P.accent }} />
+              <span style={{ color: P.accent }}>Cabinets</span>
+              <span className="text-base font-normal" style={{ color: P.textTertiary }}>
                 AI teams, off the shelf
               </span>
             </h1>
