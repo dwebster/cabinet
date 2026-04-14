@@ -1,7 +1,7 @@
 schemaVersion: 1
-id: pizza-root
-name: Pizza
+id: apple-root
+name: Apple
 kind: root
 version: 0.1.0
-description: Develop
+description: Fun
 entry: index.md

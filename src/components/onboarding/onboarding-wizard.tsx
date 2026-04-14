@@ -489,6 +489,130 @@ function IntroStep({ onNext }: { onNext: () => void }) {
   );
 }
 
+/* ─── Cabinet Created — animated tree after import ─── */
+
+function CabinetCreatedScreen({
+  cabinetName,
+  template,
+  onContinue,
+}: {
+  cabinetName: string;
+  template: RegistryTemplate;
+  onContinue: () => void;
+}) {
+  const [visibleLines, setVisibleLines] = useState(0);
+  const [showButton, setShowButton] = useState(false);
+
+  const treeLines = useMemo(() => {
+    const lines: { text: string; indent: number; icon?: string }[] = [];
+    lines.push({ text: cabinetName, indent: 0, icon: "📦" });
+    lines.push({ text: ".cabinet", indent: 1 });
+    lines.push({ text: ".agents/", indent: 1 });
+    if (template.agentCount > 0) {
+      const count = template.agentCount;
+      lines.push({ text: `${count} agent${count > 1 ? "s" : ""} ready to work`, indent: 2, icon: "🤖" });
+    }
+    lines.push({ text: ".jobs/", indent: 1 });
+    if (template.jobCount > 0) {
+      const count = template.jobCount;
+      lines.push({ text: `${count} scheduled job${count > 1 ? "s" : ""}`, indent: 2, icon: "⏱" });
+    }
+    if (template.childCount > 0) {
+      lines.push({ text: `${template.childCount} sub-cabinet${template.childCount > 1 ? "s" : ""}`, indent: 2, icon: "📂" });
+    }
+    lines.push({ text: ".cabinet-state/", indent: 1 });
+    lines.push({ text: "index.md", indent: 1 });
+    return lines;
+  }, [cabinetName, template]);
+
+  useEffect(() => {
+    if (visibleLines >= treeLines.length) {
+      const t = setTimeout(() => setShowButton(true), 600);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(
+      () => setVisibleLines((c) => c + 1),
+      visibleLines === 0 ? 500 : 250 + Math.random() * 150
+    );
+    return () => clearTimeout(t);
+  }, [visibleLines, treeLines.length]);
+
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center gap-8 animate-in fade-in duration-500">
+      <div className="text-center space-y-2">
+        <CheckCircle2 className="size-10 mx-auto" style={{ color: WEB.accent }} />
+        <h1 className="font-logo text-2xl tracking-tight italic" style={{ color: WEB.text }}>
+          Your cabinet has been created
+        </h1>
+        <p className="text-sm" style={{ color: WEB.textSecondary }}>
+          Everything is set up and ready to go.
+        </p>
+      </div>
+
+      {/* Animated tree */}
+      <div
+        className="w-full rounded-xl px-6 py-5 font-mono text-[13px] leading-relaxed"
+        style={{ background: WEB.bgCard, border: `1px solid ${WEB.border}` }}
+      >
+        {treeLines.map((line, i) => {
+          const isVisible = i < visibleLines;
+          const isRoot = i === 0;
+          // Build the tree connector prefix
+          let prefix = "";
+          if (!isRoot && line.indent === 1) {
+            // Check if this is the last indent-1 line
+            const hasMoreAtSameLevel = treeLines.slice(i + 1).some((l) => l.indent === 1);
+            prefix = hasMoreAtSameLevel ? "├── " : "└── ";
+          } else if (line.indent === 2) {
+            // Sub-item under a parent
+            const hasMoreSiblings = treeLines.slice(i + 1).some(
+              (l) => l.indent === 2 && treeLines.slice(i + 1).indexOf(l) < treeLines.slice(i + 1).findIndex((x) => x.indent <= 1)
+            );
+            prefix = "│   " + (hasMoreSiblings ? "├── " : "└── ");
+          }
+
+          return (
+            <div
+              key={i}
+              className="transition-all duration-300"
+              style={{
+                opacity: isVisible ? 1 : 0,
+                transform: isVisible ? "translateX(0)" : "translateX(-8px)",
+              }}
+            >
+              {isRoot ? (
+                <span style={{ color: WEB.accent, fontWeight: 600 }}>
+                  {line.icon} {line.text}
+                </span>
+              ) : (
+                <span style={{ color: WEB.textSecondary }}>
+                  <span style={{ color: WEB.borderDark }}>{prefix}</span>
+                  {line.icon ? `${line.icon} ` : ""}
+                  {line.text}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Continue button */}
+      <button
+        onClick={onContinue}
+        className="inline-flex items-center gap-2 rounded-full px-8 py-3 text-sm font-medium text-white transition-all hover:-translate-y-0.5 duration-300"
+        style={{
+          background: WEB.accent,
+          opacity: showButton ? 1 : 0,
+          transform: showButton ? "translateY(0)" : "translateY(8px)",
+        }}
+      >
+        Continue setup
+        <ArrowRight className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 function TeamBuildStep({
   agentsLoading,
   suggestedAgents,
@@ -499,7 +623,6 @@ function TeamBuildStep({
   toggleAgent,
   onBack,
   onNext,
-  onImportComplete,
 }: {
   agentsLoading: boolean;
   suggestedAgents: SuggestedAgent[];
@@ -510,7 +633,6 @@ function TeamBuildStep({
   toggleAgent: (slug: string) => void;
   onBack: () => void;
   onNext: () => void;
-  onImportComplete: () => void;
 }) {
   const [phase, setPhase] = useState(0);
   // phase 0: title
@@ -527,6 +649,7 @@ function TeamBuildStep({
   const [importError, setImportError] = useState<string | null>(null);
   const [importedSlugs, setImportedSlugs] = useState<Set<string>>(new Set());
   const [registryOpen, setRegistryOpen] = useState(false);
+  const [importedCabinet, setImportedCabinet] = useState<{ name: string; template: RegistryTemplate } | null>(null);
 
   useEffect(() => {
     fetch("/api/registry")
@@ -567,14 +690,25 @@ function TeamBuildStep({
       }
       setImportedSlugs((prev) => new Set(prev).add(importTemplate.slug));
       setImportOpen(false);
+      setImportedCabinet({ name: importName.trim() || importTemplate.name, template: importTemplate });
       setImportTemplate(null);
-      onImportComplete();
     } catch {
       setImportError("Import failed. Check your connection.");
     } finally {
       setImportBusy(false);
     }
   };
+
+  // ── Success screen after import ──
+  if (importedCabinet) {
+    return (
+      <CabinetCreatedScreen
+        cabinetName={importedCabinet.name}
+        template={importedCabinet.template}
+        onContinue={onNext}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -1465,7 +1599,6 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               toggleAgent={toggleAgent}
               onBack={() => setStep(1)}
               onNext={() => setStep(3)}
-              onImportComplete={launch}
             />
           )}
 
