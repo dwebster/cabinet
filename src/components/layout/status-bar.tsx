@@ -7,6 +7,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { useAIPanelStore } from "@/stores/ai-panel-store";
+import { createConversation } from "@/lib/agents/conversation-client";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
@@ -94,18 +95,13 @@ export function StatusBar() {
     setAiPanelCollapsed(false);
     open();
     try {
-      const response = await fetch("/api/agents/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        const data = await createConversation({
           source: "editor",
           pagePath: selectedPath,
           userMessage: message,
           mentionedPaths: [],
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
+        });
         const conversation = data.conversation as { id: string; title: string };
         addEditorSession({
           id: conversation.id,
@@ -117,6 +113,8 @@ export function StatusBar() {
           status: "running",
           reconnect: true,
         });
+      } catch {
+        // Preserve the previous fire-and-forget behavior for the status bar action.
       }
     } finally {
       setAiSubmitting(false);

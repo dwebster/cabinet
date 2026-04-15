@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { defaultAdapterTypeForProvider } from "@/lib/agents/adapters";
 import {
   buildEditorConversationPrompt,
   buildManualConversationPrompt,
@@ -94,6 +95,18 @@ export async function POST(req: NextRequest) {
       typeof body.cabinetPath === "string" && body.cabinetPath.trim()
         ? body.cabinetPath.trim()
         : undefined;
+    const requestedProviderId =
+      typeof body.providerId === "string" && body.providerId.trim()
+        ? body.providerId.trim()
+        : undefined;
+    const requestedAdapterType =
+      typeof body.adapterType === "string" && body.adapterType.trim()
+        ? body.adapterType.trim()
+        : undefined;
+    const requestedModel =
+      typeof body.model === "string" && body.model.trim()
+        ? body.model.trim()
+        : undefined;
 
     if (!userMessage) {
       return NextResponse.json(
@@ -132,15 +145,30 @@ export async function POST(req: NextRequest) {
     const conversationCabinetPath =
       editorCabinetPath ??
       ("cabinetPath" in conversationInput ? conversationInput.cabinetPath : cabinetPath);
+    const resolvedProviderId = requestedProviderId || conversationInput.providerId;
+    const resolvedAdapterType =
+      requestedAdapterType ||
+      (requestedProviderId
+        ? defaultAdapterTypeForProvider(requestedProviderId)
+        : conversationInput.adapterType);
+    const adapterConfigBase =
+      requestedProviderId && requestedProviderId !== conversationInput.providerId
+        ? {}
+        : { ...(conversationInput.adapterConfig || {}) };
+    if (requestedModel) {
+      adapterConfigBase.model = requestedModel;
+    }
+    const resolvedAdapterConfig =
+      Object.keys(adapterConfigBase).length > 0 ? adapterConfigBase : undefined;
 
     const conversation = await startConversationRun({
       agentSlug,
       title: conversationInput.title,
       trigger: "manual",
       prompt: conversationInput.prompt,
-      adapterType: conversationInput.adapterType,
-      adapterConfig: conversationInput.adapterConfig,
-      providerId: conversationInput.providerId,
+      adapterType: resolvedAdapterType,
+      adapterConfig: resolvedAdapterConfig,
+      providerId: resolvedProviderId,
       mentionedPaths:
         "mentionedPaths" in conversationInput
           ? conversationInput.mentionedPaths

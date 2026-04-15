@@ -121,6 +121,25 @@ Key commits:
 - `85fa8d9` - `feat: replace task live terminal with native view`
 - `2357097` - `feat: share native live conversation view`
 
+### 2.7 Shared Task Composer and Runtime Overrides
+
+- Added per-task runtime overrides to manual conversation creation so task launchers can choose:
+  - provider
+  - adapter type
+  - model
+- Added a compact runtime picker with a brain icon and provider/model dropdown to the shared task composers.
+- Centralized client-side manual conversation creation in:
+  - `src/lib/agents/conversation-client.ts`
+- Moved the cabinet task entry point onto the shared composer stack so it now reuses:
+  - `useComposer`
+  - `ComposerInput`
+  - `TaskRuntimePicker`
+- Preserved cabinet-specific behavior while sharing the implementation:
+  - `@agent` switches the assigned cabinet agent
+  - `@page` still becomes a tracked page mention
+- Normalized task launch behavior across the task board, home screen, agents workspace, AI panel, and status-bar/editor entry points.
+- Fixed an inconsistency where task-board "Start now" launches could drop page mentions that were present in the composer.
+
 ## 3. Current Architecture Direction
 
 Cabinet now has the core pieces needed for multi-provider, multi-runtime execution:
@@ -151,10 +170,14 @@ Transcript and conversation rendering:
 Selection and configuration surfaces:
 
 - `src/components/agents/agents-workspace.tsx`
+- `src/components/composer/composer-input.tsx`
+- `src/components/composer/task-runtime-picker.tsx`
+- `src/components/cabinets/cabinet-task-composer.tsx`
 - `src/components/jobs/jobs-manager.tsx`
 - `src/components/tasks/task-detail-panel.tsx`
 - `src/components/mission-control/create-agent-dialog.tsx`
 - `src/components/mission-control/edit-agent-dialog.tsx`
+- `src/lib/agents/conversation-client.ts`
 
 ## 5. Remaining Follow-Up Work
 

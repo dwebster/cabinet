@@ -43,8 +43,8 @@ import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
+import { createConversation } from "@/lib/agents/conversation-client";
 import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
-import type { TreeNode } from "@/types";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
 import type { JobConfig } from "@/types/jobs";
@@ -60,6 +60,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ComposerInput } from "@/components/composer/composer-input";
+import {
+  TaskRuntimePicker,
+  type TaskRuntimeSelection,
+} from "@/components/composer/task-runtime-picker";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
 import {
   formatAdapterOptionLabel,
@@ -447,6 +451,7 @@ export function AgentsWorkspace({
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [hoveredConvKey, setHoveredConvKey] = useState<string | null>(null);
   const [quickSendAgent, setQuickSendAgent] = useState<string | null>(null);
+  const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const [agentJobsMap, setAgentJobsMap] = useState<Record<string, JobConfig[]>>({});
@@ -514,19 +519,13 @@ export function AgentsWorkspace({
     items: mentionItems,
     onSubmit: async ({ message, mentionedPaths: paths }) => {
       const targetAgentSlug = submitTargetRef.current;
-      const response = await fetch("/api/agents/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentSlug: targetAgentSlug,
-          userMessage: message,
-          mentionedPaths: paths,
-          cabinetPath: effectiveCabinetPath,
-        }),
+      const data = await createConversation({
+        agentSlug: targetAgentSlug,
+        userMessage: message,
+        mentionedPaths: paths,
+        cabinetPath: effectiveCabinetPath,
+        ...taskRuntime,
       });
-
-      if (!response.ok) throw new Error("Failed to start conversation");
-      const data = await response.json();
       const conversation = data.conversation as ConversationMeta;
       setQuickSendAgent(null);
       setActiveAgentSlug(targetAgentSlug);
@@ -2061,6 +2060,12 @@ export function AgentsWorkspace({
         variant="card"
         items={mentionItems}
         autoFocus
+        actionsStart={
+          <TaskRuntimePicker
+            value={taskRuntime}
+            onChange={setTaskRuntime}
+          />
+        }
       />
     );
   }
@@ -3660,6 +3665,12 @@ export function AgentsWorkspace({
                 autoFocus
                 minHeight="120px"
                 maxHeight="300px"
+                actionsStart={
+                  <TaskRuntimePicker
+                    value={taskRuntime}
+                    onChange={setTaskRuntime}
+                  />
+                }
                 header={
                   <div className="flex items-center gap-3 border-b border-border px-5 py-4">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-muted text-[22px]">

@@ -6,7 +6,12 @@ import { useTreeStore } from "@/stores/tree-store";
 import { Users, Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { flattenTree } from "@/lib/tree-utils";
+import { createConversation } from "@/lib/agents/conversation-client";
 import { ComposerInput } from "@/components/composer/composer-input";
+import {
+  TaskRuntimePicker,
+  type TaskRuntimeSelection,
+} from "@/components/composer/task-runtime-picker";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
 import {
   Dialog,
@@ -274,6 +279,7 @@ export function HomeScreen() {
     useState<RegistryTemplate | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
 
   useEffect(() => {
     fetch("/api/agents/config")
@@ -333,19 +339,12 @@ export function HomeScreen() {
       const targetAgent =
         mentionedAgents.length > 0 ? mentionedAgents[0] : "general";
 
-      const res = await fetch("/api/agents/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentSlug: targetAgent,
-          userMessage: message,
-          mentionedPaths,
-        }),
+      const data = await createConversation({
+        agentSlug: targetAgent,
+        userMessage: message,
+        mentionedPaths,
+        ...taskRuntime,
       });
-
-      if (!res.ok) throw new Error("Failed to start conversation");
-
-      const data = await res.json();
       setSection({
         type: "agent",
         mode: "ops",
@@ -375,6 +374,12 @@ export function HomeScreen() {
           className="w-full"
           minHeight="44px"
           maxHeight="160px"
+          actionsStart={
+            <TaskRuntimePicker
+              value={taskRuntime}
+              onChange={setTaskRuntime}
+            />
+          }
         />
 
         <div className="flex flex-wrap items-center justify-center gap-2">

@@ -16,11 +16,17 @@ export interface ComposerPayload {
   mentionedAgents: string[];
 }
 
+export interface MentionInsertBehavior {
+  replaceText?: string;
+  trackMention?: boolean;
+}
+
 export interface UseComposerOptions {
   items?: MentionableItem[];
   onSubmit: (payload: ComposerPayload) => void | Promise<void>;
   disabled?: boolean;
   initialMentionedAgents?: string[];
+  getMentionInsertBehavior?: (item: MentionableItem) => MentionInsertBehavior | void;
 }
 
 export interface UseComposerReturn {
@@ -45,6 +51,7 @@ export function useComposer({
   onSubmit,
   disabled = false,
   initialMentionedAgents,
+  getMentionInsertBehavior,
 }: UseComposerOptions): UseComposerReturn {
   const initialAgentsRef = useRef(initialMentionedAgents ?? []);
   const [input, setInput] = useState("");
@@ -121,20 +128,24 @@ export function useComposer({
 
   const insertMention = useCallback(
     (item: MentionableItem) => {
+      const behavior = getMentionInsertBehavior?.(item);
       const before = input.slice(0, mentionStartPos);
       const cursorPos = textareaRef.current?.selectionStart || input.length;
       const after = input.slice(cursorPos);
-      const newInput = `${before}@${item.label} ${after}`;
+      const replacement = behavior?.replaceText ?? `@${item.label} `;
+      const newInput = `${before}${replacement}${after}`;
       setInput(newInput);
 
-      if (item.type === "page") {
-        setMentionedPaths((prev) =>
-          prev.includes(item.id) ? prev : [...prev, item.id]
-        );
-      } else {
-        setMentionedAgents((prev) =>
-          prev.includes(item.id) ? prev : [...prev, item.id]
-        );
+      if (behavior?.trackMention !== false) {
+        if (item.type === "page") {
+          setMentionedPaths((prev) =>
+            prev.includes(item.id) ? prev : [...prev, item.id]
+          );
+        } else {
+          setMentionedAgents((prev) =>
+            prev.includes(item.id) ? prev : [...prev, item.id]
+          );
+        }
       }
 
       setShowDropdown(false);
@@ -142,14 +153,14 @@ export function useComposer({
 
       setTimeout(() => {
         if (textareaRef.current) {
-          const newPos = before.length + item.label.length + 2; // +2 for @ and space
+          const newPos = before.length + replacement.length;
           textareaRef.current.selectionStart = newPos;
           textareaRef.current.selectionEnd = newPos;
           textareaRef.current.focus();
         }
       }, 0);
     },
-    [input, mentionStartPos]
+    [getMentionInsertBehavior, input, mentionStartPos]
   );
 
   const removeMention = useCallback(
@@ -185,7 +196,7 @@ export function useComposer({
       await onSubmit({ message: msg, mentionedPaths: paths, mentionedAgents: agents });
       setInput("");
       setMentionedPaths([]);
-      setMentionedAgents([]);
+      setMentionedAgents(initialAgentsRef.current);
     } catch {
       // Restore input on failure
       setInput(msg);

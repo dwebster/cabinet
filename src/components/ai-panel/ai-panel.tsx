@@ -20,6 +20,7 @@ import { useTreeStore } from "@/stores/tree-store";
 import { WebTerminal } from "@/components/terminal/web-terminal";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
 import type { AgentListItem } from "@/types/agents";
+import { createConversation } from "@/lib/agents/conversation-client";
 import { flattenTree } from "@/lib/tree-utils";
 import { ComposerInput } from "@/components/composer/composer-input";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
@@ -316,30 +317,20 @@ export function AIPanel() {
       });
 
       try {
-        const response = await fetch("/api/agents/conversations", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            targetAgent
-              ? {
-                  agentSlug: targetAgent,
-                  userMessage: message,
-                  mentionedPaths,
-                }
-              : {
-                  source: "editor",
-                  pagePath: currentPath,
-                  userMessage: message,
-                  mentionedPaths,
-                }
-          ),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to start conversation");
-        }
-
-        const data = await response.json();
+        const data = await createConversation(
+          targetAgent
+            ? {
+                agentSlug: targetAgent,
+                userMessage: message,
+                mentionedPaths,
+              }
+            : {
+                source: "editor",
+                pagePath: currentPath,
+                userMessage: message,
+                mentionedPaths,
+              }
+        );
         const conversation = data.conversation as ConversationMeta;
 
         setPendingSessions((prev) => prev.filter((session) => session.id !== pendingId));

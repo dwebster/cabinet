@@ -34,6 +34,7 @@ import {
   Zap,
 } from "lucide-react";
 import { buildConversationInstanceKey } from "@/lib/agents/conversation-identity";
+import { createConversation } from "@/lib/agents/conversation-client";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { CABINET_VISIBILITY_OPTIONS } from "@/lib/cabinets/visibility";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,10 @@ import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { flattenTree } from "@/lib/tree-utils";
 import { ComposerInput } from "@/components/composer/composer-input";
+import {
+  TaskRuntimePicker,
+  type TaskRuntimeSelection,
+} from "@/components/composer/task-runtime-picker";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
 import { ScheduleCalendar, type CalendarMode } from "@/components/cabinets/schedule-calendar";
 import { ScheduleList } from "@/components/cabinets/schedule-list";
@@ -277,6 +282,7 @@ function CreateDraftDialog({
 }) {
   const treeNodes = useTreeStore((s) => s.nodes);
   const [startingNow, setStartingNow] = useState(false);
+  const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
 
   const placeholder = useMemo(
     () => CREATE_DRAFT_PLACEHOLDERS[Math.floor(Math.random() * CREATE_DRAFT_PLACEHOLDERS.length)],
@@ -349,17 +355,13 @@ function CreateDraftDialog({
 
     setStartingNow(true);
     try {
-      const response = await fetch("/api/agents/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentSlug: resolvedAgent.slug,
-          userMessage: message,
-          cabinetPath: resolvedAgent.cabinetPath || effectiveCabinetPath,
-        }),
+      await createConversation({
+        agentSlug: resolvedAgent.slug,
+        userMessage: message,
+        mentionedPaths: composer.mentions.paths,
+        cabinetPath: resolvedAgent.cabinetPath || effectiveCabinetPath,
+        ...taskRuntime,
       });
-
-      if (!response.ok) throw new Error("Failed to start conversation");
 
       onOpenChange(false);
       onStarted();
@@ -404,6 +406,12 @@ function CreateDraftDialog({
           minHeight="100px"
           maxHeight="260px"
           showKeyHint={false}
+          actionsStart={
+            <TaskRuntimePicker
+              value={taskRuntime}
+              onChange={setTaskRuntime}
+            />
+          }
           onKeyDown={handleKeyDown}
           secondaryAction={{
             label: "Start now",
@@ -1083,19 +1091,14 @@ export function TasksBoard({
   async function startDraftConversation(draft: HumanInboxDraft, agent: VisibleAgent) {
     await saveAssignment(draft, agent);
 
-    const response = await fetch("/api/agents/conversations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    await createConversation(
+      {
         agentSlug: agent.slug,
         userMessage: draftPrompt(draft),
         cabinetPath: agent.cabinetPath || effectiveCabinetPath,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to start conversation from inbox draft");
-    }
+      },
+      "Failed to start conversation from inbox draft"
+    );
 
     await removeDraft(draft);
     await Promise.all([refreshDrafts(), refreshConversations()]);

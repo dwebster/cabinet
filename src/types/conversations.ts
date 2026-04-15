@@ -1,4 +1,5 @@
 export type ConversationTrigger = "manual" | "job" | "heartbeat";
+export type ConversationSource = "manual" | "editor";
 
 export type ConversationStatus =
   | "running"
@@ -42,4 +43,24 @@ export interface ConversationDetail {
   rawTranscript: string;
   mentions: string[];
   artifacts: ConversationArtifact[];
+}
+
+export interface ConversationRuntimeOverride {
+  providerId?: string;
+  adapterType?: string;
+  model?: string;
+}
+
+export interface CreateConversationRequest extends ConversationRuntimeOverride {
+  source?: ConversationSource;
+  agentSlug?: string;
+  userMessage: string;
+  mentionedPaths?: string[];
+  cabinetPath?: string;
+  pagePath?: string;
+}
+
+export interface CreateConversationResponse {
+  ok: boolean;
+  conversation: ConversationMeta;
 }

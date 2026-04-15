@@ -19,6 +19,7 @@ export interface ComposerInputProps {
   autoFocus?: boolean;
   disabled?: boolean;
   header?: React.ReactNode;
+  actionsStart?: React.ReactNode;
   footer?: React.ReactNode;
   variant?: "card" | "inline";
   items?: MentionableItem[];
@@ -42,6 +43,7 @@ export function ComposerInput({
   autoFocus = false,
   disabled = false,
   header,
+  actionsStart,
   footer,
   variant = "card",
   items = [],
@@ -99,34 +101,46 @@ export function ComposerInput({
           onRemove={composer.removeMention}
         />
 
-        <div className="flex items-center justify-end gap-2 px-4 pb-3">
-          {secondaryAction && (
+        <div
+          className={cn(
+            "flex items-center gap-2 px-4 pb-3",
+            actionsStart ? "justify-between" : "justify-end"
+          )}
+        >
+          {actionsStart ? (
+            <div className="flex items-center gap-2">
+              {actionsStart}
+            </div>
+          ) : null}
+          <div className="flex items-center gap-2">
+            {secondaryAction && (
+              <Button
+                variant="outline"
+                className="h-8 gap-2 text-xs"
+                onClick={secondaryAction.onClick}
+                disabled={isDisabled || !composer.input.trim() || secondaryAction.disabled}
+              >
+                {secondaryAction.loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                {secondaryAction.label}
+              </Button>
+            )}
             <Button
-              variant="outline"
               className="h-8 gap-2 text-xs"
-              onClick={secondaryAction.onClick}
-              disabled={isDisabled || !composer.input.trim() || secondaryAction.disabled}
+              onClick={() => void composer.submit()}
+              disabled={isDisabled || !composer.input.trim()}
             >
-              {secondaryAction.loading ? (
+              {composer.submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Play className="h-4 w-4" />
+                <Send className="h-4 w-4" />
               )}
-              {secondaryAction.label}
+              {submitLabel}
             </Button>
-          )}
-          <Button
-            className="h-8 gap-2 text-xs"
-            onClick={() => void composer.submit()}
-            disabled={isDisabled || !composer.input.trim()}
-          >
-            {composer.submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-            {submitLabel}
-          </Button>
+          </div>
         </div>
 
         {footer}
