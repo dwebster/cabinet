@@ -1,7 +1,7 @@
 ---
 title: LP Communications
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T00:00:00Z'
+modified: '2026-04-15T00:00:00Z'
 tags:
   - lps
   - communications
@@ -11,6 +11,8 @@ order: 2
 # LP Communications
 
 Templates and guidance for regular LP reporting.
+
+> ⚠️ **Q1 2026 LP Letter — DUE APRIL 20 (5 days)**. Marcus and Maya: April metrics are now available. Aggregate portfolio ARR at April 30 will be $13.05M (+181% YoY weighted avg). NeuralFlow board meeting held today (April 15) — confirm Series B timeline outcome before letter distribution. GreenPulse DOE grant is a positive data point to include (non-dilutive capital, regulatory tailwinds). Capital Call #4 ($8.2M) goes out April 30 — include in letter as forward-looking item.
 
 ---
 

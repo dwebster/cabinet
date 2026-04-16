@@ -1,7 +1,7 @@
 ---
 title: NeuralFlow
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T12:00:00Z'
+modified: '2026-04-15T00:00:00Z'
 tags:
   - portfolio
   - ai
@@ -50,7 +50,7 @@ Agenda:
 - OpenAI threat is real; the product team needs to pick 2 verticals and go deep rather than staying horizontal
 - VP Sales hire is make-or-break for 2H enterprise expansion
 
-**⚠️ Portfolio Manager flag (added April 13):** April metrics confirm ARR flat at $2.1M — zero new logos for the month. First zero-logo month in 12 months. Meridian Healthcare ($72K) closed April 10 but will show in May ARR. Jordan: come prepared with the "strategic pause" narrative for the board. Runway implied cash = ~$10.4M at $580K/month burn. Series B close must happen by Q3 2026 to preserve 12-month post-close cushion.
+**⚠️ Portfolio Manager flag (updated April 15):** Board meeting is in session today. April metrics confirm ARR flat at $2.1M — zero new logos, zero churn. First zero-net-logo month in 12 months. Meridian Healthcare ($72K) closed April 10 but will appear in May ARR. VP Sales finalists were interviewed April 14 — hire decision expected this week. Jordan: frame April as "strategic pause" during vertical repositioning. Runway cash = ~$10.4M at $580K/month. Series B must formally launch by June. Push Mia to present a consumption/outcome-based pricing model today — seat pricing will cap NRR as inference costs continue dropping.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: GreenPulse
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T00:00:00Z'
+modified: '2026-04-15T00:00:00Z'
 tags:
   - portfolio
   - climate
@@ -38,7 +38,7 @@ Hardware-verified carbon capture monitoring and carbon credit generation for ind
 
 **EU Article 9** passed April 8 — mandatory Scope 3 MRV from Jan 2027 for EU companies. GreenPulse is the answer to this regulatory requirement. Rafael opening 3 EU enterprise conversations.
 
-**DOE Grant** — SBIR Phase I application due May 15. $750K non-dilutive capital. Priya leading the write.
+**DOE Grant** — SBIR Phase I application ($750K ask). Rafael and Priya presenting to GreenPulse leadership today (April 15). Formal submission due May 15. Non-dilutive capital that extends runway meaningfully.
 
 **ICVCM CCP label** — GreenPulse's monitoring approach has been pre-approved by the Integrity Council for the Voluntary Carbon Market under their new Core Carbon Principles. This is a massive credibility signal.
 
