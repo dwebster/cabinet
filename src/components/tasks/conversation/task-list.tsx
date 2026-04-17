@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
+import type { ConversationMeta } from "@/types/conversations";
 import {
   Archive,
   CheckCircle2,
@@ -104,8 +106,44 @@ const FILTERS: { id: "all" | TaskStatus; label: string }[] = [
   { id: "done", label: "Done" },
 ];
 
-export function TaskList({ tasks }: { tasks: TaskMeta[] }) {
+export function TaskList({ tasks: initialTasks }: { tasks: TaskMeta[] }) {
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
+  const [tasks, setTasks] = useState(initialTasks);
+
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const res = await fetch("/api/agents/conversations?limit=500", {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        const convos: ConversationMeta[] = Array.isArray(data.conversations)
+          ? data.conversations
+          : [];
+        setTasks(convos.map(conversationMetaToTaskMeta));
+      } catch {
+        // keep previous on error
+      }
+    };
+
+    const es = new EventSource("/api/agents/conversations/events");
+    es.onmessage = (msg) => {
+      try {
+        const event = JSON.parse(msg.data) as { type: string };
+        if (event.type === "ping") return;
+        void loadTasks();
+      } catch {
+        // ignore
+      }
+    };
+    return () => {
+      es.close();
+    };
+  }, []);
 
   const visible = tasks.filter((t) => {
     if (filter === "all") return t.status !== "archived";

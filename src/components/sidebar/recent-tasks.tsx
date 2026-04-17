@@ -42,21 +42,40 @@ export function RecentTasks({
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
-    const params = new URLSearchParams({ limit: String(MAX_VISIBLE) });
-    if (cabinetPath) params.set("cabinetPath", cabinetPath);
-    fetch(`/api/agents/conversations?${params.toString()}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
+
+    const loadTasks = async () => {
+      const params = new URLSearchParams({ limit: String(MAX_VISIBLE) });
+      if (cabinetPath) params.set("cabinetPath", cabinetPath);
+      try {
+        const res = await fetch(`/api/agents/conversations?${params.toString()}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
         if (cancelled) return;
-        // Map ConversationMeta[] → TaskMeta-like shape for the existing renderer.
         const convos = Array.isArray(data.conversations) ? data.conversations : [];
         setTasks(convos.map(normalizeConversation));
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setTasks([]);
-      });
+      }
+    };
+
+    void loadTasks();
+
+    // Subscribe to global conversation events to auto-refresh.
+    const es = new EventSource("/api/agents/conversations/events");
+    es.onmessage = (msg) => {
+      try {
+        const event = JSON.parse(msg.data) as { type: string };
+        if (event.type === "ping") return;
+        void loadTasks();
+      } catch {
+        // ignore
+      }
+    };
+
     return () => {
       cancelled = true;
+      es.close();
     };
   }, [active, cabinetPath]);
 
