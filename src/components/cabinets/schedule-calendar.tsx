@@ -23,7 +23,6 @@ const PILL_HEIGHT = 22;
 const DOT_SIZE = 10; // crowded-slot circles
 const DOT_ROW_HEIGHT = DOT_SIZE + 4;
 const MAX_PILLS_MULTIDAY = 2;
-const MAX_PILLS_DAY = 3;
 const MAX_PILLS_MONTH = 3;
 const VISIBLE_START_HOUR = 5; // 5 AM
 const VISIBLE_END_HOUR = 23; // 11 PM
@@ -192,8 +191,10 @@ function TimeGridView({
     scrollRef.current?.scrollTo({ top: target, behavior: "smooth" });
   }, [days[0]?.getTime()]);
 
-  // Group events by day column → per 15-min slot; slots with too many events collapse into dots
-  const maxPills = isMultiDay ? MAX_PILLS_MULTIDAY : MAX_PILLS_DAY;
+  // Group events by day column → per 15-min slot
+  // Week (multi-day): slots with too many events collapse into dots.
+  // Day (single): always render pills, expand column vertically if needed so nothing overlaps.
+  const maxPills = isMultiDay ? MAX_PILLS_MULTIDAY : Number.POSITIVE_INFINITY;
   const dayColumns = useMemo(() => {
     return days.map((day) => {
       const dayEvents = events.filter((e) => isSameDay(e.time, day));
@@ -226,9 +227,33 @@ function TimeGridView({
         }
       }
 
-      return { day, buckets };
+      // Day view: walk buckets in time order and shift later ones down so tall
+      // stacks never overlap the next slot. Single column, so horizontal overlap
+      // isn't an option — grow vertically.
+      let columnHeight = TOTAL_HOURS * HOUR_HEIGHT;
+      if (!isMultiDay) {
+        buckets.sort((a, b) => a.top - b.top);
+        let cursor = 0;
+        for (const b of buckets) {
+          if (b.top < cursor) b.top = cursor;
+          const count = b.events.length;
+          const h =
+            b.mode === "pills"
+              ? count * PILL_HEIGHT + Math.max(0, count - 1) * 2
+              : DOT_ROW_HEIGHT;
+          cursor = b.top + h + 4;
+        }
+        columnHeight = Math.max(columnHeight, cursor);
+      }
+
+      return { day, buckets, columnHeight };
     });
-  }, [days, events, maxPills]);
+  }, [days, events, maxPills, isMultiDay]);
+
+  const gridHeight = Math.max(
+    TOTAL_HOURS * HOUR_HEIGHT,
+    ...dayColumns.map((c) => c.columnHeight)
+  );
 
   // Current time position
   const nowTop = (now.getHours() - VISIBLE_START_HOUR) * HOUR_HEIGHT + (now.getMinutes() / 60) * HOUR_HEIGHT;
@@ -280,7 +305,7 @@ function TimeGridView({
           className="relative grid"
           style={{
             gridTemplateColumns: isMultiDay ? `56px repeat(${days.length}, 1fr)` : "56px 1fr",
-            height: TOTAL_HOURS * HOUR_HEIGHT,
+            height: gridHeight,
           }}
         >
           {/* Hour labels column */}
