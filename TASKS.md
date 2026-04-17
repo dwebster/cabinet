@@ -182,9 +182,14 @@ d399c4c  feat(tasks): artifact rows as KB page cards                            
 
 ## Follow-ups still open
 
-- **Daemon-backed continues** — `continueConversationRun` invokes the adapter in-process. For very long follow-up runs that survive tab close, route through `createDaemonSession` with a new `sessionId` parameter (requires `server/cabinet-daemon.ts` change).
 - **Structured `<ask_user>` tool** — replace the `?`-terminated heuristic with an explicit convention in the agent system prompt so the awaiting-input flag doesn't false-positive.
 - **Auto-summary via Haiku** — swap `deriveSummary` heuristic for a real LLM call when an agent turn has no `SUMMARY:` trailer.
 - **Migration script** — codify the `.agents/.tasks.v1-retired` rename as an opt-in migrator once we have real user data to move.
 - **TasksBoard convergence** — the kanban section (`TasksBoard`) still uses its own fetch cycle. Switch to the global SSE and route cards through `setSection({ type: "task" })` to keep a single click-through model.
 - **Diff + Logs tabs** — both still placeholders. Diff would render a unified diff of `meta.artifactPaths`; Logs would render raw adapter stdout/stderr per turn.
+
+## Follow-ups shipped this session
+
+- ✅ **Session-expired fallback** — runner detects `No conversation found with session ID`-style errors from Claude `--resume`, clears `session.alive`, and retries with the full replay prompt. `appendUserTurn` now also clears `doneAt` / `archivedAt` so continuing a Done task reopens it cleanly.
+- ✅ **Daemon-backed continues** — `continueConversationRun` routes through `createDaemonSession` (with in-process fallback for tests). Polls `getDaemonSessionOutput` every 700ms to stream partial content into the pending turn. Runs survive Next.js HMR and route handler teardown.
+- ✅ **Adapter session capture** — daemon's `StructuredSession` tracks `adapterSessionId` + `adapterUsage`; `/session/:id/output` returns both; daemon writes `session.json` directly when the daemon's id matches a conversation. `claude-local` dropped `--no-session-persistence` so fresh runs create resumable Claude sessions.
