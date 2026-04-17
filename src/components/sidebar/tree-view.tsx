@@ -133,7 +133,7 @@ function getAgentIcon(slug: string): LucideIcon {
 
 const itemClass = (active: boolean) =>
   cn(
-    "flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
+    "flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors cursor-pointer",
     "hover:bg-foreground/[0.03] hover:text-foreground",
     active && "bg-accent text-accent-foreground font-medium"
   );
