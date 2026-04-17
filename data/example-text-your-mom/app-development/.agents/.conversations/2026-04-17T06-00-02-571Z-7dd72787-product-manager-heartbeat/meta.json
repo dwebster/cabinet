@@ -1,0 +1,22 @@
+{
+  "id": "2026-04-17T06-00-02-571Z-7dd72787-product-manager-heartbeat",
+  "agentSlug": "product-manager",
+  "cabinetPath": "example-text-your-mom/app-development",
+  "title": "Product Manager heartbeat",
+  "trigger": "heartbeat",
+  "status": "completed",
+  "startedAt": "2026-04-17T06:00:02.571Z",
+  "providerId": "claude-code",
+  "adapterType": "claude_local",
+  "promptPath": "example-text-your-mom/app-development/.agents/.conversations/2026-04-17T06-00-02-571Z-7dd72787-product-manager-heartbeat/prompt.md",
+  "transcriptPath": "example-text-your-mom/app-development/.agents/.conversations/2026-04-17T06-00-02-571Z-7dd72787-product-manager-heartbeat/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "example-text-your-mom/app-development/pm-updates/index.md",
+    "example-text-your-mom/app-development/backlog/index.md"
+  ],
+  "completedAt": "2026-04-17T06:03:48.097Z",
+  "exitCode": 0,
+  "summary": "PM ratified two blocked decisions (OB-7 assignment, OB-3 resize), scoped a gated Apr 21 sprint, and updated backlog.",
+  "contextSummary": "Sprint Apr 14–18 shipped zero. Next sprint scoped with named ownership as a hard precondition; OB-2 pipeline dry run gates all other merges; P2/P3/P4 deferred until P1 ships."
+}

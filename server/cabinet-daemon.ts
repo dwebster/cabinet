@@ -1468,6 +1468,19 @@ server.listen(PORT, () => {
 
   void reloadSchedules();
   void cleanupStaleRunningConversations();
+  void (async () => {
+    try {
+      const { loadExternalAdapters } = await import(
+        "../src/lib/agents/adapters/plugin-loader"
+      );
+      await loadExternalAdapters();
+    } catch (err) {
+      console.warn(
+        "[cabinet-daemon] adapter plugin loader failed:",
+        err instanceof Error ? err.message : err
+      );
+    }
+  })();
 });
 
 // ===== Graceful Shutdown =====

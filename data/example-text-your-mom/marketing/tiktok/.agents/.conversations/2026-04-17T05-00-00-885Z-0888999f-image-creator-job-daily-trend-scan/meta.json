@@ -1,0 +1,23 @@
+{
+  "id": "2026-04-17T05-00-00-885Z-0888999f-image-creator-job-daily-trend-scan",
+  "agentSlug": "image-creator",
+  "cabinetPath": "example-text-your-mom/marketing/tiktok",
+  "title": "Daily Trend Scan",
+  "trigger": "job",
+  "status": "completed",
+  "startedAt": "2026-04-17T05:00:00.885Z",
+  "jobId": "daily-trend-scan",
+  "jobName": "Daily Trend Scan",
+  "providerId": "claude-code",
+  "adapterType": "claude_local",
+  "promptPath": "example-text-your-mom/marketing/tiktok/.agents/.conversations/2026-04-17T05-00-00-885Z-0888999f-image-creator-job-daily-trend-scan/prompt.md",
+  "transcriptPath": "example-text-your-mom/marketing/tiktok/.agents/.conversations/2026-04-17T05-00-00-885Z-0888999f-image-creator-job-daily-trend-scan/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "marketing/tiktok/content-ideas.csv"
+  ],
+  "completedAt": "2026-04-17T05:01:16.526Z",
+  "exitCode": 0,
+  "summary": "Added 5 fresh TikTok content angles spanning missed reply guilt, mom texting patterns, group chat avoidance, and wholesome accountability.",
+  "contextSummary": "Backlog had 5 ideas; 2 designed carousels, 1 in research, 1 script-ready, 1 idea. New batch leans into visual/escalation formats (timestamp progression, notification badges, typing indicators) and one soft-sell streak piece to bridge humor → product."
+}

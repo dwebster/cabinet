@@ -318,6 +318,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
   const selectPage = useTreeStore((state) => state.selectPage);
   const loadPage = useEditorStore((state) => state.loadPage);
   const setSection = useAppStore((state) => state.setSection);
+  const setTaskPanelConversation = useAppStore((state) => state.setTaskPanelConversation);
   const cabinetVisibilityModes = useAppStore((state) => state.cabinetVisibilityModes);
   const setCabinetVisibilityMode = useAppStore((state) => state.setCabinetVisibilityMode);
   const cabinetVisibilityMode = cabinetVisibilityModes[cabinetPath] || "own";
@@ -530,7 +531,7 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
     }
   }
 
-  function handleScheduleEventClick(event: ScheduleEvent) {
+  function openEditDialogForEvent(event: ScheduleEvent) {
     if (event.sourceType === "job" && event.jobRef && event.agentRef) {
       setJobDialog({
         agentSlug: event.agentRef.slug,
@@ -553,6 +554,52 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
         active: event.agentRef.active,
       });
     }
+  }
+
+  async function openPastConversationForEvent(event: ScheduleEvent) {
+    const agentSlug = event.agentRef?.slug;
+    if (!agentSlug) return null;
+    const params = new URLSearchParams({
+      agent: agentSlug,
+      trigger: event.sourceType,
+      limit: "200",
+    });
+    const agentCabinet = event.agentRef?.cabinetPath || cabinetPath;
+    if (agentCabinet) params.set("cabinetPath", agentCabinet);
+    try {
+      const res = await fetch(`/api/agents/conversations?${params.toString()}`);
+      if (!res.ok) return null;
+      const data = (await res.json()) as { conversations: ConversationMeta[] };
+      let candidates = data.conversations || [];
+      if (event.sourceType === "job" && event.jobRef) {
+        candidates = candidates.filter((c) => c.jobId === event.jobRef!.id);
+      }
+      if (candidates.length === 0) return null;
+      const target = event.time.getTime();
+      candidates.sort((a, b) => {
+        const ad = Math.abs(new Date(a.startedAt).getTime() - target);
+        const bd = Math.abs(new Date(b.startedAt).getTime() - target);
+        return ad - bd;
+      });
+      return candidates[0] || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function handleScheduleEventClick(event: ScheduleEvent) {
+    const isPast = event.time.getTime() < Date.now();
+    if (isPast) {
+      const conversation = await openPastConversationForEvent(event);
+      if (conversation) {
+        setTaskPanelConversation(conversation);
+        return;
+      }
+      // No matching run found — fall back to the edit dialog so the click does something.
+      openEditDialogForEvent(event);
+      return;
+    }
+    openEditDialogForEvent(event);
   }
 
   function navigateCalendar(direction: -1 | 0 | 1) {

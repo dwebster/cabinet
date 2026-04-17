@@ -18,3 +18,7 @@ tags:
 
 - one viral comment with no repeat pattern
 - generic "I should call my mom more" sentiment with no behavioral detail
+
+## Signal Digests
+
+- [Signal Digest — 2026-04-17](./signals-2026-04-17.md) — reply avoidance, mom-guilt, routine decay, pre-send anxiety, the "fake" tripwire

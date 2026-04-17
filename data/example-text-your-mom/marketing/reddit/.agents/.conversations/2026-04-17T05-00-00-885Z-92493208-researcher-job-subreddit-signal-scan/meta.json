@@ -1,0 +1,25 @@
+{
+  "id": "2026-04-17T05-00-00-885Z-92493208-researcher-job-subreddit-signal-scan",
+  "agentSlug": "researcher",
+  "cabinetPath": "example-text-your-mom/marketing/reddit",
+  "title": "Subreddit Signal Scan",
+  "trigger": "job",
+  "status": "completed",
+  "startedAt": "2026-04-17T05:00:00.885Z",
+  "jobId": "subreddit-signal-scan",
+  "jobName": "Subreddit Signal Scan",
+  "providerId": "claude-code",
+  "adapterType": "claude_local",
+  "promptPath": "example-text-your-mom/marketing/reddit/.agents/.conversations/2026-04-17T05-00-00-885Z-92493208-researcher-job-subreddit-signal-scan/prompt.md",
+  "transcriptPath": "example-text-your-mom/marketing/reddit/.agents/.conversations/2026-04-17T05-00-00-885Z-92493208-researcher-job-subreddit-signal-scan/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "data/example-text-your-mom/marketing/reddit/analytics/signals-2026-04-17.md",
+    "data/example-text-your-mom/marketing/reddit/analytics/index.md",
+    "data/example-text-your-mom/marketing/reddit/subreddits.csv"
+  ],
+  "completedAt": "2026-04-17T05:02:11.495Z",
+  "exitCode": 0,
+  "summary": "Added 2026-04-17 Reddit signal digest covering reply avoidance, mom-guilt, routine decay, pre-send anxiety, and the \"fake\" tripwire; refreshed subreddit notes and added two watchlist entries.",
+  "contextSummary": "Five recurring patterns confirmed across r/relationships, r/Adulting, r/selfimprovement, r/Anxiety, r/productivity. Verbatim phrases to reuse: \"response debt,\" \"reply backlog,\" \"I'm not ignoring you,\" \"the longer I wait, the harder it gets.\" Phrases to kill in copy: \"stay connected,\" \"never miss a check-in,\" \"automate,\" \"streak.\" Wedge hypothesis: first-message-back re-entry, not ongoing reminders."
+}

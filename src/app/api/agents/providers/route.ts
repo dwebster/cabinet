@@ -58,6 +58,7 @@ export async function GET() {
           name: p.name,
           type: p.type,
           icon: p.icon,
+          iconAsset: p.iconAsset,
           installMessage: p.installMessage,
           installSteps: p.installSteps,
           models: p.models || [],

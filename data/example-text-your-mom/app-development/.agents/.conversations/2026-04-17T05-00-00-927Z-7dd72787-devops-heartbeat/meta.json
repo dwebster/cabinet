@@ -1,0 +1,22 @@
+{
+  "id": "2026-04-17T05-00-00-927Z-7dd72787-devops-heartbeat",
+  "agentSlug": "devops",
+  "cabinetPath": "example-text-your-mom/app-development",
+  "title": "DevOps Engineer heartbeat",
+  "trigger": "heartbeat",
+  "status": "completed",
+  "startedAt": "2026-04-17T05:00:00.927Z",
+  "providerId": "claude-code",
+  "adapterType": "claude_local",
+  "promptPath": "example-text-your-mom/app-development/.agents/.conversations/2026-04-17T05-00-00-927Z-7dd72787-devops-heartbeat/prompt.md",
+  "transcriptPath": "example-text-your-mom/app-development/.agents/.conversations/2026-04-17T05-00-00-927Z-7dd72787-devops-heartbeat/transcript.txt",
+  "mentionedPaths": [],
+  "artifactPaths": [
+    "example-text-your-mom/app-development/backlog/sprint-2026-04-14/index.md",
+    "example-text-your-mom/app-development/backlog/index.md"
+  ],
+  "completedAt": "2026-04-17T05:02:30.700Z",
+  "exitCode": 0,
+  "summary": "Filed honest Friday scorecard (zero shipped, zero started, no dry run), added Mon–Thu retrospective acknowledging missed Tuesday check-in, updated backlog status banner and RT-4 status; pinged COO and CTO.",
+  "contextSummary": "The sprint's failure mode was plan → wait → plan more, caused by P1 stories having no named engineering owner and DevOps not escalating when nothing moved by mid-week. Next sprint opens with OB-2 pipeline dry run as a gating item."
+}

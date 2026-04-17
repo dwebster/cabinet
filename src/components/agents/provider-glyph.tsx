@@ -6,16 +6,23 @@ const PROVIDER_IMAGE_BY_ICON: Record<string, string> = {
   sparkles: "/providers/claude.svg",
   bot: "/providers/openai.png",
   gemini: "/providers/gemini.svg",
+  cursor: "/providers/cursor.svg",
+  opencode: "/providers/opencode.svg",
+  pi: "/providers/pi.svg",
+  grok: "/providers/grok.svg",
+  copilot: "/providers/copilot.svg",
 };
 
 export function ProviderGlyph({
   icon,
+  asset,
   className,
 }: {
   icon?: string;
+  asset?: string;
   className?: string;
 }) {
-  const imageSrc = icon ? PROVIDER_IMAGE_BY_ICON[icon] : undefined;
+  const imageSrc = asset || (icon ? PROVIDER_IMAGE_BY_ICON[icon] : undefined);
   if (imageSrc) {
     return (
       <Image

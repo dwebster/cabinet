@@ -15,7 +15,12 @@ test("legacy adapter registry exposes the current compatibility adapters", () =>
     "claude_local",
     "codex_cli_legacy",
     "codex_local",
+    "copilot_local",
+    "cursor_local",
     "gemini_local",
+    "grok_local",
+    "opencode_local",
+    "pi_local",
   ]);
 
   const claudeAdapter = agentAdapterRegistry.get("claude_code_legacy");
@@ -38,12 +43,38 @@ test("legacy adapter registry exposes the current compatibility adapters", () =>
   assert.ok(geminiLocal);
   assert.equal(geminiLocal.executionEngine, "structured_cli");
   assert.equal(geminiLocal.providerId, "gemini-cli");
+
+  const cursorLocal = agentAdapterRegistry.get("cursor_local");
+  assert.ok(cursorLocal);
+  assert.equal(cursorLocal.executionEngine, "structured_cli");
+  assert.equal(cursorLocal.providerId, "cursor-cli");
+  assert.equal(cursorLocal.supportsSessionResume, true);
+  assert.ok(cursorLocal.sessionCodec);
+
+  const openCodeLocal = agentAdapterRegistry.get("opencode_local");
+  assert.ok(openCodeLocal);
+  assert.equal(openCodeLocal.executionEngine, "structured_cli");
+  assert.equal(openCodeLocal.providerId, "opencode");
+  assert.equal(openCodeLocal.supportsSessionResume, true);
+  assert.ok(openCodeLocal.sessionCodec);
+
+  const piLocal = agentAdapterRegistry.get("pi_local");
+  assert.ok(piLocal);
+  assert.equal(piLocal.executionEngine, "structured_cli");
+  assert.equal(piLocal.providerId, "pi");
+  assert.equal(piLocal.supportsSessionResume, true);
+  assert.ok(piLocal.sessionCodec);
 });
 
 test("provider-to-adapter defaults map current providers onto structured adapters when available", () => {
   assert.equal(defaultAdapterTypeForProvider("claude-code"), "claude_local");
   assert.equal(defaultAdapterTypeForProvider("codex-cli"), "codex_local");
   assert.equal(defaultAdapterTypeForProvider("gemini-cli"), "gemini_local");
+  assert.equal(defaultAdapterTypeForProvider("cursor-cli"), "cursor_local");
+  assert.equal(defaultAdapterTypeForProvider("opencode"), "opencode_local");
+  assert.equal(defaultAdapterTypeForProvider("pi"), "pi_local");
+  assert.equal(defaultAdapterTypeForProvider("grok-cli"), "grok_local");
+  assert.equal(defaultAdapterTypeForProvider("copilot-cli"), "copilot_local");
 });
 
 test("execution provider resolution prefers explicit legacy adapter mappings", () => {

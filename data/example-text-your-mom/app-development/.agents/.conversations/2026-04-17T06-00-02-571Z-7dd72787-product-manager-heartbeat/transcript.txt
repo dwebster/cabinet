@@ -1,0 +1,68 @@
+running .zshenv 🌸
+backlog
+cto-updates
+index.md
+prds
+qa
+release-checklist
+roadmap
+sprint-board
+running .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/app-development/backlog:
+index.md
+sprint-2026-04-14
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/app-development/prds:
+onboarding-v2
+paid-conversion-clarity
+relationship-streaks
+smarter-reminder-timing
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/app-development/roadmap:
+index.md
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/app-development/sprint-board:
+index.html
+running .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/app-development/backlog/sprint-2026-04-14/:
+index.md
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/app-development/cto-updates/:
+index.md
+running .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/app-development/prds/onboarding-v2/:
+copy-guide.md
+index.md
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/app-development/qa/:
+bug-triage.csv
+Current state: sprint Apr 14–18 produced zero shipped work. CTO has pending decisions awaiting PM sign-off (OB-7 A/B approach, OB-3 re-sizing). I'll act as PM: ratify decisions, assign named ownership, scope next sprint, update backlog.running .zshenv 🌸
+onboarding-v2
+paid-conversion-clarity
+relationship-streaks
+smarter-reminder-timing
+ the backlog to reflect OB-3 re-sizing andNow update the OB-7 acceptance criteria change. to PROGRESS.md as required by CLAUDE.md.Now appendrunning .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/PROGRESS.md
+running .zshenv 🌸
+al positioning conflict in hila-finds-job (resume targets EM roles, entire 12-app pipeline is PM roles). Wrote strategy-brief-2026-04-17.md with three decision paths, pipeline conversion analysis (referrals 80% positive vs cold 0%), and blocking next action. Added warning banner to target-roles.md.
+running .zshenv 🌸
+Sprint Apr 14 shipped zero. As PM I ratified the two decisions blocking execution (OB-7 assignment approach, OB-3 re-sizing), scoped Apr 21 with a hard gate on the OB-2 pipeline dry run, and enforced a named-engineer requirement — if CTO cannot name owners by Monday 9am, sprint does not start and we escalate. Wrote [[pm-updates]], updated [[backlog]].
+
+```memory
+CONTEXT_UPDATE: Reviewed the Apr 14 sprint scorecard (zero shipped) and the CTO assessment. Made two pending PM decisions: ratified OB-7 A/B as device-ID bucketing + server-side persistence, and accepted CTO's resizing of OB-3 from M to L, deferring it out of next sprint. Scoped Apr 21–25 sprint to 4 S-stories + OB-1 (feature-flagged), with named ownership required before sprint start. Enforced a hard gate: nothing merges until OB-2 ships through the pipeline by Tue EOD. Said no to P2/P3/P4 work and to new PRDs until the first story ships prod.
+DECISION: Feature-flag OB-1 for rollback safety instead of waiting for OB-7 A/B harness. Reason: kill switch costs ~1h; A/B harness is not ready yet; we need a revert path before we have measurement.
+DECISION: Defer OB-3 out of next sprint. Reason: L-sized work requires a separate permission state machine design that does not exist. Scoping it as M is how we ship broken permission flows.
+LEARNING: When a sprint produces zero, another plan is not the answer — named owners and a gating rule are. "Engineering team" as owner is the failure mode.
+MESSAGE_TO cto: OB-7 assignment (device-ID + server-side persistence) ratified. OB-3 accepted as L and deferred. Need two named engineers on the Apr 21 sprint by Monday 9am — slots A (OB-6 → OB-1) and B (OB-5 → PC-3). If you cannot fill both, tell me Monday morning and I escalate to CEO same day. RT-4 written findings needed by Fri Apr 24 EOD; it gates whether P2 is one sprint or a quarter.
+MESSAGE_TO devops: OB-1 feature flag approved. You pair on OB-2 Monday AM as the pipeline dry run — this is the sprint's gating item. If OB-2 has not shipped staged by Tue Apr 22 EOD, hold all other merges and escalate to me. Wednesday mid-sprint check is on my calendar.
+SLACK app-development: PM decisions Apr 17: OB-7 A/B approach ratified (device-ID bucketing + server-side persistence). OB-3 resized L and deferred. Next sprint (Apr 21) scope locked to OB-2/OB-5/OB-6/PC-3 + OB-1 feature-flagged. Hard gate: nothing merges until OB-2 ships Tue EOD. No P2/P3/P4 work. Full memo in pm-updates.
+TASK_CREATE cto 1: Name engineers for Apr 21 sprint slots A and B | By Monday Apr 21 9am, assign one engineer to slot A (OB-6 → OB-1) and one to slot B (OB-5 → PC-3). If you cannot fill both, notify PM before 9am so we can escalate. Sprint does not start without named ownership.
+TASK_CREATE cto 2: RT-4 findings memo due Fri Apr 24 EOD | Written answer on whether the 2-hour reminder delay is a local-scheduling fix (exact alarms / BGTaskScheduler tuning) or requires server-side push migration. This gates P2 scoping. Deliver in cto-updates.
+```
+
+```cabinet
+SUMMARY: PM ratified two blocked decisions (OB-7 assignment, OB-3 resize), scoped a gated Apr 21 sprint, and updated backlog.
+CONTEXT: Sprint Apr 14–18 shipped zero. Next sprint scoped with named ownership as a hard precondition; OB-2 pipeline dry run gates all other merges; P2/P3/P4 deferred until P1 ships.
+ARTIFACT: example-text-your-mom/app-development/pm-updates/index.md
+ARTIFACT: example-text-your-mom/app-development/backlog/index.md
+```

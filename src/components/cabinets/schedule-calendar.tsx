@@ -9,11 +9,22 @@ import {
   type ScheduleEvent,
 } from "@/lib/agents/cron-compute";
 import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /* ─── Constants ─── */
 
 const HOUR_HEIGHT = 56; // px per hour row
 const PILL_HEIGHT = 22;
+const DOT_SIZE = 10; // crowded-slot circles
+const DOT_ROW_HEIGHT = DOT_SIZE + 4;
+const MAX_PILLS_MULTIDAY = 2;
+const MAX_PILLS_DAY = 3;
+const MAX_PILLS_MONTH = 3;
 const VISIBLE_START_HOUR = 5; // 5 AM
 const VISIBLE_END_HOUR = 23; // 11 PM
 const TOTAL_HOURS = VISIBLE_END_HOUR - VISIBLE_START_HOUR;
@@ -97,6 +108,60 @@ function EventPill({
   );
 }
 
+/* ─── Event dot (crowded slots) ─── */
+
+function EventDot({
+  event,
+  onClick,
+  now,
+  size = DOT_SIZE,
+}: {
+  event: ScheduleEvent;
+  onClick: () => void;
+  now: Date;
+  size?: number;
+}) {
+  const color = getAgentColor(event.agentSlug);
+  const isPast = event.time.getTime() < now.getTime();
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            aria-label={`${event.label} · ${formatTime(event.time)}`}
+            className={cn(
+              "shrink-0 rounded-full outline-none transition-all",
+              "hover:ring-2 hover:ring-foreground/30 focus-visible:ring-2 focus-visible:ring-foreground/40",
+              !event.enabled && "opacity-40"
+            )}
+            style={{
+              width: size,
+              height: size,
+              backgroundColor: event.enabled ? color.bg : "transparent",
+              borderWidth: event.enabled ? 0 : 1,
+              borderStyle: "dashed",
+              borderColor: color.bg,
+            }}
+          />
+        }
+      />
+      <TooltipContent className="flex flex-col items-start gap-0.5 px-2.5 py-1.5 text-left">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium">
+          <span>{event.agentEmoji}</span>
+          <span>{event.label}</span>
+        </div>
+        <div className="text-[10px] text-background/70">
+          {event.agentName} · {formatTime(event.time)}
+          {isPast ? " · past" : " · upcoming"}
+          {!event.enabled && " · disabled"}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /* ─── Week / Day view ─── */
 
 function TimeGridView({
@@ -127,7 +192,8 @@ function TimeGridView({
     scrollRef.current?.scrollTo({ top: target, behavior: "smooth" });
   }, [days[0]?.getTime()]);
 
-  // Group events by day column
+  // Group events by day column → per 15-min slot; slots with too many events collapse into dots
+  const maxPills = isMultiDay ? MAX_PILLS_MULTIDAY : MAX_PILLS_DAY;
   const dayColumns = useMemo(() => {
     return days.map((day) => {
       const dayEvents = events.filter((e) => isSameDay(e.time, day));
@@ -140,20 +206,29 @@ function TimeGridView({
         slotMap.get(slotKey)!.push(e);
       }
 
-      // Flatten with overlap index
-      const positioned: { event: ScheduleEvent; top: number; overlapIndex: number }[] = [];
+      type Bucket =
+        | { mode: "pills"; top: number; events: ScheduleEvent[] }
+        | { mode: "dots"; top: number; events: ScheduleEvent[] };
+
+      const buckets: Bucket[] = [];
       for (const [, slotEvents] of slotMap) {
-        slotEvents.forEach((event, idx) => {
-          const hour = event.time.getHours();
-          const minute = event.time.getMinutes();
-          const top = (hour - VISIBLE_START_HOUR) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
-          positioned.push({ event, top, overlapIndex: idx });
-        });
+        const first = slotEvents[0];
+        const hour = first.time.getHours();
+        const minute = first.time.getMinutes();
+        const top = (hour - VISIBLE_START_HOUR) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
+        const sorted = [...slotEvents].sort(
+          (a, b) => a.time.getTime() - b.time.getTime()
+        );
+        if (sorted.length > maxPills) {
+          buckets.push({ mode: "dots", top, events: sorted });
+        } else {
+          buckets.push({ mode: "pills", top, events: sorted });
+        }
       }
 
-      return { day, events: positioned };
+      return { day, buckets };
     });
-  }, [days, events]);
+  }, [days, events, maxPills]);
 
   // Current time position
   const nowTop = (now.getHours() - VISIBLE_START_HOUR) * HOUR_HEIGHT + (now.getMinutes() / 60) * HOUR_HEIGHT;
@@ -222,7 +297,7 @@ function TimeGridView({
           </div>
 
           {/* Day columns */}
-          {dayColumns.map(({ day, events: posEvents }, colIdx) => {
+          {dayColumns.map(({ day, buckets }, colIdx) => {
             const isToday = isSameDay(day, now);
             return (
               <div
@@ -241,24 +316,42 @@ function TimeGridView({
                   />
                 ))}
 
-                {/* Event pills */}
-                {posEvents.map(({ event, top, overlapIndex }) => {
-                  if (top < 0) return null;
-                  const maxVisible = isMultiDay ? 2 : 4;
-                  if (overlapIndex >= maxVisible) return null;
-
+                {/* Event buckets */}
+                {buckets.map((bucket, bIdx) => {
+                  if (bucket.top < 0) return null;
+                  if (bucket.mode === "pills") {
+                    return (
+                      <div
+                        key={bIdx}
+                        className="absolute left-0.5 right-0.5 flex flex-col gap-[2px]"
+                        style={{ top: bucket.top }}
+                      >
+                        {bucket.events.map((event) => (
+                          <EventPill
+                            key={event.id}
+                            event={event}
+                            onClick={() => onEventClick(event)}
+                            showTime={!isMultiDay}
+                            wide={!isMultiDay}
+                          />
+                        ))}
+                      </div>
+                    );
+                  }
                   return (
                     <div
-                      key={event.id}
-                      className="absolute left-0.5 right-0.5"
-                      style={{ top: top + overlapIndex * (PILL_HEIGHT + 2) }}
+                      key={bIdx}
+                      className="absolute left-0.5 right-0.5 flex flex-wrap items-start gap-[3px]"
+                      style={{ top: bucket.top, minHeight: DOT_ROW_HEIGHT }}
                     >
-                      <EventPill
-                        event={event}
-                        onClick={() => onEventClick(event)}
-                        showTime={!isMultiDay}
-                        wide={!isMultiDay}
-                      />
+                      {bucket.events.map((event) => (
+                        <EventDot
+                          key={event.id}
+                          event={event}
+                          onClick={() => onEventClick(event)}
+                          now={now}
+                        />
+                      ))}
                     </div>
                   );
                 })}
@@ -382,16 +475,23 @@ function MonthView({
           const isCurrentMonth = day.getMonth() === month;
           const isToday = isSameDay(day, now);
           const display = getDayDisplay(day);
-          const maxShow = 3;
+          const maxShow = MAX_PILLS_MONTH;
 
           return (
-            <button
+            <div
               key={i}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => onDayClick(day)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onDayClick(day);
+                }
+              }}
               className={cn(
-                "min-h-[90px] border-b border-r border-border/20 p-1.5 text-left transition-colors last:border-r-0",
-                "hover:bg-muted/20",
+                "min-h-[90px] cursor-pointer border-b border-r border-border/20 p-1.5 text-left transition-colors last:border-r-0",
+                "hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
                 !isCurrentMonth && "opacity-40",
                 isToday && "bg-amber-500/[0.05]"
               )}
@@ -406,40 +506,57 @@ function MonthView({
               >
                 {day.getDate()}
               </div>
-              <div className="flex flex-col gap-0.5">
-                {display.slice(0, maxShow).map(({ event, count }) => {
-                  const color = getAgentColor(event.agentSlug);
-                  return (
-                    <div
-                      key={event.id}
-                      className={cn(
-                        "flex items-center gap-1 rounded px-1 py-0.5 text-[9px] font-medium",
-                        !event.enabled && "opacity-40"
+              {display.length > maxShow ? (
+                <div
+                  className="flex flex-wrap items-start gap-[3px]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {display.map(({ event, count }) => (
+                    <div key={event.id} className="relative">
+                      <EventDot
+                        event={event}
+                        onClick={() => onEventClick(event)}
+                        now={now}
+                      />
+                      {count && count > 1 && (
+                        <span className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-foreground/80 px-1 text-[7px] font-bold leading-[10px] text-background">
+                          {count}
+                        </span>
                       )}
-                      style={{
-                        backgroundColor: event.enabled ? color.bg : undefined,
-                        color: event.enabled ? color.text : undefined,
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEventClick(event);
-                      }}
-                    >
-                      <span className="shrink-0 text-[8px]">{event.agentEmoji}</span>
-                      <span className="truncate">
-                        {event.label}
-                        {count ? ` (${count}x)` : ""}
-                      </span>
                     </div>
-                  );
-                })}
-                {display.length > maxShow && (
-                  <div className="px-1 text-[9px] text-muted-foreground/60">
-                    +{display.length - maxShow} more
-                  </div>
-                )}
-              </div>
-            </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-0.5">
+                  {display.map(({ event, count }) => {
+                    const color = getAgentColor(event.agentSlug);
+                    return (
+                      <div
+                        key={event.id}
+                        className={cn(
+                          "flex items-center gap-1 rounded px-1 py-0.5 text-[9px] font-medium",
+                          !event.enabled && "opacity-40"
+                        )}
+                        style={{
+                          backgroundColor: event.enabled ? color.bg : undefined,
+                          color: event.enabled ? color.text : undefined,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEventClick(event);
+                        }}
+                      >
+                        <span className="shrink-0 text-[8px]">{event.agentEmoji}</span>
+                        <span className="truncate">
+                          {event.label}
+                          {count ? ` (${count}x)` : ""}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
@@ -480,21 +597,25 @@ export function ScheduleCalendar({
 
   if (mode === "month") {
     return (
-      <MonthView
-        events={events}
-        anchor={anchor}
-        onEventClick={onEventClick}
-        onDayClick={onDayClick}
-      />
+      <TooltipProvider delay={120}>
+        <MonthView
+          events={events}
+          anchor={anchor}
+          onEventClick={onEventClick}
+          onDayClick={onDayClick}
+        />
+      </TooltipProvider>
     );
   }
 
   return (
-    <TimeGridView
-      events={events}
-      days={days}
-      fullscreen={fullscreen}
-      onEventClick={onEventClick}
-    />
+    <TooltipProvider delay={120}>
+      <TimeGridView
+        events={events}
+        days={days}
+        fullscreen={fullscreen}
+        onEventClick={onEventClick}
+      />
+    </TooltipProvider>
   );
 }

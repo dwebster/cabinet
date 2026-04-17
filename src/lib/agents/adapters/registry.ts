@@ -7,8 +7,13 @@ import type {
 } from "./types";
 import { claudeLocalAdapter } from "./claude-local";
 import { codexLocalAdapter } from "./codex-local";
+import { copilotLocalAdapter } from "./copilot-local";
+import { cursorLocalAdapter } from "./cursor-local";
 import { providerStatusToEnvironmentTest } from "./environment";
 import { geminiLocalAdapter } from "./gemini-local";
+import { grokLocalAdapter } from "./grok-local";
+import { openCodeLocalAdapter } from "./opencode-local";
+import { piLocalAdapter } from "./pi-local";
 
 export const LEGACY_ADAPTER_BY_PROVIDER_ID: Record<string, string> = {
   "claude-code": "claude_code_legacy",
@@ -19,6 +24,11 @@ export const DEFAULT_ADAPTER_BY_PROVIDER_ID: Record<string, string> = {
   "claude-code": claudeLocalAdapter.type,
   "codex-cli": codexLocalAdapter.type,
   "gemini-cli": geminiLocalAdapter.type,
+  "cursor-cli": cursorLocalAdapter.type,
+  "opencode": openCodeLocalAdapter.type,
+  "pi": piLocalAdapter.type,
+  "grok-cli": grokLocalAdapter.type,
+  "copilot-cli": copilotLocalAdapter.type,
 };
 
 export const LEGACY_PROVIDER_ID_BY_ADAPTER: Record<string, string> = Object.fromEntries(
@@ -78,10 +88,29 @@ export const legacyCodexCliAdapter = buildLegacyCliAdapter({
 
 class AgentAdapterRegistry {
   adapters = new Map<string, AgentExecutionAdapter>();
+  private builtinFallbacks = new Map<string, AgentExecutionAdapter>();
   defaultAdapterType = claudeLocalAdapter.type;
 
   register(adapter: AgentExecutionAdapter): void {
     this.adapters.set(adapter.type, adapter);
+  }
+
+  registerExternal(adapter: AgentExecutionAdapter): void {
+    const existing = this.adapters.get(adapter.type);
+    if (existing && !this.builtinFallbacks.has(adapter.type)) {
+      this.builtinFallbacks.set(adapter.type, existing);
+    }
+    this.adapters.set(adapter.type, adapter);
+  }
+
+  unregisterExternal(type: string): void {
+    const fallback = this.builtinFallbacks.get(type);
+    this.builtinFallbacks.delete(type);
+    if (fallback) {
+      this.adapters.set(type, fallback);
+    } else {
+      this.adapters.delete(type);
+    }
   }
 
   get(type: string): AgentExecutionAdapter | undefined {
@@ -102,6 +131,11 @@ export const agentAdapterRegistry = new AgentAdapterRegistry();
 agentAdapterRegistry.register(claudeLocalAdapter);
 agentAdapterRegistry.register(codexLocalAdapter);
 agentAdapterRegistry.register(geminiLocalAdapter);
+agentAdapterRegistry.register(cursorLocalAdapter);
+agentAdapterRegistry.register(openCodeLocalAdapter);
+agentAdapterRegistry.register(piLocalAdapter);
+agentAdapterRegistry.register(grokLocalAdapter);
+agentAdapterRegistry.register(copilotLocalAdapter);
 agentAdapterRegistry.register(legacyClaudeCodeAdapter);
 agentAdapterRegistry.register(legacyCodexCliAdapter);
 

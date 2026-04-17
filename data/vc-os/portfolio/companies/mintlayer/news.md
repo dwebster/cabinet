@@ -1,7 +1,7 @@
 ---
 title: MintLayer — News & Updates
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T00:00:00Z'
+modified: '2026-04-17T09:00:00Z'
 tags:
   - portfolio
   - mintlayer
@@ -9,6 +9,18 @@ tags:
 order: 2
 ---
 # MintLayer — News & Updates
+
+---
+
+## April 17, 2026
+
+**Regulatory tailwind — OCC interpretive letter 1186:** The OCC released updated guidance clarifying that national banks can use third-party middleware for stablecoin settlement and on-chain payment rails without a separate charter. This directly removes a compliance objection MintLayer has been fielding for 9 months. Sam should push Elena to publish a same-week customer note and update the sales playbook before Friday.
+
+**Competitor funding — FinLayer Series A ($22M):** FinLayer (YC W25, direct horizontal competitor) raised $22M led by Ribbit Capital. Their pitch is "Plaid for bank treasury APIs" — overlapping ~30% with MintLayer's wedge but weaker on compliance depth. Not an immediate threat but Ribbit's distribution into community banks is. Sam asked Elena for a one-page win/loss tracker vs. FinLayer by next Friday.
+
+**Salesforce pricing fallout continues:** Salesforce posted a walk-back FAQ on Financial Services Cloud pricing, but three mid-market banks in MintLayer's pipeline (two CFOs explicitly cited it to Sam) say they are now budgeting alternatives for 2026. ABM campaign timing is correct — launch this week, not next.
+
+**Key hire:** Elena added Priscilla Okafor as VP Compliance (ex-JPMorgan AML). Announced on MintLayer LinkedIn this morning. Strengthens the enterprise-bank sales motion materially; Sam should reference her credentials in the next LP flash.
 
 ---
 

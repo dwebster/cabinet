@@ -26,6 +26,7 @@ export const claudeCodeProvider: AgentProvider = {
     { title: "Install Claude Code", detail: "Run the following in your terminal:", command: "npm install -g @anthropic-ai/claude-code" },
     { title: "Log in", detail: "Authenticate with your Claude account:", command: "claude auth login" },
     { title: "Verify login", detail: "Check that you're logged in:", command: "claude auth status" },
+    { title: "Verify setup", detail: "Confirm headless mode works:", command: "claude -p 'Reply with exactly OK' --output-format text" },
   ],
   models: [
     {

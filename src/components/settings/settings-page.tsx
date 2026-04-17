@@ -44,11 +44,9 @@ import {
   type ThemeDefinition,
 } from "@/lib/themes";
 import {
-  getModelEffortLevels,
-  getSuggestedProviderEffort,
-  resolveProviderEffort,
-  resolveProviderModel,
-} from "@/lib/agents/runtime-options";
+  RuntimeMatrixPicker,
+  RuntimeSelectionBanner,
+} from "@/components/composer/task-runtime-picker";
 import { cn } from "@/lib/utils";
 import type { ProviderInfo } from "@/types/agents";
 
@@ -111,21 +109,67 @@ function TerminalCommand({ command }: { command: string }) {
 
 type SetupStep = { title: string; detail: string; cmd?: string; openTerminal?: boolean; link?: { label: string; url: string } };
 
-const PROVIDER_SETUP_STEPS: Record<string, SetupStep[]> = {
-  "claude-code": [
-    { title: "Get a Claude subscription", detail: "Any Claude Code subscription will do (Pro, Max, or Team).", link: { label: "Open Claude billing", url: "https://claude.ai/settings/billing" } },
-    { title: "Open a terminal", detail: "You'll need a terminal to run the next steps.", openTerminal: true },
-    { title: "Install Claude Code", detail: "Run the following in your terminal:", cmd: "npm install -g @anthropic-ai/claude-code" },
-    { title: "Log in to Claude", detail: "Authenticate with your subscription:", cmd: "claude auth login" },
-    { title: "Verify login", detail: "Check that you're logged in:", cmd: "claude auth status" },
-  ],
-  "codex-cli": [
-    { title: "Open a terminal", detail: "You'll need a terminal to run the next steps.", openTerminal: true },
-    { title: "Install Codex CLI", detail: "Run the following in your terminal:", cmd: "npm i -g @openai/codex" },
-    { title: "Log in to Codex", detail: "Authenticate with your ChatGPT or API account:", cmd: "codex login" },
-    { title: "Verify login", detail: "Check that you're logged in:", cmd: "codex login status" },
-  ],
+function buildProviderSetupSteps(
+  installSteps: ProviderInfo["installSteps"]
+): SetupStep[] {
+  if (!installSteps || installSteps.length === 0) return [];
+  return [
+    {
+      title: "Open a terminal",
+      detail: "You'll need a terminal to run the next steps.",
+      openTerminal: true,
+    },
+    ...installSteps.map((step) => ({
+      title: step.title,
+      detail: step.detail,
+      cmd: step.command,
+      link: step.link,
+    })),
+  ];
+}
+
+type VerifyStatus =
+  | "pass"
+  | "not_installed"
+  | "auth_required"
+  | "payment_required"
+  | "quota_exceeded"
+  | "other_error";
+
+interface VerifyResult {
+  status: VerifyStatus;
+  failedStepTitle: string;
+  command: string;
+  exitCode: number | null;
+  signal: string | null;
+  output: string;
+  stderr: string;
+  durationMs: number;
+  hint?: string;
+}
+
+type VerifyState =
+  | { phase: "idle" }
+  | { phase: "running" }
+  | { phase: "done"; result: VerifyResult }
+  | { phase: "error"; message: string };
+
+const VERIFY_STATUS_META: Record<VerifyStatus, { label: string; tone: string }> = {
+  pass: { label: "Passed", tone: "bg-emerald-500/10 text-emerald-500" },
+  not_installed: { label: "Not installed", tone: "bg-muted text-muted-foreground" },
+  auth_required: { label: "Auth required", tone: "bg-amber-500/15 text-amber-500" },
+  payment_required: {
+    label: "Payment required",
+    tone: "bg-rose-500/15 text-rose-500",
+  },
+  quota_exceeded: { label: "Quota / rate limit", tone: "bg-orange-500/15 text-orange-500" },
+  other_error: { label: "Error", tone: "bg-rose-500/10 text-rose-500" },
 };
+
+function matchesFailedStep(stepTitle: string, failedStepTitle?: string): boolean {
+  if (!failedStepTitle) return false;
+  return stepTitle.trim().toLowerCase() === failedStepTitle.trim().toLowerCase();
+}
 
 export function SettingsPage() {
   const { showHiddenFiles, setShowHiddenFiles } = useTreeStore();
@@ -136,6 +180,41 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [savingProviders, setSavingProviders] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+  const [verifyState, setVerifyState] = useState<Record<string, VerifyState>>({});
+  const [verifyOutputOpen, setVerifyOutputOpen] = useState<Record<string, boolean>>({});
+
+  const runVerify = async (providerId: string) => {
+    setVerifyState((prev) => ({ ...prev, [providerId]: { phase: "running" } }));
+    try {
+      const res = await fetch(`/api/agents/providers/${providerId}/verify`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        setVerifyState((prev) => ({
+          ...prev,
+          [providerId]: {
+            phase: "error",
+            message: body.error || `HTTP ${res.status}`,
+          },
+        }));
+        return;
+      }
+      const data = (await res.json()) as VerifyResult;
+      setVerifyState((prev) => ({
+        ...prev,
+        [providerId]: { phase: "done", result: data },
+      }));
+    } catch (err) {
+      setVerifyState((prev) => ({
+        ...prev,
+        [providerId]: {
+          phase: "error",
+          message: err instanceof Error ? err.message : String(err),
+        },
+      }));
+    }
+  };
   const [dataDir, setDataDir] = useState("");
   const [dataDirPending, setDataDirPending] = useState<string | null>(null);
   const [dataDirBrowsing, setDataDirBrowsing] = useState(false);
@@ -741,189 +820,46 @@ export function SettingsPage() {
                 ) : (
                   <div className="space-y-3">
                     <div>
-                      <div className="mb-3 rounded-lg border border-border bg-card p-3">
+                      <div className="mb-3 rounded-lg border border-border bg-card p-3 space-y-2">
                         <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Default provider
+                          Default runtime
                         </label>
-                        <div className="mt-2 space-y-1">
-                          {providers
-                            .filter((p) => p.type === "cli" && p.available && p.authenticated)
-                            .map((provider) => {
-                              const isDefault = provider.id === defaultProvider;
-                              return (
-                                <button
-                                  key={provider.id}
-                                  onClick={() => {
-                                    if (isDefault || savingProviders) return;
-                                    const disabledProviderIds = providers
-                                      .filter((p) => !p.enabled && p.id !== provider.id)
-                                      .map((p) => p.id);
-                                    void saveProviderSettings(provider.id, disabledProviderIds);
-                                  }}
-                                  disabled={savingProviders}
-                                  className={cn(
-                                    "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-[13px] transition-colors",
-                                    isDefault
-                                      ? "bg-primary/5 border border-primary/30"
-                                      : "border border-transparent hover:bg-muted"
-                                  )}
-                                >
-                                  <span className={cn(
-                                    "flex size-4 shrink-0 items-center justify-center rounded-full border",
-                                    isDefault
-                                      ? "border-primary bg-primary text-primary-foreground"
-                                      : "border-muted-foreground/30"
-                                  )}>
-                                    {isDefault && <Check className="size-2.5" />}
-                                  </span>
-                                  <span className={cn("font-medium", isDefault ? "text-foreground" : "text-muted-foreground")}>
-                                    {provider.name}
-                                  </span>
-                                  {provider.version && (
-                                    <span className="ml-auto text-[10px] text-muted-foreground/60">{provider.version}</span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          {providers.filter((p) => p.type === "cli" && p.available && p.authenticated).length === 0 && (
-                            <p className="text-[12px] text-muted-foreground py-2">
-                              No providers are installed and logged in. Follow the setup guides below.
-                            </p>
-                          )}
-                        </div>
-                        <p className="mt-2 text-[11px] text-muted-foreground">
-                          General conversations and fallback runs use this provider.
+                        <RuntimeSelectionBanner
+                          providers={providers}
+                          value={{
+                            providerId: defaultProvider || null,
+                            model: defaultModel || null,
+                            effort: defaultEffort || null,
+                          }}
+                          label="Default Model"
+                        />
+                        <RuntimeMatrixPicker
+                          providers={providers}
+                          value={{
+                            providerId: defaultProvider || null,
+                            model: defaultModel || null,
+                            effort: defaultEffort || null,
+                          }}
+                          includeUnavailable
+                          emptyText="No providers are configured. Add one below."
+                          onChange={({ providerId, model, effort }) => {
+                            if (savingProviders) return;
+                            const disabledIds = providers
+                              .filter((p) => !p.enabled && p.id !== providerId)
+                              .map((p) => p.id);
+                            setDefaultProvider(providerId);
+                            if (typeof model === "string") setDefaultModel(model);
+                            if (typeof effort === "string") setDefaultEffort(effort);
+                            void saveProviderSettings(providerId, disabledIds, [], {
+                              defaultModel: typeof model === "string" ? model : undefined,
+                              defaultEffort: typeof effort === "string" ? effort : undefined,
+                            });
+                          }}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          General conversations and fallback runs use this provider/model/effort.
                         </p>
                       </div>
-
-                      {/* Default model selector */}
-                      {(() => {
-                        const activeP = providers.find((p) => p.id === defaultProvider);
-                        const activeModel = resolveProviderModel(
-                          activeP,
-                          defaultModel || undefined,
-                          undefined
-                        );
-                        const models = activeP?.models || [];
-                        const effortLevels = getModelEffortLevels(
-                          activeP,
-                          activeModel?.id
-                        );
-                        if (models.length === 0 && effortLevels.length === 0) return null;
-                        return (
-                          <div className="mb-3 rounded-lg border border-border bg-card p-3 space-y-4">
-                            {models.length > 0 && (
-                              <div>
-                                <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                  Default model
-                                </label>
-                                <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
-                                  {models.map((m) => {
-                                    const isActive = defaultModel === m.id;
-                                    return (
-                                      <button
-                                        key={m.id}
-                                        onClick={() => {
-                                          if (isActive || savingProviders) return;
-                                          const nextEffortId =
-                                            resolveProviderEffort(
-                                              activeP,
-                                              m.id,
-                                              defaultEffort || undefined,
-                                              undefined
-                                            )?.id ||
-                                            getSuggestedProviderEffort(activeP, m.id)?.id ||
-                                            "";
-                                          setDefaultModel(m.id);
-                                          setDefaultEffort(nextEffortId);
-                                          const disabledIds = providers.filter((p) => !p.enabled).map((p) => p.id);
-                                          void saveProviderSettings(defaultProvider, disabledIds, [], {
-                                            defaultModel: m.id,
-                                            defaultEffort: nextEffortId,
-                                          });
-                                        }}
-                                        disabled={savingProviders}
-                                        className={cn(
-                                          "rounded-md px-3 py-2 text-left text-[12px] transition-colors",
-                                          isActive
-                                            ? "bg-primary/5 border border-primary/30"
-                                            : "border border-transparent hover:bg-muted"
-                                        )}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <span className={cn(
-                                            "flex size-3 shrink-0 items-center justify-center rounded-full border",
-                                            isActive
-                                              ? "border-primary bg-primary text-primary-foreground"
-                                              : "border-muted-foreground/30"
-                                          )}>
-                                            {isActive && <Check className="size-1.5" />}
-                                          </span>
-                                          <span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>
-                                            {m.name}
-                                          </span>
-                                        </div>
-                                        {m.description && (
-                                          <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">{m.description}</p>
-                                        )}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                            {effortLevels.length > 0 && (
-                              <div>
-                                <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                  {activeModel?.name
-                                    ? `Reasoning effort · ${activeModel.name}`
-                                    : "Reasoning effort"}
-                                </label>
-                                <div className="mt-2 grid gap-1.5 sm:grid-cols-4">
-                                  {effortLevels.map((e) => {
-                                    const isActive = defaultEffort === e.id;
-                                    return (
-                                      <button
-                                        key={e.id}
-                                        onClick={() => {
-                                          if (isActive || savingProviders) return;
-                                          setDefaultEffort(e.id);
-                                          const disabledIds = providers.filter((p) => !p.enabled).map((p) => p.id);
-                                          void saveProviderSettings(defaultProvider, disabledIds, [], { defaultEffort: e.id });
-                                        }}
-                                        disabled={savingProviders}
-                                        className={cn(
-                                          "rounded-md px-3 py-2 text-left text-[12px] transition-colors",
-                                          isActive
-                                            ? "bg-primary/5 border border-primary/30"
-                                            : "border border-transparent hover:bg-muted"
-                                        )}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <span className={cn(
-                                            "flex size-3 shrink-0 items-center justify-center rounded-full border",
-                                            isActive
-                                              ? "border-primary bg-primary text-primary-foreground"
-                                              : "border-muted-foreground/30"
-                                          )}>
-                                            {isActive && <Check className="size-1.5" />}
-                                          </span>
-                                          <span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>
-                                            {e.name}
-                                          </span>
-                                        </div>
-                                        {e.description && (
-                                          <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">{e.description}</p>
-                                        )}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
 
                       <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                         CLI Agents
@@ -935,7 +871,7 @@ export function SettingsPage() {
                             const isReady = !!(provider.available && provider.authenticated);
                             const isInstalled = !!provider.available;
                             const isExpanded = expandedProvider === provider.id;
-                            const setupSteps = PROVIDER_SETUP_STEPS[provider.id] || [];
+                            const setupSteps = buildProviderSetupSteps(provider.installSteps);
                             const statusColor = isReady ? "text-green-500" : isInstalled ? "text-amber-500" : "text-muted-foreground";
                             const statusText = isReady
                               ? provider.version || "Ready"
@@ -1039,60 +975,158 @@ export function SettingsPage() {
                                 </div>
 
                                 {/* Expandable setup guide */}
-                                {setupSteps.length > 0 && (
-                                  <div
-                                    className="overflow-hidden transition-all duration-300 ease-in-out"
-                                    style={{
-                                      maxHeight: isExpanded ? 600 : 0,
-                                      opacity: isExpanded ? 1 : 0,
-                                    }}
-                                  >
-                                    <div className="rounded-lg bg-muted/50 p-3 space-y-3">
-                                      {setupSteps.map((step, i) => (
-                                        <div key={i} className="flex items-start gap-2.5">
-                                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 bg-primary text-primary-foreground">
-                                            {i + 1}
-                                          </span>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-[13px] font-medium">{step.title}</p>
-                                            <p className="text-[11px] mt-0.5 text-muted-foreground">{step.detail}</p>
-                                            {step.cmd && (
-                                              <TerminalCommand command={step.cmd} />
-                                            )}
-                                            {step.openTerminal && (
-                                              <button
-                                                onClick={() => {
-                                                  fetch("/api/terminal/open", { method: "POST" }).catch(() => {
-                                                    alert("Could not open terminal automatically. Please open Terminal.app (Mac) or your system terminal manually.");
-                                                  });
-                                                }}
-                                                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 mt-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5"
-                                                style={{ background: "#1e1e1e", color: "#d4d4d4" }}
+                                {setupSteps.length > 0 && (() => {
+                                  const state = verifyState[provider.id] || { phase: "idle" };
+                                  const result = state.phase === "done" ? state.result : null;
+                                  const statusMeta = result ? VERIFY_STATUS_META[result.status] : null;
+                                  const isOutputOpen = verifyOutputOpen[provider.id] ?? false;
+                                  return (
+                                    <div
+                                      className="overflow-hidden transition-all duration-300 ease-in-out"
+                                      style={{
+                                        maxHeight: isExpanded ? 800 : 0,
+                                        opacity: isExpanded ? 1 : 0,
+                                      }}
+                                    >
+                                      <div className="rounded-lg bg-muted/50 p-3 space-y-3">
+                                        {setupSteps.map((step, i) => {
+                                          const isFailedStep =
+                                            result?.status !== undefined &&
+                                            result.status !== "pass" &&
+                                            matchesFailedStep(step.title, result.failedStepTitle);
+                                          const isPassStep =
+                                            result?.status === "pass" &&
+                                            /verify\s+setup/i.test(step.title);
+                                          return (
+                                            <div
+                                              key={i}
+                                              className={cn(
+                                                "flex items-start gap-2.5 rounded-md p-1.5 transition-colors",
+                                                isFailedStep && "bg-rose-500/5 ring-1 ring-rose-500/30",
+                                                isPassStep && "bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                                              )}
+                                            >
+                                              <span
+                                                className={cn(
+                                                  "flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5",
+                                                  isFailedStep
+                                                    ? "bg-rose-500 text-white"
+                                                    : isPassStep
+                                                      ? "bg-emerald-500 text-white"
+                                                      : "bg-primary text-primary-foreground"
+                                                )}
                                               >
-                                                <Terminal className="size-3" />
-                                                Open terminal
-                                              </button>
+                                                {isFailedStep ? "!" : isPassStep ? "✓" : i + 1}
+                                              </span>
+                                              <div className="flex-1 min-w-0">
+                                                <p className="text-[13px] font-medium">{step.title}</p>
+                                                <p className="text-[11px] mt-0.5 text-muted-foreground">{step.detail}</p>
+                                                {step.cmd && (
+                                                  <TerminalCommand command={step.cmd} />
+                                                )}
+                                                {step.openTerminal && (
+                                                  <button
+                                                    onClick={() => {
+                                                      fetch("/api/terminal/open", { method: "POST" }).catch(() => {
+                                                        alert("Could not open terminal automatically. Please open Terminal.app (Mac) or your system terminal manually.");
+                                                      });
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 mt-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5"
+                                                    style={{ background: "#1e1e1e", color: "#d4d4d4" }}
+                                                  >
+                                                    <Terminal className="size-3" />
+                                                    Open terminal
+                                                  </button>
+                                                )}
+                                                {step.link && (
+                                                  <a
+                                                    href={step.link.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 text-[11px] font-medium mt-1.5 text-primary hover:underline"
+                                                  >
+                                                    {step.link.label}
+                                                    <ExternalLink className="size-3" />
+                                                  </a>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/60">
+                                          <button
+                                            onClick={() => void runVerify(provider.id)}
+                                            disabled={state.phase === "running"}
+                                            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                                          >
+                                            {state.phase === "running" ? (
+                                              <RefreshCw className="size-3 animate-spin" />
+                                            ) : (
+                                              <CheckCircle className="size-3" />
                                             )}
-                                            {step.link && (
-                                              <a
-                                                href={step.link.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-[11px] font-medium mt-1.5 text-primary hover:underline"
-                                              >
-                                                {step.link.label}
-                                                <ExternalLink className="size-3" />
-                                              </a>
-                                            )}
-                                          </div>
+                                            {state.phase === "running"
+                                              ? "Verifying…"
+                                              : state.phase === "done"
+                                                ? "Re-run verify"
+                                                : "Run verify"}
+                                          </button>
+                                          {statusMeta && (
+                                            <span
+                                              className={cn(
+                                                "text-[10px] px-2 py-0.5 rounded-full font-medium",
+                                                statusMeta.tone
+                                              )}
+                                            >
+                                              {statusMeta.label}
+                                            </span>
+                                          )}
+                                          {result && result.status !== "pass" && result.failedStepTitle && (
+                                            <span className="text-[11px] text-muted-foreground">
+                                              Failed at step: <strong className="text-foreground">{result.failedStepTitle}</strong>
+                                            </span>
+                                          )}
+                                          {state.phase === "error" && (
+                                            <span className="text-[11px] text-rose-500">{state.message}</span>
+                                          )}
+                                          {result && (
+                                            <button
+                                              onClick={() =>
+                                                setVerifyOutputOpen((prev) => ({
+                                                  ...prev,
+                                                  [provider.id]: !isOutputOpen,
+                                                }))
+                                              }
+                                              className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                                            >
+                                              <ChevronDown
+                                                className="size-3 transition-transform"
+                                                style={{ transform: isOutputOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
+                                              />
+                                              {isOutputOpen ? "Hide raw output" : "Show raw output"}
+                                            </button>
+                                          )}
                                         </div>
-                                      ))}
-                                      <p className="text-[11px] text-muted-foreground">
-                                        After setup, click Re-check below to verify.
-                                      </p>
+                                        {result?.hint && result.status !== "pass" && (
+                                          <p className="text-[11px] text-muted-foreground">{result.hint}</p>
+                                        )}
+                                        {result && isOutputOpen && (
+                                          <div className="space-y-1.5">
+                                            <p className="text-[10px] font-mono text-muted-foreground">
+                                              $ {result.command}
+                                            </p>
+                                            <pre className="max-h-48 overflow-auto rounded bg-background p-2 text-[10px] font-mono text-foreground whitespace-pre-wrap">
+                                              {(result.output || "(no stdout)") +
+                                                (result.stderr ? `\n\n[stderr]\n${result.stderr}` : "")}
+                                            </pre>
+                                            <p className="text-[10px] text-muted-foreground">
+                                              exit {result.exitCode ?? "-"} · {result.durationMs} ms
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  );
+                                })()}
                               </div>
                             );
                           })}

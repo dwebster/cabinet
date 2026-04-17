@@ -1,11 +1,11 @@
 id: monthly-board-prep
 name: Monthly Board Meeting Prep
-description: Generates board pre-read documents for upcoming portfolio board meetings on the first Monday of each month.
+enabled: true
+schedule: 0 9 * * 1
+provider: claude-code
+adapterType: claude_local
 ownerAgent: portfolio-manager
 agentSlug: portfolio-manager
-enabled: true
-schedule: "0 9 * * 1"
-provider: claude-code
 timeout: 600
 prompt: |-
   On the first Monday of each month, prepare board meeting pre-reads for upcoming portfolio board meetings.
@@ -28,6 +28,6 @@ prompt: |-
   5. Questions for the CEO
 
   These are internal Warp documents — candid and specific, not polished LP comms.
-cabinetPath: vc-os
-createdAt: "2026-04-13T00:00:00.000Z"
-updatedAt: "2026-04-13T00:00:00.000Z"
+cabinetPath: vc-os/portfolio
+createdAt: '2026-04-13T00:00:00.000Z'
+updatedAt: '2026-04-13T00:00:00.000Z'

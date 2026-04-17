@@ -1,11 +1,11 @@
 id: portfolio-health-check
 name: Weekly Portfolio Health Check
-description: Reviews every Fund II company's metrics every Friday and produces a health table with status flags for the partners.
+enabled: true
+schedule: 0 9 * * 5
+provider: claude-code
+adapterType: claude_local
 ownerAgent: portfolio-manager
 agentSlug: portfolio-manager
-enabled: true
-schedule: "0 9 * * 5"
-provider: claude-code
 timeout: 600
 prompt: |-
   Every Friday, run a portfolio health check across all Fund II companies.
@@ -23,6 +23,6 @@ prompt: |-
   - A "Wins this week" bullet with any positive signal worth celebrating
 
   Keep it tight — GPs read this on Friday afternoon before the weekend.
-cabinetPath: vc-os
-createdAt: "2026-04-13T00:00:00.000Z"
-updatedAt: "2026-04-13T00:00:00.000Z"
+cabinetPath: vc-os/portfolio
+createdAt: '2026-04-13T00:00:00.000Z'
+updatedAt: '2026-04-13T00:00:00.000Z'

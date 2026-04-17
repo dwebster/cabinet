@@ -1,0 +1,63 @@
+running .zshenv 🌸
+total 32
+drwxr-xr-x@ 12 mybiblepath  staff  384 אפר 11 17:45 .
+drwxr-xr-x@  6 mybiblepath  staff  192 אפר 12 08:04 ..
+drwxr-xr-x@  9 mybiblepath  staff  288 אפר 12 00:45 .agents
+-rw-r--r--@  1 mybiblepath  staff  355 אפר 11 17:45 .cabinet
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 .cabinet-state
+drwxr-xr-x@  5 mybiblepath  staff  160 אפר 13 16:43 .jobs
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 analytics
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 16 10:03 comment-opportunities
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 experiments
+-rw-r--r--@  1 mybiblepath  staff  901 אפר 11 17:45 index.md
+-rw-r--r--@  1 mybiblepath  staff  510 אפר 11 17:45 post-backlog.csv
+-rw-r--r--@  1 mybiblepath  staff  728 אפר 11 17:45 subreddits.csv
+running .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/marketing/reddit/.agents/:
+total 0
+drwxr-xr-x@  9 mybiblepath  staff  288 אפר 12 00:45 .
+drwxr-xr-x@ 12 mybiblepath  staff  384 אפר 11 17:45 ..
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 17 08:00 .conversations
+drwxr-xr-x@  6 mybiblepath  staff  192 אפר 12 00:27 .memory
+drwxr-xr-x@  6 mybiblepath  staff  192 אפר 12 00:27 .messages
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 copywriter
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 data-analyst
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 growth-marketer
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 researcher
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/marketing/reddit/analytics/:
+total 8
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 .
+drwxr-xr-x@ 12 mybiblepath  staff  384 אפר 11 17:45 ..
+-rw-r--r--@  1 mybiblepath  staff  475 אפר 11 17:45 index.md
+running .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/marketing/reddit/comment-opportunities/:
+index.md
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/marketing/reddit/experiments/:
+index.md
+running .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/marketing/reddit/.agents/.memory/:
+total 0
+drwxr-xr-x@ 6 mybiblepath  staff  192 אפר 12 00:27 .
+drwxr-xr-x@ 9 mybiblepath  staff  288 אפר 12 00:45 ..
+drwxr-xr-x@ 2 mybiblepath  staff   64 אפר 12 00:26 copywriter
+drwxr-xr-x@ 2 mybiblepath  staff   64 אפר 12 00:27 data-analyst
+drwxr-xr-x@ 2 mybiblepath  staff   64 אפר 12 00:27 growth-marketer
+drwxr-xr-x@ 2 mybiblepath  staff   64 אפר 12 00:27 researcher
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/marketing/reddit/.agents/researcher/:
+total 8
+drwxr-xr-x@ 3 mybiblepath  staff   96 אפר 11 17:45 .
+drwxr-xr-x@ 9 mybiblepath  staff  288 אפר 12 00:45 ..
+-rw-r--r--@ 1 mybiblepath  staff  803 אפר 12 00:27 persona.md
+running .zshenv 🌸
+Summarized the five clearest patterns from the watchlist into a dated signal digest, stole language worth reusing, flagged the "fake" tripwire copy must avoid, and refreshed the subreddit notes with watchlist additions.
+
+```cabinet
+SUMMARY: Added 2026-04-17 Reddit signal digest covering reply avoidance, mom-guilt, routine decay, pre-send anxiety, and the "fake" tripwire; refreshed subreddit notes and added two watchlist entries.
+CONTEXT: Five recurring patterns confirmed across r/relationships, r/Adulting, r/selfimprovement, r/Anxiety, r/productivity. Verbatim phrases to reuse: "response debt," "reply backlog," "I'm not ignoring you," "the longer I wait, the harder it gets." Phrases to kill in copy: "stay connected," "never miss a check-in," "automate," "streak." Wedge hypothesis: first-message-back re-entry, not ongoing reminders.
+ARTIFACT: data/example-text-your-mom/marketing/reddit/analytics/signals-2026-04-17.md
+ARTIFACT: data/example-text-your-mom/marketing/reddit/analytics/index.md
+ARTIFACT: data/example-text-your-mom/marketing/reddit/subreddits.csv
+```

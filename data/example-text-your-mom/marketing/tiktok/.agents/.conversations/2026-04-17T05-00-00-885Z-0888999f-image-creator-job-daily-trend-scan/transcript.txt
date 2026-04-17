@@ -1,0 +1,43 @@
+running .zshenv 🌸
+total 32
+drwxr-xr-x@ 13 mybiblepath  staff  416 אפר 16 10:07 .
+drwxr-xr-x@  6 mybiblepath  staff  192 אפר 12 08:04 ..
+drwxr-xr-x@  9 mybiblepath  staff  288 אפר 12 01:00 .agents
+-rw-r--r--@  1 mybiblepath  staff  341 אפר 11 17:45 .cabinet
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 .cabinet-state
+drwxr-xr-x@  5 mybiblepath  staff  160 אפר 13 16:43 .jobs
+drwxr-xr-x@  3 mybiblepath  staff   96 אפר 11 17:45 analytics
+drwxr-xr-x@  7 mybiblepath  staff  224 אפר 16 10:03 briefs
+drwxr-xr-x@  5 mybiblepath  staff  160 אפר 16 10:07 carousels
+-rw-r--r--@  1 mybiblepath  staff  786 אפר 11 17:45 competitors.csv
+drwxr-xr-x@  5 mybiblepath  staff  160 אפר 16 10:04 content-calendar
+-rw-r--r--@  1 mybiblepath  staff  983 אפר 16 10:07 content-ideas.csv
+-rw-r--r--@  1 mybiblepath  staff  885 אפר 11 17:45 index.md
+running .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/marketing/tiktok/briefs/:
+group-chat-shame-brief.md
+index.md
+question-mark-brief.md
+reply-guilt-math-brief.md
+week-of-april-14
+
+/Users/mybiblepath/Development/cabinet/data/example-text-your-mom/marketing/tiktok/content-calendar/:
+index.html
+index.md
+running .zshenv 🌸
+/Users/mybiblepath/Development/cabinet/PROGRESS.md
+exists
+running .zshenv 🌸
+[2026-04-16] Image Creator heartbeat: designed 2 TikTok carousels from Script Writer briefs. Carousel 01 ("Text your mom before she sends ?", 5 slides) uses lock-screen mockup + iMessage chat bubble + giant red "?" aesthetic. Carousel 02 ("The fake mental math of reply guilt", 6 slides) uses iOS Screen Time stats card + progress bar + timer CTA aesthetic. Both saved to data/example-text-your-mom/marketing/tiktok/carousels/ and content-ideas.csv updated to "Designed" status.
+
+[2026-04-16] Built UI prototype for new task conversation experience at /tasks/[id] (full-page route). Multi-turn chat layout with inline per-turn artifacts (file edits, commands, tool calls, KB pages), Chat/Artifacts/Diff/Logs tabs, status badge state machine (idle/running/awaiting-input/done/failed/archived), token usage bar with 80%/95% thresholds, editable rolling summary, and composer with awaiting-input visual state. Self-contained with mocked data — no backend changes yet. Components in src/components/tasks/conversation/.
+[2026-04-17] Data Analyst agent: initialized empty workspace readme as first-heartbeat baseline.
+[2026-04-17] Operations Manager (real-estate) first heartbeat: created transaction-pipeline/index.md with stage gates, per-deal compliance checklists, deadline tracking, and bottleneck log.
+running .zshenv 🌸
+Added 5 new content angles to `content-ideas.csv` covering all four requested themes, with hooks, formats, and suggested post dates from Apr 21–30.
+
+```cabinet
+SUMMARY: Added 5 fresh TikTok content angles spanning missed reply guilt, mom texting patterns, group chat avoidance, and wholesome accountability.
+CONTEXT: Backlog had 5 ideas; 2 designed carousels, 1 in research, 1 script-ready, 1 idea. New batch leans into visual/escalation formats (timestamp progression, notification badges, typing indicators) and one soft-sell streak piece to bridge humor → product.
+ARTIFACT: marketing/tiktok/content-ideas.csv
+```

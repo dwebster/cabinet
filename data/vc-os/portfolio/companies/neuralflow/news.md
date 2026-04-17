@@ -1,7 +1,7 @@
 ---
 title: NeuralFlow — News & Updates
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T12:00:00Z'
+modified: '2026-04-17T09:00:00Z'
 tags:
   - portfolio
   - neuralflow
@@ -11,6 +11,18 @@ order: 3
 # NeuralFlow — News & Updates
 
 Running log of material developments. Updated by Jordan Levi and the research agent.
+
+---
+
+## April 17, 2026
+
+**Competitor move — Anthropic "Claude for Enterprise Workflows":** Anthropic published a blog post and Bloomberg piece previewing a managed enterprise workflow product (approvals, document review, ticket triage) targeting mid-market. GA scheduled Q3. Overlap with NeuralFlow's horizontal workflow wedge is real — but Anthropic's offering is model-locked and tenant-bound, so NeuralFlow's framework-agnostic + vertical-legal story still differentiates. Jordan should update the board deck competitive slide before Wednesday.
+
+**Competitor move — OpenAI "AgentKit for Business":** OpenAI announced pricing tiers for AgentKit with volume discounts aggressive enough to squeeze anyone reselling raw orchestration. Reinforces the case for going vertical (legal) rather than staying horizontal. Add to Wednesday pre-read.
+
+**Key-hire signal:** LinkedIn shows NeuralFlow closed VP Sales — Daniel Aquino (ex-Workato enterprise lead) updated his profile Tuesday. Jordan confirmed offer was signed Monday, start date May 5. Strong outbound motion hire; fills the gap flagged April 5.
+
+**Customer signal:** Two Am Law 100 firms (Latham & Watkins, Morgan Lewis) posted "AI workflow engineer" roles mentioning "agent orchestration platforms" in stack. NeuralFlow's legal vertical pivot is hitting a live buyer pool — Aisha's team should prioritize both for outbound once Daniel starts.
 
 ---
 

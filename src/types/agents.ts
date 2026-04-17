@@ -102,6 +102,7 @@ export interface ProviderInfo {
   name: string;
   type: "cli" | "api";
   icon?: string;
+  iconAsset?: string;
   enabled?: boolean;
   available: boolean;
   authenticated?: boolean;

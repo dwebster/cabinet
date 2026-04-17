@@ -30,6 +30,7 @@ export interface AgentProvider {
   name: string;
   type: "cli" | "api";
   icon: string;
+  iconAsset?: string;
   installMessage?: string;
   installSteps?: Array<{
     title: string;

@@ -38,6 +38,7 @@ export const codexCliProvider: AgentProvider = {
     { title: "Install Codex CLI", detail: "Run the following in your terminal:", command: "npm i -g @openai/codex" },
     { title: "Log in", detail: "Authenticate with your ChatGPT or API account:", command: "codex login" },
     { title: "Verify login", detail: "Check that you're logged in:", command: "codex login status" },
+    { title: "Verify setup", detail: "Confirm headless mode works:", command: "codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox 'Reply with exactly OK'" },
   ],
   detachedPromptLaunchMode: "one-shot",
   models: [

@@ -1,12 +1,16 @@
 ---
 title: Backlog
 created: '2026-04-11T00:00:00Z'
-modified: '2026-04-13T00:00:00Z'
+modified: '2026-04-17T12:00:00Z'
 tags:
   - product
   - backlog
 ---
 # Backlog
+
+> **Status note (Apr 17, DevOps):** Sprint of Apr 14–18 produced no shipped work. No P1 story moved out of Ready. Statuses below reflect honest state; items touched by planning/triage are noted but remain Ready until a named engineer picks them up. See [[backlog/sprint-2026-04-14]] for the Friday scorecard and retrospective.
+>
+> **PM decisions (Apr 17):** OB-7 A/B approach ratified (device-ID bucketing + server-side persistence). OB-3 resized M → L and deferred out of the next sprint. Next sprint scope and named ownership rules are in [[pm-updates]].
 
 ## Top Backlog Themes
 
@@ -25,11 +29,11 @@ PRD: [[prds/onboarding-v2]]
 | --- | --- | --- | --- |
 | OB-1 | Pick Your People — manual name entry for 1-3 contacts, no permissions needed | M | Ready |
 | OB-2 | Emotional reminder framing — warm copy, no productivity language | S | Ready |
-| OB-3 | Delayed permission requests — show value before asking for notifications/contacts | M | Ready |
+| OB-3 | Delayed permission requests — show value before asking for notifications/contacts | L | Ready (deferred — needs permission state machine design before scoping; PM decision Apr 17) |
 | OB-4 | First reminder preview card — show what the nudge will look like before confirming | M | Ready |
 | OB-5 | Fix imported contact nickname display in setup | S | Ready |
 | OB-6 | Onboarding analytics — events at each step to measure new drop-offs | S | Ready |
-| OB-7 | A/B test harness — 20% holdback on current flow vs v2 | M | Ready |
+| OB-7 | A/B test harness — device-ID bucketing, server-side persistence on first auth call, 20% holdback on current flow vs v2 (PM ratified Apr 17) | M | Ready |
 
 ## P2: Smarter Reminder Timing
 
@@ -40,7 +44,7 @@ PRD: [[prds/smarter-reminder-timing]]
 | RT-1 | Smart delivery windows — learn from app-open patterns, shift reminders to active hours | L | Ready |
 | RT-2 | Adaptive frequency — suppress reminders for recently-contacted people, widen on dismissal | M | Ready |
 | RT-3 | Nudge copy rotation — 20+ variants per relationship type, never repeat back-to-back | M | Ready |
-| RT-4 | Fix "Reminder sent 2 hours late" critical bug | M | Blocked (must fix before RT-1) |
+| RT-4 | Fix "Reminder sent 2 hours late" critical bug | M | Investigating — CTO owned since Apr 13, findings due Apr 18 |
 | RT-5 | Quiet hours enforcement — no reminders 10 PM-7 AM unless user opts in | S | Ready |
 | RT-6 | Delivery health monitoring dashboard | S | Ready |
 

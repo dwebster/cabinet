@@ -1,7 +1,7 @@
 ---
 title: GreenPulse — News & Updates
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T00:00:00Z'
+modified: '2026-04-17T09:00:00Z'
 tags:
   - portfolio
   - greenpulse
@@ -9,6 +9,18 @@ tags:
 order: 2
 ---
 # GreenPulse — News & Updates
+
+---
+
+## April 17, 2026
+
+**EU policy — CSRD enforcement timeline confirmed:** The European Commission published final technical standards for CSRD Scope 3 reporting with enforcement beginning FY2027 (first filings due 2028). Hardware-verified MRV is explicitly named as an acceptable pathway; satellite-only estimation is flagged as "requires secondary verification." This is a direct policy endorsement of GreenPulse's approach. Rafael should forward to Priya Subramanian for immediate use in the Siemens/TotalEnergies/Enel sales motion.
+
+**VCM market — ICVCM approves first five CCP methodologies:** ICVCM published the first formal CCP-labeled methodologies. GreenPulse's pre-approval (April 8) places them inside a field of ~dozen hardware providers expected to qualify. Marketing team should publish the comparison brief Rafael flagged on April 13 within the week — window is narrow before software-only competitors position around "CCP-equivalent."
+
+**Competitor move — Sylvera $50M extension:** Sylvera (ratings/verification software) raised a $50M extension led by Balderton. They are pushing into MRV adjacent territory but do not own sensor data. Rafael's read: valuation watermark helpful for GreenPulse's Series B narrative; not a direct win/loss threat. Added to competitive tracker.
+
+**Customer signal:** Heidelberg Materials (German cement major) posted an RFI for Scope 1/3 continuous emissions monitoring across 12 European sites. Rafael flagging to Priya Subramanian today; this fits GreenPulse's ICP exactly and the EU MRV policy tailwind makes them the obvious bidder.
 
 ---
 

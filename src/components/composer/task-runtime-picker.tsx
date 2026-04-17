@@ -149,6 +149,19 @@ function isProviderReady(provider: ProviderInfo): boolean {
   );
 }
 
+function describeProviderUnreadyReason(provider: ProviderInfo): string | null {
+  if (provider.enabled === false) {
+    return "Disabled in Settings. Re-enable it below.";
+  }
+  if (!provider.available) {
+    return "Not installed on this machine. Follow the install guide below.";
+  }
+  if (provider.authenticated === false) {
+    return "Installed but not authenticated. Finish the login step.";
+  }
+  return null;
+}
+
 function getSelectableProviders(providers: ProviderInfo[]): ProviderInfo[] {
   const enabled = providers.filter((provider) => provider.enabled ?? true);
   const ready = enabled.filter(isProviderReady);
@@ -468,6 +481,276 @@ function ProviderRuntimeMatrix({
   );
 }
 
+export interface RuntimeMatrixValue {
+  providerId?: string | null;
+  model?: string | null;
+  effort?: string | null;
+}
+
+interface RuntimeSelectionBannerProps {
+  providers: ProviderInfo[];
+  value: RuntimeMatrixValue;
+  label?: string;
+  trailing?: React.ReactNode;
+  className?: string;
+}
+
+/**
+ * Colored summary row showing the currently selected provider/model/effort.
+ * Same look used in the task composer dropdown, now reused in settings.
+ */
+export function RuntimeSelectionBanner({
+  providers,
+  value,
+  label = "Selected Model",
+  trailing,
+  className,
+}: RuntimeSelectionBannerProps) {
+  const currentProvider = useMemo(
+    () =>
+      resolveSelectedProvider(providers, value.providerId ?? undefined, undefined),
+    [providers, value.providerId]
+  );
+
+  const currentModel = useMemo(
+    () =>
+      resolveSelectedModel(currentProvider, value.model ?? undefined, undefined),
+    [currentProvider, value.model]
+  );
+
+  const currentEffort = useMemo(
+    () =>
+      resolveProviderEffort(
+        currentProvider,
+        currentModel?.id,
+        value.effort ?? undefined,
+        undefined
+      ),
+    [currentModel?.id, currentProvider, value.effort]
+  );
+
+  const effortTone = getEffortTone(value.effort ?? AUTO_EFFORT_ID);
+  const effortName =
+    currentEffort?.name ||
+    (value.effort ? formatEffortName(value.effort) : "Auto");
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-lg px-2.5 py-2",
+        effortTone.bg,
+        className
+      )}
+    >
+      <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+        {label}
+      </span>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {currentProvider ? (
+          <>
+            <div className="flex size-5 shrink-0 items-center justify-center rounded border border-border/70 bg-background text-muted-foreground">
+              <ProviderGlyph icon={currentProvider.icon} className="h-2.5 w-2.5" />
+            </div>
+            <span className={cn("truncate text-[11px] font-medium", effortTone.header)}>
+              {currentModel?.name || currentProvider.name}
+            </span>
+            <span className="shrink-0 text-[9px] text-muted-foreground/50">·</span>
+            <span className={cn("shrink-0 text-[9px] font-medium", effortTone.header)}>
+              {effortName}
+            </span>
+          </>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">No provider selected</span>
+        )}
+      </div>
+      {trailing}
+    </div>
+  );
+}
+
+interface RuntimeMatrixPickerProps {
+  providers: ProviderInfo[];
+  value: RuntimeMatrixValue;
+  onChange: (value: { providerId: string; model?: string; effort?: string }) => void;
+  /**
+   * When true, show all enabled providers including ones that aren't installed
+   * or authenticated yet. Useful for settings surfaces where the user is
+   * configuring a default.
+   */
+  includeUnavailable?: boolean;
+  className?: string;
+  emptyText?: string;
+}
+
+/**
+ * Inline provider/model/effort matrix — same UI the task composer runtime
+ * picker renders inside its dropdown, but usable as an inline component.
+ * Reused by Settings → Providers for default selection.
+ */
+export function RuntimeMatrixPicker({
+  providers,
+  value,
+  onChange,
+  includeUnavailable = false,
+  className,
+  emptyText = "No providers available.",
+}: RuntimeMatrixPickerProps) {
+  const selectableProviders = useMemo(() => {
+    const base = includeUnavailable
+      ? providers.filter((provider) => provider.enabled ?? true)
+      : getSelectableProviders(providers);
+    const ready: ProviderInfo[] = [];
+    const unready: ProviderInfo[] = [];
+    for (const provider of base) {
+      if (isProviderReady(provider)) ready.push(provider);
+      else unready.push(provider);
+    }
+    return [...ready, ...unready];
+  }, [providers, includeUnavailable]);
+
+  const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
+
+  const readyProviderIds = useMemo(
+    () =>
+      new Set(
+        selectableProviders
+          .filter((provider) => isProviderReady(provider))
+          .map((provider) => provider.id)
+      ),
+    [selectableProviders]
+  );
+
+  useEffect(() => {
+    const requested = resolveSelectedProvider(
+      selectableProviders,
+      value.providerId ?? undefined,
+      undefined
+    );
+    if (requested && readyProviderIds.has(requested.id)) {
+      setActiveProviderId(requested.id);
+      return;
+    }
+    const firstReady = selectableProviders.find((provider) =>
+      readyProviderIds.has(provider.id)
+    );
+    setActiveProviderId(firstReady?.id ?? requested?.id ?? null);
+  }, [readyProviderIds, selectableProviders, value.providerId]);
+
+  const activeProviderIdValue = useMemo(() => {
+    const explicit = resolveSelectedProvider(
+      selectableProviders,
+      activeProviderId || undefined,
+      undefined
+    );
+    if (explicit && readyProviderIds.has(explicit.id)) return explicit.id;
+    const requestedReady = value.providerId && readyProviderIds.has(value.providerId)
+      ? value.providerId
+      : null;
+    if (requestedReady) return requestedReady;
+    const firstReady = selectableProviders.find((provider) =>
+      readyProviderIds.has(provider.id)
+    );
+    return firstReady?.id ?? explicit?.id;
+  }, [activeProviderId, readyProviderIds, selectableProviders, value.providerId]);
+
+  const currentProvider = useMemo(
+    () =>
+      resolveSelectedProvider(providers, value.providerId ?? undefined, undefined),
+    [providers, value.providerId]
+  );
+
+  const currentModel = useMemo(
+    () =>
+      resolveSelectedModel(currentProvider, value.model ?? undefined, undefined),
+    [currentProvider, value.model]
+  );
+
+  if (selectableProviders.length === 0) {
+    return (
+      <div
+        className={cn(
+          "rounded-lg border border-dashed border-border/70 px-3 py-5 text-center text-[10px] text-muted-foreground",
+          className
+        )}
+      >
+        {emptyText}
+      </div>
+    );
+  }
+
+  return (
+    <Tabs
+      value={activeProviderIdValue}
+      onValueChange={setActiveProviderId}
+      className={cn("gap-0", className)}
+    >
+      <div className="overflow-hidden rounded-lg border border-border/70">
+        <div className="flex px-1.5 pt-1.5 overflow-x-auto scrollbar-none">
+          <TabsList
+            variant="line"
+            aria-label="Providers"
+            className="h-auto w-max min-w-full justify-start gap-1.5 rounded-none bg-transparent p-0 !border-b-0"
+          >
+            {selectableProviders.map((provider) => {
+              const ready = readyProviderIds.has(provider.id);
+              const unreadyReason = describeProviderUnreadyReason(provider);
+              return (
+                <TabsTrigger
+                  key={provider.id}
+                  value={provider.id}
+                  disabled={!ready}
+                  aria-disabled={!ready}
+                  title={
+                    ready
+                      ? provider.name
+                      : `${provider.name} — ${unreadyReason || "Not available"}`
+                  }
+                  className={cn(
+                    "relative -mb-px h-7 flex-none gap-1.5 rounded-t-md rounded-b-none border-0 !bg-muted/60 px-2.5 py-1 text-[9px] font-medium text-muted-foreground shadow-none after:hidden data-active:z-10 data-active:!bg-background data-active:text-foreground data-active:shadow-none",
+                    ready
+                      ? "hover:text-foreground"
+                      : "cursor-not-allowed opacity-50 grayscale data-[disabled]:pointer-events-none"
+                  )}
+                >
+                  <ProviderGlyph icon={provider.icon} className="h-3 w-3" />
+                  <span>{provider.name}</span>
+                  {!ready && (
+                    <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+                      Not ready
+                    </span>
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
+
+        {selectableProviders.map((provider) => (
+          <TabsContent
+            key={provider.id}
+            value={provider.id}
+            className="mt-0 bg-background"
+          >
+            <ProviderRuntimeMatrix
+              provider={provider}
+              currentProviderId={currentProvider?.id}
+              currentModelId={currentModel?.id}
+              selectedEffortId={value.effort ?? undefined}
+              onSelect={(modelId, effortId) =>
+                onChange({
+                  providerId: provider.id,
+                  model: modelId,
+                  effort: effortId,
+                })
+              }
+            />
+          </TabsContent>
+        ))}
+      </div>
+    </Tabs>
+  );
+}
+
 export function TaskRuntimePicker({
   value,
   onChange,
@@ -485,7 +768,6 @@ export function TaskRuntimePicker({
   const [defaultEffort, setDefaultEffort] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -560,11 +842,6 @@ export function TaskRuntimePicker({
     }
   }, [normalizedValue, onChange, providers.length, value]);
 
-  const selectableProviders = useMemo(
-    () => getSelectableProviders(providers),
-    [providers]
-  );
-
   const currentProvider = useMemo(
     () =>
       resolveSelectedProvider(
@@ -618,38 +895,6 @@ export function TaskRuntimePicker({
       appDefaultSelection.model,
       defaultModel,
       defaultProviderId,
-    ]
-  );
-
-  useEffect(() => {
-    if (!open) return;
-    const nextProviderId =
-      resolveSelectedProvider(
-        selectableProviders,
-        normalizedValue.providerId,
-        defaultProviderId
-      )?.id ||
-      null;
-    setActiveProviderId(nextProviderId);
-  }, [
-    defaultProviderId,
-    normalizedValue.providerId,
-    open,
-    selectableProviders,
-  ]);
-
-  const activeProviderIdValue = useMemo(
-    () =>
-      resolveSelectedProvider(
-        selectableProviders,
-        activeProviderId || normalizedValue.providerId,
-        defaultProviderId
-      )?.id,
-    [
-      activeProviderId,
-      defaultProviderId,
-      normalizedValue.providerId,
-      selectableProviders,
     ]
   );
 
@@ -732,118 +977,58 @@ export function TaskRuntimePicker({
         className="w-[min(32rem,calc(100vw-1rem))] min-w-[17rem] max-w-[calc(100vw-1rem)] p-0"
       >
         <DropdownMenuGroup>
-          <div className={cn("mx-1.5 mt-1.5 flex items-center gap-2 rounded-lg px-2.5 py-2", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).bg)}>
-            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/60">
-              Selected Model
-            </span>
-
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              {currentProvider ? (
-                <>
-                  <div className="flex size-5 shrink-0 items-center justify-center rounded border border-border/70 bg-background text-muted-foreground">
-                    <ProviderGlyph
-                      icon={currentProvider.icon}
-                      className="h-2.5 w-2.5"
-                    />
-                  </div>
-                  <span className={cn("truncate text-[11px] font-medium", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).header)}>
-                    {currentModel?.name || currentProvider.name}
-                  </span>
-                  <span className="shrink-0 text-[9px] text-muted-foreground/50">·</span>
-                  <span className={cn("shrink-0 text-[9px] font-medium", getEffortTone(normalizedValue.effort ?? AUTO_EFFORT_ID).header)}>
-                    {currentEffort?.name ||
-                      (normalizedValue.effort
-                        ? formatEffortName(normalizedValue.effort)
-                        : "Auto")}
-                  </span>
-                </>
-              ) : (
-                <span className="text-[10px] text-muted-foreground">{selectionSummary}</span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className={cn(
-                "shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-medium transition-colors",
-                sameSelection(normalizedValue, appDefaultSelection)
-                  ? "border-foreground/20 bg-accent text-accent-foreground"
-                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
-              )}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                resetToDefault();
-              }}
-              title={[
-                appDefaultModelInfo?.name || "Default model",
-                appDefaultSelection.effort
-                  ? formatEffortName(appDefaultSelection.effort)
-                  : "Auto",
-                appDefaultProvider?.name || null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            >
-              {sameSelection(normalizedValue, appDefaultSelection) ? "App default" : "Select app default"}
-            </button>
-          </div>
+          <RuntimeSelectionBanner
+            providers={providers}
+            value={{
+              providerId: normalizedValue.providerId,
+              model: normalizedValue.model,
+              effort: normalizedValue.effort,
+            }}
+            className="mx-1.5 mt-1.5"
+            trailing={
+              <button
+                type="button"
+                className={cn(
+                  "shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-medium transition-colors",
+                  sameSelection(normalizedValue, appDefaultSelection)
+                    ? "border-foreground/20 bg-accent text-accent-foreground"
+                    : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                )}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  resetToDefault();
+                }}
+                title={[
+                  appDefaultModelInfo?.name || "Default model",
+                  appDefaultSelection.effort
+                    ? formatEffortName(appDefaultSelection.effort)
+                    : "Auto",
+                  appDefaultProvider?.name || null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              >
+                {sameSelection(normalizedValue, appDefaultSelection)
+                  ? "App default"
+                  : "Select app default"}
+              </button>
+            }
+          />
         </DropdownMenuGroup>
 
-        <div>
-          {selectableProviders.length > 0 ? (
-            <Tabs
-              value={activeProviderIdValue}
-              onValueChange={setActiveProviderId}
-              className="gap-0"
-            >
-              <div className="overflow-hidden border-x border-b border-border/70">
-                <div className="flex px-1.5 pt-1.5">
-                  <TabsList
-                    variant="line"
-                    aria-label="Task providers"
-                    className="h-auto w-full justify-start gap-1.5 rounded-none bg-transparent p-0 !border-b-0"
-                  >
-                    {selectableProviders.map((provider) => (
-                      <TabsTrigger
-                        key={provider.id}
-                        value={provider.id}
-                        className="relative -mb-px h-7 flex-none gap-1.5 rounded-t-md rounded-b-none border-0 !bg-muted/60 px-2.5 py-1 text-[9px] font-medium text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:z-10 data-active:!bg-background data-active:text-foreground data-active:shadow-none"
-                      >
-                        <ProviderGlyph
-                          icon={provider.icon}
-                          className="h-3 w-3"
-                        />
-                        <span>{provider.name}</span>
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </div>
-
-                {selectableProviders.map((provider) => (
-                  <TabsContent
-                    key={provider.id}
-                    value={provider.id}
-                    className="mt-0 bg-background"
-                  >
-                    <ProviderRuntimeMatrix
-                      provider={provider}
-                      currentProviderId={currentProvider?.id}
-                      currentModelId={currentModel?.id}
-                      selectedEffortId={normalizedValue.effort}
-                      onSelect={(modelId, effortId) =>
-                        applySelection(provider.id, modelId, effortId)
-                      }
-                    />
-                  </TabsContent>
-                ))}
-              </div>
-            </Tabs>
-          ) : (
-            <div className="rounded-lg border border-dashed border-border/70 px-3 py-5 text-center text-[10px] text-muted-foreground">
-              No providers available.
-            </div>
-          )}
+        <div className="px-0 pb-0">
+          <RuntimeMatrixPicker
+            providers={providers}
+            value={{
+              providerId: normalizedValue.providerId,
+              model: normalizedValue.model,
+              effort: normalizedValue.effort,
+            }}
+            onChange={({ providerId, model, effort }) =>
+              applySelection(providerId, model, effort)
+            }
+          />
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

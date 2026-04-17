@@ -1,7 +1,7 @@
 ---
 title: Warp Ventures OS
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-13T00:00:00Z'
+modified: '2026-04-17T09:00:00Z'
 tags:
   - vc
   - fund
@@ -76,4 +76,4 @@ Warp Ventures is a thesis-driven venture firm backing AI/ML infrastructure, deve
 
 Latest from the [[intelligence/daily-brief]] agent. Refreshed every morning at 7:00 AM PT.
 
-*Today's signal: OpenAI's dev platform announcements are compressing the tooling layer — watch DevForge positioning. GreenPulse carbon credits framework gaining policy momentum in EU.*
+*Today's signal (Apr 17): GitHub Actions confirmed an 18–25% enterprise pricing hike effective June 1 — this is the exact catalyst DevForge's "Actions refugee" campaign was built for, and Sam should push Lars to launch this week to protect Series A timing.*

@@ -41,6 +41,41 @@ import {
   resolveProviderModel,
 } from "@/lib/agents/runtime-options";
 
+type OnboardingVerifyStatus =
+  | "pass"
+  | "not_installed"
+  | "auth_required"
+  | "payment_required"
+  | "quota_exceeded"
+  | "other_error";
+
+interface OnboardingVerifyResult {
+  status: OnboardingVerifyStatus;
+  failedStepTitle: string;
+  command: string;
+  exitCode: number | null;
+  signal: string | null;
+  output: string;
+  stderr: string;
+  durationMs: number;
+  hint?: string;
+}
+
+type OnboardingVerifyState =
+  | { phase: "idle" }
+  | { phase: "running" }
+  | { phase: "done"; result: OnboardingVerifyResult }
+  | { phase: "error"; message: string };
+
+const ONBOARDING_VERIFY_META: Record<OnboardingVerifyStatus, { label: string; color: string; bg: string }> = {
+  pass: { label: "Passed", color: "#16a34a", bg: "rgba(22,163,74,0.1)" },
+  not_installed: { label: "Not installed", color: "#64748b", bg: "rgba(100,116,139,0.12)" },
+  auth_required: { label: "Auth required", color: "#d97706", bg: "rgba(217,119,6,0.12)" },
+  payment_required: { label: "Payment required", color: "#e11d48", bg: "rgba(225,29,72,0.12)" },
+  quota_exceeded: { label: "Quota / rate limit", color: "#ea580c", bg: "rgba(234,88,12,0.12)" },
+  other_error: { label: "Error", color: "#e11d48", bg: "rgba(225,29,72,0.1)" },
+};
+
 interface OnboardingAnswers {
   name: string;
   role: string;
@@ -1244,6 +1279,44 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+  const [onboardingVerifyState, setOnboardingVerifyState] = useState<
+    Record<string, OnboardingVerifyState>
+  >({});
+  const runOnboardingVerify = useCallback(async (providerId: string) => {
+    setOnboardingVerifyState((prev) => ({
+      ...prev,
+      [providerId]: { phase: "running" },
+    }));
+    try {
+      const res = await fetch(`/api/agents/providers/${providerId}/verify`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        setOnboardingVerifyState((prev) => ({
+          ...prev,
+          [providerId]: {
+            phase: "error",
+            message: body.error || `HTTP ${res.status}`,
+          },
+        }));
+        return;
+      }
+      const data = (await res.json()) as OnboardingVerifyResult;
+      setOnboardingVerifyState((prev) => ({
+        ...prev,
+        [providerId]: { phase: "done", result: data },
+      }));
+    } catch (err) {
+      setOnboardingVerifyState((prev) => ({
+        ...prev,
+        [providerId]: {
+          phase: "error",
+          message: err instanceof Error ? err.message : String(err),
+        },
+      }));
+    }
+  }, []);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedEffort, setSelectedEffort] = useState<string | null>(null);
@@ -1800,58 +1873,157 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                             className="rounded-lg p-3 space-y-3"
                             style={{ background: WEB.bgWarm }}
                           >
-                            {setupSteps.map((setupStep, i) => (
-                              <div key={i} className="flex items-start gap-2.5">
-                                <span
-                                  className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5"
-                                  style={{ background: WEB.accent, color: "white" }}
-                                >
-                                  {i + 1}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[13px] font-medium" style={{ color: WEB.text }}>
-                                    {setupStep.title}
-                                  </p>
-                                  <p className="text-[11px] mt-0.5" style={{ color: WEB.textSecondary }}>
-                                    {setupStep.detail}
-                                  </p>
-                                  {setupStep.cmd && (
-                                    <TerminalCommand command={setupStep.cmd} />
-                                  )}
-                                  {setupStep.openTerminal && (
+                            {(() => {
+                              const verifyState =
+                                onboardingVerifyState[p.id] ?? { phase: "idle" as const };
+                              const verifyResult =
+                                verifyState.phase === "done" ? verifyState.result : null;
+                              const verifyMeta = verifyResult
+                                ? ONBOARDING_VERIFY_META[verifyResult.status]
+                                : null;
+                              return (
+                                <>
+                                  {setupSteps.map((setupStep, i) => {
+                                    const isFailedStep =
+                                      verifyResult?.status !== undefined &&
+                                      verifyResult.status !== "pass" &&
+                                      setupStep.title.trim().toLowerCase() ===
+                                        verifyResult.failedStepTitle.trim().toLowerCase();
+                                    const isPassStep =
+                                      verifyResult?.status === "pass" &&
+                                      /verify\s+setup/i.test(setupStep.title);
+                                    return (
+                                      <div
+                                        key={i}
+                                        className="flex items-start gap-2.5 rounded-md p-1.5"
+                                        style={{
+                                          background: isFailedStep
+                                            ? "rgba(225,29,72,0.08)"
+                                            : isPassStep
+                                              ? "rgba(22,163,74,0.08)"
+                                              : "transparent",
+                                          boxShadow: isFailedStep
+                                            ? "0 0 0 1px rgba(225,29,72,0.3) inset"
+                                            : isPassStep
+                                              ? "0 0 0 1px rgba(22,163,74,0.3) inset"
+                                              : undefined,
+                                        }}
+                                      >
+                                        <span
+                                          className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5"
+                                          style={{
+                                            background: isFailedStep
+                                              ? "#e11d48"
+                                              : isPassStep
+                                                ? "#16a34a"
+                                                : WEB.accent,
+                                            color: "white",
+                                          }}
+                                        >
+                                          {isFailedStep ? "!" : isPassStep ? "✓" : i + 1}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[13px] font-medium" style={{ color: WEB.text }}>
+                                            {setupStep.title}
+                                          </p>
+                                          <p className="text-[11px] mt-0.5" style={{ color: WEB.textSecondary }}>
+                                            {setupStep.detail}
+                                          </p>
+                                          {setupStep.cmd && (
+                                            <TerminalCommand command={setupStep.cmd} />
+                                          )}
+                                          {setupStep.openTerminal && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                fetch("/api/terminal/open", { method: "POST" }).catch(() => {
+                                                  alert("Could not open terminal automatically. Please open Terminal.app (Mac) or your system terminal manually.");
+                                                });
+                                              }}
+                                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 mt-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5"
+                                              style={{ background: "#1e1e1e", color: "#d4d4d4" }}
+                                            >
+                                              <Terminal className="size-3" />
+                                              Open terminal
+                                            </button>
+                                          )}
+                                          {setupStep.link && (
+                                            <a
+                                              href={setupStep.link.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="inline-flex items-center gap-1 text-[11px] font-medium mt-1.5"
+                                              style={{ color: WEB.accent }}
+                                            >
+                                              {setupStep.link.label}
+                                              <ExternalLink className="size-3" />
+                                            </a>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+
+                                  <div
+                                    className="flex flex-wrap items-center gap-2 pt-2 border-t"
+                                    style={{ borderColor: WEB.borderLight }}
+                                  >
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        fetch("/api/terminal/open", { method: "POST" }).catch(() => {
-                                          alert("Could not open terminal automatically. Please open Terminal.app (Mac) or your system terminal manually.");
-                                        });
+                                        void runOnboardingVerify(p.id);
                                       }}
-                                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 mt-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5"
-                                      style={{ background: "#1e1e1e", color: "#d4d4d4" }}
+                                      disabled={verifyState.phase === "running"}
+                                      className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5 disabled:opacity-50"
+                                      style={{ background: WEB.accent, color: "white" }}
                                     >
-                                      <Terminal className="size-3" />
-                                      Open terminal
+                                      {verifyState.phase === "running" ? (
+                                        <RefreshCw className="size-3 animate-spin" />
+                                      ) : (
+                                        <CheckCircle2 className="size-3" />
+                                      )}
+                                      {verifyState.phase === "running"
+                                        ? "Verifying…"
+                                        : verifyState.phase === "done"
+                                          ? "Re-run verify"
+                                          : "Run verify"}
                                     </button>
+                                    {verifyMeta && (
+                                      <span
+                                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                                        style={{ background: verifyMeta.bg, color: verifyMeta.color }}
+                                      >
+                                        {verifyMeta.label}
+                                      </span>
+                                    )}
+                                    {verifyResult &&
+                                      verifyResult.status !== "pass" &&
+                                      verifyResult.failedStepTitle && (
+                                        <span className="text-[11px]" style={{ color: WEB.textSecondary }}>
+                                          Failed at step:{" "}
+                                          <strong style={{ color: WEB.text }}>
+                                            {verifyResult.failedStepTitle}
+                                          </strong>
+                                        </span>
+                                      )}
+                                    {verifyState.phase === "error" && (
+                                      <span className="text-[11px]" style={{ color: "#e11d48" }}>
+                                        {verifyState.message}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {verifyResult?.hint && verifyResult.status !== "pass" && (
+                                    <p className="text-[11px]" style={{ color: WEB.textSecondary }}>
+                                      {verifyResult.hint}
+                                    </p>
                                   )}
-                                  {setupStep.link && (
-                                    <a
-                                      href={setupStep.link.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1 text-[11px] font-medium mt-1.5"
-                                      style={{ color: WEB.accent }}
-                                    >
-                                      {setupStep.link.label}
-                                      <ExternalLink className="size-3" />
-                                    </a>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
+                                </>
+                              );
+                            })()}
 
                             <p className="text-[11px]" style={{ color: WEB.textTertiary }}>
-                              After setup, click Re-check below. You may need to restart Cabinet if it was already running.
+                              Verify runs your provider's headless prompt end-to-end and classifies any failure so you know which step to revisit.
                             </p>
                           </div>
                         </div>

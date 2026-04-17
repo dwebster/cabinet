@@ -1,7 +1,7 @@
 ---
 title: Portfolio
 created: '2026-04-13T00:00:00Z'
-modified: '2026-04-15T00:00:00Z'
+modified: '2026-04-17T12:00:00Z'
 tags:
   - portfolio
   - fund-ii
@@ -40,6 +40,33 @@ Five active investments. $67M deployed of $200M target. On pace for 18-month ful
 ## Portfolio Dashboard
 
 See the interactive [[dashboard]] for live charts, metrics, and company comparisons.
+
+---
+
+## Weekly Health Check — April 17, 2026
+
+| Company | ARR | MoM Growth | Runway | Status |
+|---|---|---|---|---|
+| MintLayer | $8.5M | +1.2% | 30 mo | 🟢 |
+| NeuralFlow | $2.1M | 0.0% | 18 mo | 🟡 |
+| GreenPulse | $1.2M | +1.7% | 20 mo | 🟢 |
+| DevForge | $800K | +3.9% | 18 mo | 🟡 |
+| DataStream | $450K | +3.4% | 22 mo | 🟢 |
+
+**Aggregate Fund II ARR:** $13.05M (+1.3% MoM). No metric moved >15% in either direction this week — April numbers are locked vs. the April 15 read.
+
+**Needs attention:**
+- ⚠️ **NeuralFlow** — Second flat week confirms the pipeline stall is structural, not a one-month blip. Offsetting: VP Sales Daniel Aquino (ex-Workato) signed Monday, starts May 5. But Anthropic "Claude for Enterprise Workflows" (GA Q3) and OpenAI AgentKit pricing tiers now actively compress the horizontal wedge. The vertical-legal pivot is the only viable Series B narrative — Jordan needs Aisha's 14-integration legal moat on the deck before June launch.
+- ⚠️ **DevForge** — The GitHub Actions pricing catalyst landed overnight (18–25% hike confirmed, effective June 1). Landing page + comparison calculator must ship this week, not May, or the refugee window closes. If Sam converts even 100 teams in Q2, the Series A ARR gap closes; if not, bridge math (Warp + angels, ~$1M / ~6 mo) must be live by June.
+- ⚠️ **DataStream** — Still tracking ~$15K/month ARR adds against a $600K Series A floor by June. Three vendor announcements this week (Databricks Lakeflow, Confluent Stream Governance 2.0, Snowflake Openflow –30%) compress the positioning window. Jordan needs to either land Ramp/Mercury as named references in 60 days or reset Series A timing to Q4.
+
+**Wins this week:**
+- 🎉 **MintLayer** — OCC interpretive letter 1186 removes the 9-month compliance objection on stablecoin middleware; Priscilla Okafor (ex-JPMorgan AML) joined as VP Compliance. Both materially strengthen the enterprise-bank sales motion and the Series C narrative.
+- 🎉 **GreenPulse** — CSRD final technical standards explicitly name hardware-verified MRV as the accepted path (satellite-only flagged as insufficient); ICVCM published the first CCP methodologies; Heidelberg Materials RFI (12 EU sites) lands directly in Priya's ICP. Best single week of regulatory tailwind the company has had.
+- 🎉 **DevForge** — Emily Park (ex-Vercel DX lead) confirmed joining as Head of DX. Stack Overflow 2026 preview: 41% of devs cite CI/CD cost as top pain (up from 28%). Category tailwind + the exact catalyst the campaign was built for — all in one week.
+- 🎉 **NeuralFlow** — Two Am Law 100 firms (Latham & Watkins, Morgan Lewis) posted "AI workflow engineer" roles referencing agent orchestration. The legal vertical ICP is hiring into the stack. Aisha's outbound should prioritize both once Daniel starts May 5.
+
+_Health check run by Portfolio Manager Agent · 2026-04-17_
 
 ---
 

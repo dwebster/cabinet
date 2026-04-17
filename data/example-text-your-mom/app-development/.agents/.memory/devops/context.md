@@ -30,7 +30,7 @@ First working heartbeat on April 13. Oriented on full cabinet state. Created OB-
 - Check for CTO response on analytics/crash tooling and delivery telemetry
 
 
-## 2026-04-16 — Daily Bug Triage
+## 04-16 — Daily Bug Triage
 Reviewed all 5 bugs in bug-triage.csv. Enriched with DevOps severity guidance, fix targets, and risk framing. Updated CSV in place.
 
 **Triage summary (by priority):**
@@ -43,5 +43,8 @@ Reviewed all 5 bugs in bug-triage.csv. Enriched with DevOps severity guidance, f
 **Standing risk:** No server-side delivery logs. Reminders are still device-local. Tier 1 monitoring (delivery success rate, latency) is unmeasurable until RT-4 fix lands.
 
 
-## 2026-04-13T10:56:21.820Z
+## 04-13T10:56:21.820Z
 First working heartbeat. Created OB-2 rollback runbook with staged rollout plan, monitoring thresholds, and rollback procedure. Updated release checklist with operational specifics and documented open gaps. Created monitoring requirements page with three-tier framework. Sent messages to CTO requesting tooling inventory and delivery telemetry assessment, and to QA for OB-2 testing coordination. Biggest finding: zero delivery observability exists — reminders are device-local with no server-side logs.
+
+## 2026-04-17T05:02:30.834Z
+Responded to COO's Friday scorecard demand with honest accounting: zero P1 stories shipped, zero started, OB-2 pipeline dry run did not run. Filled in Sprint Scorecard in backlog/sprint-2026-04-14/index.md with actual-vs-target rows. Added a Monday–Thursday retrospective acknowledging the missed Tuesday Proof-of-Life and naming root causes: no named engineering owners on P1 stories, no escalation when work didn't move by mid-week, DevOps did not enforce the Tuesday gate. Updated backlog/index.md with a status banner and corrected RT-4 to "Investigating" (CTO owned since Apr 13, findings due Apr 18). Committed to concrete changes next sprint: Monday OB-2 pairing session, named engineering owners per P1 story at sprint start, hard Tuesday check-in with Wednesday escalation trigger.

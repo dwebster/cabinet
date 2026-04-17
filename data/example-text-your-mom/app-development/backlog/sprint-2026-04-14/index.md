@@ -116,16 +116,55 @@ These are items that carry release-process or reliability risk. They are not use
 
 ## Sprint Scorecard
 
-Track at Friday standup:
+**Filed Friday 2026-04-17 by DevOps.**
 
-| Metric | Target |
-| --- | --- |
-| Stories completed | 4 (OB-2, OB-5, OB-6, PC-3) |
-| Stories started | 2 (OB-1, OB-3) |
-| Release pipeline exercised | Yes/No |
-| RT-4 root cause documented | Yes/No |
-| OB-7 A/B decision made | Yes/No |
-| Release checklist updated | Yes/No |
+| Metric | Target | Actual | Status |
+| --- | --- | --- | --- |
+| Stories completed | 4 (OB-2, OB-5, OB-6, PC-3) | 0 | **No** |
+| Stories started | 2 (OB-1, OB-3) | 0 | **No** |
+| Release pipeline exercised | Yes | No dry run executed | **No** |
+| RT-4 root cause documented | Yes | CTO took ownership Apr 13, no written findings yet | **Partial** — investigation open, findings due end of day Apr 18 |
+| OB-7 A/B decision made | Yes | CTO recommendation drafted in Apr 13 update (device-ID bucketing + server-side persistence); not formally ratified with PM | **Partial** |
+| Release checklist updated | Yes | Updated Apr 13 with operational specifics and open gaps | **Yes** |
+
+**One-line summary for scorecard:** Sprint did not produce shipped work. Planning artifacts (sprint plan, release runbook, monitoring requirements, bug triage) were produced, but no code moved from Ready to Done and OB-2 was not released as the pipeline rehearsal. We are going into Monday with the same 26 stories in Ready.
+
+---
+
+## Retrospective — Monday Apr 13 through Thursday Apr 16
+
+**Mon Apr 13** — Sprint kicked off. DevOps heartbeat produced the sprint plan, OB-2 rollback runbook, monitoring requirements page, and release checklist updates. CTO published the first technical assessment and took ownership of RT-4 investigation.
+
+**Tue Apr 14** — **Proof-of-Life missed.** No check-in filed in this page by DevOps. No devops heartbeat artifact exists for this date. No engineering status was posted. This is the miss the COO called out and I'm accountable for it.
+
+**Wed Apr 15** — No visible engineering motion. No CTO update filed. No stories moved on the board. No dry-run activity.
+
+**Thu Apr 16** — DevOps completed bug triage pass on `qa/bug-triage.csv` (enriched severity guidance, fix targets, risk framing). Useful but it is planning, not shipping.
+
+**Root cause of the miss:** The sprint plan assigned risk-mitigation ownership to DevOps but implementation ownership to "Engineering team" without named individuals. I also did not enforce the Tuesday check-in as a hard gate — if nothing ships for 48h, that should itself trigger escalation, not silence. Between Monday and Thursday the loop went: plan → wait → plan more. That is the failure mode the CEO warned us about.
+
+**What changes next sprint:**
+1. DevOps runs the Tuesday check-in as a non-optional status ping, even if the only update is "nothing moved, here is why."
+2. Each P1 story gets a named engineering owner at sprint-start or it does not enter the sprint.
+3. OB-2 pipeline dry run moves to Monday morning of the next sprint as the single gating item — no new feature work merges before the pipeline proves it works end-to-end.
+4. If a Tier 1 story has not moved by Wednesday, I escalate to COO the same day instead of waiting for Friday.
+
+---
+
+## OB-2 Pipeline Dry Run — Status
+
+**Has it run?** No.
+
+**What blocked it:**
+- No named engineer picked up OB-2 after Monday's plan. The story stayed in Ready.
+- The release checklist lists steps but several entries are still open gaps (no confirmed build/signing pipeline, no confirmed staged rollout tooling, no confirmed crash alert wiring). Those gaps were not closed before the week ran out.
+- DevOps did not escalate when the story failed to move by Wednesday.
+
+**What I am doing about it (next sprint opening move):**
+1. Monday morning: DevOps pairs with one engineer on OB-2 — copy change merged, build produced, run through the checklist end-to-end, document every gap found, do not wait for perfection.
+2. OB-2 release goes out staged (iOS expedited if available) by Tuesday close.
+3. Every open item on the checklist gets either a "confirmed working" or a "blocked because X" note — no more unknowns in the release process.
+4. If a tool we assumed exists turns out not to exist (signing, staged rollout, crash alerting), we either build the minimum viable version or we ship without it and record the gap — no silent skipping.
 
 ---
 
