@@ -226,6 +226,9 @@ export function TaskConversationPage({
 
   const runtimeLabel = useMemo(() => (task ? buildRuntimeLabel(task) : ""), [task]);
   const contextWindow = task?.meta.runtime?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+  const tokenPct = task?.meta.tokens
+    ? Math.min(100, (task.meta.tokens.total / contextWindow) * 100)
+    : 0;
 
   const lastTurn = task ? task.turns[task.turns.length - 1] : null;
   const showWrapUp =
@@ -528,6 +531,40 @@ export function TaskConversationPage({
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
           <div className="flex-1 min-h-0 overflow-y-auto">
+            {tokenPct >= 80 && task.meta.status !== "done" && !readOnly ? (
+              <div className="mx-auto mx-6 my-4 max-w-3xl">
+                <div
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg border px-4 py-3 text-[13px]",
+                    tokenPct >= 95
+                      ? "border-red-500/40 bg-red-500/[0.04] text-red-700 dark:text-red-400"
+                      : "border-amber-500/40 bg-amber-500/[0.04] text-amber-700 dark:text-amber-400"
+                  )}
+                >
+                  <RefreshCw className="size-4 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-medium">
+                      {tokenPct >= 95
+                        ? "Context window almost full"
+                        : "Approaching context limit"}
+                    </div>
+                    <div className="text-[11.5px] opacity-80">
+                      {tokenPct.toFixed(0)}% of {(contextWindow / 1000).toFixed(0)}k used.
+                      Compact to collapse earlier turns into a digest.
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 shrink-0 gap-1 px-2.5 text-[11px]"
+                    onClick={handleCompact}
+                    disabled={busy || task.turns.length < 2}
+                  >
+                    Compact now
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <div className="mx-auto max-w-3xl divide-y divide-border/40">
               {task.turns.map((turn) => (
                 <TurnBlock key={turn.id} turn={turn} />
