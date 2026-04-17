@@ -51,6 +51,7 @@ import {
   readConversationMeta,
   readConversationTranscript,
   transcriptShowsCompletedRun,
+  writeSession,
 } from "../src/lib/agents/conversation-store";
 import {
   getTokenFromAuthorizationHeader,
@@ -164,6 +165,14 @@ interface StructuredSession extends BaseSession {
   pid?: number;
   processGroupId?: number | null;
   startedAt?: string;
+  /** Claude-side (or adapter-side) resume session id extracted from result. */
+  adapterSessionId?: string | null;
+  /** Token usage reported by the adapter. */
+  adapterUsage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cachedInputTokens?: number;
+  } | null;
 }
 
 type ActiveSession = PtySession | StructuredSession;
@@ -710,6 +719,7 @@ function createStructuredSession(input: {
   cwd?: string;
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
+  adapterSessionId?: string | null;
 }): StructuredSession {
   const adapter = agentAdapterRegistry.get(input.adapterType);
   if (!adapter) {
@@ -757,7 +767,7 @@ function createStructuredSession(input: {
           typeof input.timeoutSeconds === "number" && input.timeoutSeconds > 0
             ? input.timeoutSeconds * 1000
             : undefined,
-        sessionId: input.sessionId,
+        sessionId: input.adapterSessionId ?? null,
         sessionParams: null,
         onLog: async (_stream, chunk) => {
           emitSessionOutput(session, chunk, input.onData);
@@ -773,6 +783,8 @@ function createStructuredSession(input: {
       session.exitCode = result.exitCode;
       session.resolvedStatus =
         result.exitCode === 0 && !result.timedOut ? "completed" : "failed";
+      session.adapterSessionId = result.sessionId ?? null;
+      session.adapterUsage = result.usage ?? null;
       clearSessionStopFallbackTimer(session);
 
       if (!session.output.length && result.output) {
@@ -782,6 +794,27 @@ function createStructuredSession(input: {
       const plain = stripAnsi(session.output.join(""));
       completedOutput.set(input.sessionId, { output: plain, completedAt: Date.now() });
       await finalizeSessionConversation(session).catch(() => {});
+
+      // Persist the adapter's resume handle to the conversation directory
+      // so future continues can use --resume. This only works when the
+      // daemon session id IS the conversation id (startConversationRun's
+      // path). Continue-via-daemon uses a synthetic runId and handles this
+      // client-side from the /session/:id/output response.
+      if (
+        result.sessionId &&
+        result.exitCode === 0 &&
+        !result.timedOut
+      ) {
+        await writeSession(
+          input.sessionId,
+          {
+            kind: input.adapterType,
+            resumeId: result.sessionId,
+            alive: !result.clearSession,
+            lastUsedAt: new Date().toISOString(),
+          }
+        ).catch(() => {});
+      }
 
       if (session.ws && session.ws.readyState === WebSocket.OPEN) {
         sessions.delete(input.sessionId);
@@ -818,6 +851,7 @@ function createSession(input: {
   timeoutSeconds?: number;
   onData?: (chunk: string) => void;
   launchMode?: "session" | "one-shot";
+  adapterSessionId?: string | null;
 }): ActiveSession {
   const adapter = input.adapterType
     ? agentAdapterRegistry.get(input.adapterType)
@@ -837,6 +871,7 @@ function createSession(input: {
       cwd: input.cwd,
       timeoutSeconds: input.timeoutSeconds,
       onData: input.onData,
+      adapterSessionId: input.adapterSessionId ?? null,
     });
   }
 
@@ -1150,6 +1185,10 @@ const server = http.createServer(async (req, res) => {
           sessionId,
           status: sessionStatus(active),
           output: plain,
+          adapterSessionId:
+            active.kind === "structured" ? active.adapterSessionId ?? null : null,
+          adapterUsage:
+            active.kind === "structured" ? active.adapterUsage ?? null : null,
         })
       );
       return;
@@ -1222,6 +1261,7 @@ const server = http.createServer(async (req, res) => {
           prompt,
           cwd,
           timeoutSeconds,
+          adapterSessionId,
         } = JSON.parse(body) as {
           id: string;
           providerId?: string;
@@ -1230,6 +1270,7 @@ const server = http.createServer(async (req, res) => {
           prompt?: string;
           cwd?: string;
           timeoutSeconds?: number;
+          adapterSessionId?: string | null;
         };
         const sessionId = id || `session-${Date.now()}`;
 
@@ -1264,6 +1305,7 @@ const server = http.createServer(async (req, res) => {
             cwd,
             timeoutSeconds,
             launchMode,
+            adapterSessionId: adapterSessionId ?? null,
           });
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);

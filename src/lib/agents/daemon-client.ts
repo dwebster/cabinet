@@ -8,6 +8,11 @@ interface CreateDaemonSessionInput {
   adapterConfig?: Record<string, unknown>;
   cwd?: string;
   timeoutSeconds?: number;
+  /**
+   * Adapter-level resume handle (e.g. Claude --resume session id). Distinct
+   * from the daemon's session/run id (`id`). Null for fresh runs.
+   */
+  adapterSessionId?: string | null;
 }
 
 async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {
@@ -35,15 +40,83 @@ export async function createDaemonSession(
   }
 }
 
+/**
+ * Poll the daemon until the session is no longer running. Calls onPartial
+ * with the accumulated stdout on each poll cycle (when it changed), so the
+ * caller can stream partial content into a task turn.
+ *
+ * Returns the final output + status. Throws on explicit error paths; does
+ * NOT throw on transient 404s (daemon briefly returns 404 while cleaning
+ * up), retrying up to the deadline.
+ */
+export async function pollDaemonSessionUntilDone(
+  sessionId: string,
+  options: {
+    onPartial?: (output: string) => void;
+    intervalMs?: number;
+    deadlineMs?: number;
+  } = {}
+): Promise<{
+  status: string;
+  output: string;
+  adapterSessionId?: string | null;
+  adapterUsage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cachedInputTokens?: number;
+  } | null;
+}> {
+  const interval = options.intervalMs ?? 700;
+  const deadline = Date.now() + (options.deadlineMs ?? 15 * 60 * 1000);
+  let lastOutput = "";
+
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, interval));
+    try {
+      const data = await getDaemonSessionOutput(sessionId);
+      if (options.onPartial && data.output && data.output !== lastOutput) {
+        lastOutput = data.output;
+        try {
+          options.onPartial(data.output);
+        } catch {
+          // swallow; partial-callback errors must not stop polling
+        }
+      }
+      if (data.status !== "running") {
+        return { status: data.status, output: data.output };
+      }
+    } catch {
+      // transient; try again until deadline
+    }
+  }
+
+  throw new Error(`Daemon session ${sessionId} timed out while polling`);
+}
+
 export async function getDaemonSessionOutput(id: string): Promise<{
   status: string;
   output: string;
+  adapterSessionId?: string | null;
+  adapterUsage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cachedInputTokens?: number;
+  } | null;
 }> {
   const response = await daemonFetch(`/session/${id}/output`);
   if (!response.ok) {
     throw new Error(`Failed to load daemon session output (${response.status})`);
   }
-  return response.json() as Promise<{ status: string; output: string }>;
+  return response.json() as Promise<{
+    status: string;
+    output: string;
+    adapterSessionId?: string | null;
+    adapterUsage?: {
+      inputTokens: number;
+      outputTokens: number;
+      cachedInputTokens?: number;
+    } | null;
+  }>;
 }
 
 export async function listDaemonSessions(): Promise<

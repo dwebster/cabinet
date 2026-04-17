@@ -23,7 +23,11 @@ import {
   updateAgentTurn,
   writeSession,
 } from "./conversation-store";
-import { createDaemonSession, getDaemonSessionOutput } from "./daemon-client";
+import {
+  createDaemonSession,
+  getDaemonSessionOutput,
+  pollDaemonSessionUntilDone,
+} from "./daemon-client";
 import { readLibraryPersona } from "./library-manager";
 import { readPersona, type AgentPersona } from "./persona-manager";
 import { getDefaultProviderId } from "./provider-runtime";
@@ -484,11 +488,14 @@ export async function startJobConversation(
 // Multi-turn continuation
 //
 // continueConversationRun appends a user turn, then invokes the adapter
-// directly (in-process) to produce an agent turn. Reuses all existing
-// prompt builders (buildCabinetEpilogueInstructions, buildMentionContext,
-// buildAgentContextHeader, buildKnowledgeBaseScopeInstructions,
-// buildDiagramOutputInstructions) so the agent still writes to the KB
-// with SUMMARY/CONTEXT/ARTIFACT trailer, cabinet-scoped cwd, persona, etc.
+// via the cabinet-daemon (default) or in-process (tests / fallback) to
+// produce an agent turn. Reuses all existing prompt builders so the
+// agent still writes KB files via the SUMMARY / CONTEXT / ARTIFACT
+// trailer, cabinet-scoped cwd, persona, diagram rules, etc.
+//
+// The daemon path is durable against Next.js reloads + route handler
+// teardown. The in-process path is used when CABINET_TASK_RUNNER is set
+// to "inprocess" or when not running inside Next.js (e.g. unit tests).
 // ---------------------------------------------------------------------------
 
 export interface ContinueConversationInput {
@@ -496,6 +503,175 @@ export interface ContinueConversationInput {
   mentionedPaths?: string[];
   cabinetPath?: string;
   timeoutMs?: number;
+}
+
+async function runContinueInProcess(input: {
+  adapter: import("./adapters/types").AgentExecutionAdapter;
+  conversationId: string;
+  pendingTurnNumber: number;
+  meta: ConversationMeta;
+  cp: string | undefined;
+  cwd: string;
+  canResume: boolean;
+  sessionResumeId: string | null;
+  prompt: string;
+  replayPrompt: string;
+  timeoutMs: number;
+  isSessionExpiredError: (errorMessage?: string | null) => boolean;
+}): Promise<ConversationMeta | null> {
+  const {
+    adapter,
+    conversationId,
+    pendingTurnNumber,
+    meta,
+    cp,
+    cwd,
+    canResume,
+    sessionResumeId,
+    prompt,
+    replayPrompt,
+    timeoutMs,
+    isSessionExpiredError,
+  } = input;
+
+  const logChunks: string[] = [];
+  let lastFlushAt = 0;
+  let flushInFlight: Promise<unknown> | null = null;
+
+  const flushStreamedContent = async () => {
+    const now = Date.now();
+    if (now - lastFlushAt < 700) return;
+    if (flushInFlight) return;
+    lastFlushAt = now;
+    const accumulated = logChunks.join("").trim();
+    if (!accumulated) return;
+    const partial = extractAgentTurnContent(accumulated) || accumulated;
+    flushInFlight = updateAgentTurn(
+      conversationId,
+      pendingTurnNumber,
+      { content: partial, pending: true },
+      cp
+    )
+      .catch(() => null)
+      .finally(() => {
+        flushInFlight = null;
+      });
+    await flushInFlight;
+  };
+
+  const executeWithPrompt = async (
+    effectivePrompt: string,
+    effectiveSessionId: string | null
+  ) => {
+    logChunks.length = 0;
+    const execCtx: AdapterExecutionContext = {
+      runId: randomUUID(),
+      adapterType: adapter.type,
+      config: meta.adapterConfig || {},
+      prompt: effectivePrompt,
+      cwd,
+      timeoutMs,
+      sessionId: effectiveSessionId,
+      onLog: async (stream, chunk) => {
+        if (stream !== "stdout") return;
+        logChunks.push(chunk);
+        void flushStreamedContent();
+      },
+    };
+    return adapter.execute!(execCtx);
+  };
+
+  try {
+    let result = await executeWithPrompt(
+      prompt,
+      canResume ? sessionResumeId : null
+    );
+
+    if (
+      canResume &&
+      (result.exitCode !== 0 || !!result.errorMessage) &&
+      isSessionExpiredError(result.errorMessage)
+    ) {
+      await writeSession(
+        conversationId,
+        { kind: adapter.type, alive: false, lastUsedAt: new Date().toISOString() },
+        cp
+      );
+      await updateAgentTurn(
+        conversationId,
+        pendingTurnNumber,
+        { content: "Session expired, retrying with full context…", pending: true },
+        cp
+      );
+      result = await executeWithPrompt(replayPrompt, null);
+    }
+
+    const rawOutput =
+      (result.output && result.output.trim()) || logChunks.join("").trim() || "";
+    const finalText = rawOutput
+      ? extractAgentTurnContent(rawOutput) || rawOutput
+      : "(no response)";
+    const failed =
+      result.exitCode !== 0 || !!result.errorMessage || result.timedOut;
+    const awaitingInput = !failed && looksLikeAwaitingInput(finalText);
+
+    await updateAgentTurn(
+      conversationId,
+      pendingTurnNumber,
+      {
+        content: failed
+          ? `${finalText}\n\n_${result.errorMessage || "Adapter failed."}_`
+          : rawOutput || finalText,
+        pending: false,
+        awaitingInput,
+        tokens: result.usage
+          ? {
+              input: result.usage.inputTokens,
+              output: result.usage.outputTokens,
+              cache: result.usage.cachedInputTokens,
+            }
+          : undefined,
+        sessionId: result.sessionId || undefined,
+        exitCode: failed ? result.exitCode ?? 1 : undefined,
+        error: failed ? result.errorMessage ?? undefined : undefined,
+      },
+      cp
+    );
+
+    if (result.sessionId) {
+      await writeSession(
+        conversationId,
+        {
+          kind: adapter.type,
+          resumeId: result.sessionId,
+          alive: !result.clearSession,
+          lastUsedAt: new Date().toISOString(),
+        },
+        cp
+      );
+    } else if (result.clearSession) {
+      await writeSession(
+        conversationId,
+        { kind: adapter.type, alive: false, lastUsedAt: new Date().toISOString() },
+        cp
+      );
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown adapter error";
+    await updateAgentTurn(
+      conversationId,
+      pendingTurnNumber,
+      {
+        content: `_Adapter crashed: ${message}_`,
+        pending: false,
+        exitCode: 1,
+        error: message,
+      },
+      cp
+    );
+  }
+
+  return readConversationMeta(conversationId, cp);
 }
 
 function serializeTurnHistory(
@@ -638,54 +814,6 @@ export async function continueConversationRun(
   if (!pending) return meta;
   const pendingTurnNumber = pending.turn;
 
-  // 7. Execute adapter with streaming partial-content updates to the turn.
-  const logChunks: string[] = [];
-  let lastStreamedFlushAt = 0;
-  let streamFlushInFlight: Promise<unknown> | null = null;
-
-  const flushStreamedContent = async () => {
-    const now = Date.now();
-    if (now - lastStreamedFlushAt < 700) return;
-    if (streamFlushInFlight) return;
-    lastStreamedFlushAt = now;
-    const accumulated = logChunks.join("").trim();
-    if (!accumulated) return;
-    const partial = extractAgentTurnContent(accumulated) || accumulated;
-    streamFlushInFlight = updateAgentTurn(
-      conversationId,
-      pendingTurnNumber,
-      { content: partial, pending: true },
-      cp
-    )
-      .catch(() => null)
-      .finally(() => {
-        streamFlushInFlight = null;
-      });
-    await streamFlushInFlight;
-  };
-
-  const executeWithPrompt = async (
-    effectivePrompt: string,
-    effectiveSessionId: string | null
-  ) => {
-    logChunks.length = 0;
-    const execCtx: AdapterExecutionContext = {
-      runId: randomUUID(),
-      adapterType: adapter.type,
-      config: meta.adapterConfig || {},
-      prompt: effectivePrompt,
-      cwd,
-      timeoutMs: input.timeoutMs ?? 10 * 60 * 1000,
-      sessionId: effectiveSessionId,
-      onLog: async (stream, chunk) => {
-        if (stream !== "stdout") return;
-        logChunks.push(chunk);
-        void flushStreamedContent();
-      },
-    };
-    return adapter.execute!(execCtx);
-  };
-
   const isSessionExpiredError = (errorMessage?: string | null): boolean => {
     if (!errorMessage) return false;
     const lower = errorMessage.toLowerCase();
@@ -698,19 +826,106 @@ export async function continueConversationRun(
     );
   };
 
+  const useDaemon =
+    process.env.CABINET_TASK_RUNNER !== "inprocess" &&
+    !!process.env.NEXT_RUNTIME; // only when running inside Next.js server
+
+  if (!useDaemon) {
+    return await runContinueInProcess({
+      adapter,
+      conversationId,
+      pendingTurnNumber,
+      meta,
+      cp,
+      cwd,
+      canResume,
+      sessionResumeId: session?.resumeId ?? null,
+      prompt,
+      replayPrompt,
+      timeoutMs: input.timeoutMs ?? 10 * 60 * 1000,
+      isSessionExpiredError,
+    });
+  }
+
+  // 7. Route through the daemon so the run survives Next.js reloads and
+  //    Node process death. The daemon buffers stdout; we poll every 700ms
+  //    and stream the accumulated text into the pending turn.
+  const executeViaDaemon = async (
+    effectivePrompt: string,
+    effectiveSessionId: string | null
+  ): Promise<{
+    status: "completed" | "failed";
+    output: string;
+    errorMessage?: string;
+    adapterSessionId?: string | null;
+    adapterUsage?: {
+      inputTokens: number;
+      outputTokens: number;
+      cachedInputTokens?: number;
+    } | null;
+  }> => {
+    const runId = `${conversationId}::t${pendingTurnNumber}::${randomUUID()}`;
+    try {
+      await createDaemonSession({
+        id: runId,
+        prompt: effectivePrompt,
+        providerId: meta.providerId,
+        adapterType: adapter.type,
+        adapterConfig: meta.adapterConfig,
+        cwd,
+        timeoutSeconds: Math.max(
+          60,
+          Math.ceil((input.timeoutMs ?? 10 * 60 * 1000) / 1000)
+        ),
+        adapterSessionId: effectiveSessionId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { status: "failed", output: "", errorMessage: message };
+    }
+
+    try {
+      const result = await pollDaemonSessionUntilDone(runId, {
+        intervalMs: 700,
+        deadlineMs: input.timeoutMs ?? 15 * 60 * 1000,
+        onPartial: (output) => {
+          const partial =
+            extractAgentTurnContent(output) || output.trim();
+          if (!partial) return;
+          void updateAgentTurn(
+            conversationId,
+            pendingTurnNumber,
+            { content: partial, pending: true },
+            cp
+          ).catch(() => null);
+        },
+      });
+      const status = result.status === "completed" ? "completed" : "failed";
+      return {
+        status,
+        output: result.output,
+        errorMessage: status === "failed" ? result.output || "Adapter failed." : undefined,
+        adapterSessionId: result.adapterSessionId,
+        adapterUsage: result.adapterUsage,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { status: "failed", output: "", errorMessage: message };
+    }
+  };
+
   try {
-    let result = await executeWithPrompt(
+    let result = await executeViaDaemon(
       prompt,
       canResume ? session!.resumeId! : null
     );
 
-    // Fallback: the adapter reports the session is gone (happens after
-    // long idle / server restart / marking the task done earlier). Retry
-    // in replay mode with full history and a fresh session.
+    // Fallback: session expired (Claude --resume failed). Retry in replay
+    // mode with full history.
     if (
       canResume &&
-      (result.exitCode !== 0 || !!result.errorMessage) &&
-      isSessionExpiredError(result.errorMessage)
+      result.status === "failed" &&
+      isSessionExpiredError(result.errorMessage || result.output)
     ) {
       await writeSession(
         conversationId,
@@ -721,26 +936,34 @@ export async function continueConversationRun(
         },
         cp
       );
-      // Reset the pending turn's content so the user doesn't see the
-      // stale error flash before the retry.
       await updateAgentTurn(
         conversationId,
         pendingTurnNumber,
         { content: "Session expired, retrying with full context…", pending: true },
         cp
       );
-      result = await executeWithPrompt(replayPrompt, null);
+      result = await executeViaDaemon(replayPrompt, null);
     }
 
-    const rawOutput =
-      (result.output && result.output.trim()) || logChunks.join("").trim() || "";
+    const rawOutput = (result.output || "").trim();
     const finalText = rawOutput
       ? extractAgentTurnContent(rawOutput) || rawOutput
       : "(no response)";
-
-    const failed =
-      result.exitCode !== 0 || !!result.errorMessage || result.timedOut;
+    const failed = result.status !== "completed";
     const awaitingInput = !failed && looksLikeAwaitingInput(finalText);
+
+    // Re-finalize the conversation via finalizeConversation so we pick up
+    // the daemon-side transcript + parsed cabinet block + artifacts +
+    // summary + contextSummary (same path startConversationRun uses).
+    const finalized = await finalizeConversation(
+      conversationId,
+      {
+        status: failed ? "failed" : "completed",
+        exitCode: failed ? 1 : 0,
+        output: rawOutput,
+      },
+      cp
+    );
 
     await updateAgentTurn(
       conversationId,
@@ -748,40 +971,32 @@ export async function continueConversationRun(
       {
         content: failed
           ? `${finalText}\n\n_${result.errorMessage || "Adapter failed."}_`
-          : rawOutput || finalText,
+          : finalText,
         pending: false,
         awaitingInput,
-        tokens: result.usage
+        tokens: result.adapterUsage
           ? {
-              input: result.usage.inputTokens,
-              output: result.usage.outputTokens,
-              cache: result.usage.cachedInputTokens,
+              input: result.adapterUsage.inputTokens,
+              output: result.adapterUsage.outputTokens,
+              cache: result.adapterUsage.cachedInputTokens,
             }
           : undefined,
-        sessionId: result.sessionId || undefined,
-        exitCode: failed ? result.exitCode ?? 1 : undefined,
-        error: failed ? result.errorMessage ?? undefined : undefined,
+        exitCode: failed ? 1 : undefined,
+        error: failed ? result.errorMessage : undefined,
+        // Carry the KB artifacts from the finalized meta so the turn's
+        // artifact list matches what parseCabinetBlock extracted.
+        artifacts: finalized?.artifactPaths ?? undefined,
       },
       cp
     );
 
-    if (result.sessionId) {
+    if (!failed && result.adapterSessionId) {
       await writeSession(
         conversationId,
         {
           kind: adapter.type,
-          resumeId: result.sessionId,
-          alive: !result.clearSession,
-          lastUsedAt: new Date().toISOString(),
-        },
-        cp
-      );
-    } else if (result.clearSession) {
-      await writeSession(
-        conversationId,
-        {
-          kind: adapter.type,
-          alive: false,
+          resumeId: result.adapterSessionId,
+          alive: true,
           lastUsedAt: new Date().toISOString(),
         },
         cp

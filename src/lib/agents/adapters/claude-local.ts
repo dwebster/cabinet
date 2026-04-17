@@ -32,9 +32,10 @@ function buildClaudeArgs(
 
   if (resumeSessionId) {
     args.push("--resume", resumeSessionId);
-  } else {
-    args.push("--no-session-persistence");
   }
+  // No --no-session-persistence: we want Claude to create a session on
+  // fresh runs too, so we can capture its id (emitted on the stream) and
+  // resume later. The persisted session is cheap and auto-expires.
 
   const model = readStringConfig(config, "model");
   if (model) {
