@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ArrowUp, AtSign, BrainCircuit, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
+const MIN_ROWS = 1;
+const MAX_HEIGHT_PX = 240;
 
 export function TaskComposerPanel({
   runtimeLabel,
@@ -15,6 +18,16 @@ export function TaskComposerPanel({
   onSend: (text: string) => void;
 }) {
   const [value, setValue] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const next = Math.min(el.scrollHeight, MAX_HEIGHT_PX);
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight > MAX_HEIGHT_PX ? "auto" : "hidden";
+  }, [value]);
 
   const submit = () => {
     if (!value.trim()) return;
@@ -47,6 +60,7 @@ export function TaskComposerPanel({
         )}
       >
         <textarea
+          ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
@@ -57,8 +71,9 @@ export function TaskComposerPanel({
           }}
           autoFocus={awaitingInput}
           placeholder={awaitingInput ? "Reply to the agent…" : "Continue the conversation…"}
-          rows={3}
-          className="block w-full resize-none bg-transparent px-4 pt-3 pb-2 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/60"
+          rows={MIN_ROWS}
+          className="block w-full resize-none bg-transparent px-4 pt-2.5 pb-1.5 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/60"
+          style={{ minHeight: "2.25rem", maxHeight: `${MAX_HEIGHT_PX}px` }}
         />
 
         <div className="flex items-center gap-1 border-t border-border/60 px-2 py-1.5">
