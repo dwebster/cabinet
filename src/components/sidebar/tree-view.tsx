@@ -44,6 +44,7 @@ import {
   Megaphone,
   Search,
   ShieldCheck,
+  HeartPulse,
   Code,
   BarChart3,
   Briefcase,
@@ -61,6 +62,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cronToShortLabel } from "@/lib/agents/cron-utils";
+import { getAgentColor } from "@/lib/agents/cron-compute";
 import {
   findNodeByPath,
   findParentCabinetNode,
@@ -133,8 +135,8 @@ function getAgentIcon(slug: string): LucideIcon {
 
 const itemClass = (active: boolean) =>
   cn(
-    "flex items-center gap-1.5 w-full text-left py-1.5 px-2 text-[13px] rounded-md transition-colors",
-    "hover:bg-accent/50",
+    "flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
+    "hover:bg-accent/50 hover:text-foreground",
     active && "bg-accent text-accent-foreground font-medium"
   );
 
@@ -306,7 +308,7 @@ export function TreeView() {
           <ContextMenuTrigger>
           <button
             onClick={() => openCabinetOverview(activeCabinet?.path || cabinetPath)}
-            className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-foreground/80 transition-colors"
+            className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex min-w-0 flex-1 items-center gap-2 text-left hover:text-foreground/80 transition-colors"
           >
             <Archive className="h-3.5 w-3.5 shrink-0 text-amber-400" />
             {cabinetAgentScopeName || activeCabinet?.frontmatter?.title || activeCabinet?.name || "Cabinet"}
@@ -379,7 +381,7 @@ export function TreeView() {
           >
             <SelectTrigger
               size="sm"
-              className="ml-auto h-5 min-w-0 w-auto gap-0.5 rounded border-none bg-transparent px-1.5 py-0 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 shadow-none hover:text-foreground/80 focus-visible:ring-0"
+              className="ml-auto h-5 min-w-0 w-auto gap-0.5 rounded border-none bg-transparent px-1.5 py-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60 shadow-none hover:text-foreground/80 focus-visible:ring-0"
             >
               <SelectValue placeholder="Own" />
             </SelectTrigger>
@@ -403,7 +405,7 @@ export function TreeView() {
 
             {/* ── Agents (depth 1) ─────────────────────────── */}
             <div
-              className="group flex items-center gap-1.5 px-3 pt-4 pb-1 w-full"
+              className="group flex items-center gap-1.5 px-3 pt-3 pb-px w-full"
               style={pad(0)}
             >
               <button
@@ -429,7 +431,7 @@ export function TreeView() {
                   }
                   setSection({ type: "agents", mode: "ops" });
                 }}
-                className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
+                className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 hover:text-foreground/80 transition-colors"
               >
                 <Users className="h-3.5 w-3.5 shrink-0" />
                 Agents
@@ -455,63 +457,71 @@ export function TreeView() {
               <>
                 {activeCabinet ? (
                   agents.length > 0 ? (
-                    agents.map((agent) => (
-                      <button
-                        key={agent.scopedId || agent.slug}
-                        onClick={() =>
-                          setSection({
-                            type: "agent",
-                            mode: "cabinet",
-                            slug: agent.slug,
-                            cabinetPath: agent.cabinetPath || activeCabinet?.path,
-                            agentScopedId:
-                              agent.scopedId ||
-                              `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`,
-                          })
-                        }
-                        className={cn(
-                          "flex w-full items-start gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent/50",
-                          selectedAgentScopedId ===
-                            (agent.scopedId ||
-                              `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`) &&
-                            "bg-accent text-accent-foreground"
-                        )}
-                        style={pad(2)}
-                      >
-                        <span className="w-3.5 shrink-0" />
-                        {(() => {
-                          const Icon = getAgentIcon(agent.slug);
-                          return (
-                            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                          );
-                        })()}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-[13px]">{agent.name}</span>
-                            <span
-                              className={cn(
-                                "ml-auto h-1.5 w-1.5 shrink-0 rounded-full",
-                                agent.active ? "bg-green-500" : "bg-muted-foreground/30"
-                              )}
-                            />
-                          </div>
-                          <p className="mt-0.5 truncate text-[10px] text-muted-foreground/70">
-                            {[
-                              agent.inherited ? agent.cabinetName : null,
-                              `${agent.jobCount || 0} ${(agent.jobCount || 0) === 1 ? "job" : "jobs"}`,
-                              `${agent.taskCount || 0} ${(agent.taskCount || 0) === 1 ? "task" : "tasks"}`,
-                              agent.heartbeat ? cronToShortLabel(agent.heartbeat) : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </p>
-                        </div>
-                      </button>
-                    ))
+                    agents.map((agent) => {
+                      const Icon = getAgentIcon(agent.slug);
+                      const color = getAgentColor(agent.slug);
+                      const heartbeatLabel = agent.heartbeat
+                        ? cronToShortLabel(agent.heartbeat)
+                        : null;
+                      const tooltipMeta = [
+                        agent.inherited ? agent.cabinetName : null,
+                        `${agent.jobCount || 0} ${(agent.jobCount || 0) === 1 ? "job" : "jobs"}`,
+                        `${agent.taskCount || 0} ${(agent.taskCount || 0) === 1 ? "task" : "tasks"}`,
+                        heartbeatLabel,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ");
+                      return (
+                        <button
+                          key={agent.scopedId || agent.slug}
+                          onClick={() =>
+                            setSection({
+                              type: "agent",
+                              mode: "cabinet",
+                              slug: agent.slug,
+                              cabinetPath: agent.cabinetPath || activeCabinet?.path,
+                              agentScopedId:
+                                agent.scopedId ||
+                                `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`,
+                            })
+                          }
+                          className={cn(
+                            "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-accent/50",
+                            selectedAgentScopedId ===
+                              (agent.scopedId ||
+                                `${agent.cabinetPath || activeCabinet?.path}::agent::${agent.slug}`) &&
+                              "bg-accent text-accent-foreground"
+                          )}
+                          style={pad(1)}
+                          title={tooltipMeta}
+                        >
+                          <span
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
+                            style={{ backgroundColor: color.bg, color: color.text }}
+                          >
+                            <Icon className="h-3 w-3" />
+                          </span>
+                          <span className="truncate text-[12px] text-foreground/75">{agent.name}</span>
+                          {heartbeatLabel && (
+                            <span className="ml-auto flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground/70">
+                              <HeartPulse className="h-3 w-3" />
+                              {heartbeatLabel}
+                            </span>
+                          )}
+                          <span
+                            className={cn(
+                              "h-1.5 w-1.5 shrink-0 rounded-full",
+                              heartbeatLabel ? "ml-1" : "ml-auto",
+                              agent.active ? "bg-green-500" : "bg-muted-foreground/30"
+                            )}
+                          />
+                        </button>
+                      );
+                    })
                   ) : (
                     <div
-                      className="px-3 py-2 text-[12px] text-muted-foreground"
-                      style={pad(2)}
+                      className="px-3 py-2 text-[11px] text-muted-foreground"
+                      style={pad(1)}
                     >
                       {cabinetVisibilityMode === "own"
                         ? "This cabinet does not have local agents yet."
@@ -520,7 +530,7 @@ export function TreeView() {
                   )
                 ) : (
                   <>
-                    {/* General agent (depth 2) */}
+                    {/* General agent (depth 1) */}
                     <button
                       onClick={() =>
                         setSection({ type: "agent", mode: "ops", slug: "general" })
@@ -528,10 +538,9 @@ export function TreeView() {
                       className={itemClass(
                         section.type === "agent" && section.slug === "general"
                       )}
-                      style={pad(2)}
+                      style={pad(1)}
                     >
-                      <span className="w-3.5" />
-                      <Bot className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <Bot className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <span className="truncate">General</span>
                     </button>
                     {/* Editor first, then rest (depth 2) */}
@@ -566,12 +575,11 @@ export function TreeView() {
                               section.type === "agent" &&
                               section.slug === agent.slug)
                         )}
-                        style={pad(2)}
+                        style={pad(1)}
                       >
-                        <span className="w-3.5" />
                         {(() => {
                           const Icon = getAgentIcon(agent.slug);
-                          return <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />;
+                          return <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
                         })()}
                         <span className="truncate">{agent.name}</span>
                         <span
@@ -606,7 +614,7 @@ export function TreeView() {
                 setSection({ type: "tasks", mode: "ops" });
               }}
               className={cn(
-                "text-[10px] font-semibold uppercase tracking-wider px-3 pt-2 pb-1 w-full text-left flex items-center gap-1.5 transition-colors",
+                "text-[11px] font-semibold uppercase tracking-wide px-3 pt-2 pb-1 w-full text-left flex items-center gap-2 transition-colors",
                 section.type === "tasks" &&
                   ((activeCabinet && section.cabinetPath === activeCabinet.path) ||
                     (!activeCabinet && section.mode === "ops"))
@@ -646,7 +654,7 @@ export function TreeView() {
                     }
                     setSection({ type: "home" });
                   }}
-                  className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-left flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
+                  className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground text-left flex items-center gap-2 hover:text-foreground/80 transition-colors"
                 >
                   <BookOpen className="h-3.5 w-3.5 shrink-0" />
                   {kbSectionLabel}
@@ -699,10 +707,9 @@ export function TreeView() {
                       }
                     }}
                     className={itemClass(false)}
-                    style={pad(2)}
+                    style={pad(1)}
                   >
-                    <span className="w-3.5" />
-                    <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     {activeCabinet ? "Add cabinet data" : "Add your first page"}
                   </button>
                 ) : (
@@ -710,7 +717,7 @@ export function TreeView() {
                     <TreeNode
                       key={node.path}
                       node={node}
-                      depth={2}
+                      depth={1}
                       contextCabinetPath={activeCabinet?.path || null}
                     />
                   ))

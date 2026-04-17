@@ -219,8 +219,8 @@ export function TreeNode({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={cn(
-              "flex items-center gap-1.5 w-full text-left py-1.5 px-2 text-[13px] rounded-md transition-colors",
-              "hover:bg-accent/50 cursor-grab active:cursor-grabbing",
+              "flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
+              "hover:bg-accent/50 hover:text-foreground cursor-grab active:cursor-grabbing",
               isSelected && "bg-accent text-accent-foreground font-medium",
               isDragOver &&
                 "bg-primary/10 ring-1 ring-primary/30 ring-inset"
@@ -234,52 +234,52 @@ export function TreeNode({
                   e.stopPropagation();
                   toggleExpand(node.path);
                 }}
-                className="shrink-0 flex items-center justify-center w-3.5 h-3.5 rounded hover:bg-accent"
+                className="shrink-0 -ml-1 flex items-center justify-center w-3 h-3 rounded hover:bg-accent"
               >
                 <ChevronRight
                   className={cn(
-                    "h-3.5 w-3.5 text-muted-foreground/70 transition-transform duration-150",
+                    "h-3 w-3 text-muted-foreground/70 transition-transform duration-150",
                     isExpanded && "rotate-90"
                   )}
                 />
               </span>
             ) : (
-              <span className="w-3.5" />
+              <span className="w-3 -ml-1 shrink-0" />
             )}
             {node.type === "csv" ? (
-              <Table className="h-4 w-4 shrink-0 text-green-400" />
+              <Table className="h-3.5 w-3.5 shrink-0 text-green-400" />
             ) : node.type === "pdf" ? (
-              <FileType className="h-4 w-4 shrink-0 text-red-400" />
+              <FileType className="h-3.5 w-3.5 shrink-0 text-red-400" />
             ) : node.type === "app" ? (
-              <AppWindow className="h-4 w-4 shrink-0 text-emerald-400" />
+              <AppWindow className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
             ) : node.type === "website" ? (
-              <Globe className="h-4 w-4 shrink-0 text-blue-400" />
+              <Globe className="h-3.5 w-3.5 shrink-0 text-blue-400" />
             ) : node.type === "code" ? (
-              <Code className="h-4 w-4 shrink-0 text-violet-400" />
+              <Code className="h-3.5 w-3.5 shrink-0 text-violet-400" />
             ) : node.type === "image" ? (
-              <Image className="h-4 w-4 shrink-0 text-pink-400" />
+              <Image className="h-3.5 w-3.5 shrink-0 text-pink-400" />
             ) : node.type === "video" ? (
-              <Video className="h-4 w-4 shrink-0 text-cyan-400" />
+              <Video className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
             ) : node.type === "audio" ? (
-              <Music className="h-4 w-4 shrink-0 text-amber-400" />
+              <Music className="h-3.5 w-3.5 shrink-0 text-amber-400" />
             ) : node.type === "mermaid" ? (
-              <Workflow className="h-4 w-4 shrink-0 text-teal-400" />
+              <Workflow className="h-3.5 w-3.5 shrink-0 text-teal-400" />
             ) : node.type === "unknown" ? (
-              <File className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+              <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
             ) : node.type === "cabinet" ? (
-              <Archive className="h-4 w-4 shrink-0 text-amber-400" />
+              <Archive className="h-3.5 w-3.5 shrink-0 text-amber-400" />
             ) : node.hasRepo ? (
-              <GitBranch className="h-4 w-4 shrink-0 text-orange-400" />
+              <GitBranch className="h-3.5 w-3.5 shrink-0 text-orange-400" />
             ) : node.isLinked ? (
-              <Link2 className="h-4 w-4 shrink-0 text-blue-400" />
+              <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
             ) : hasChildren ? (
               isExpanded ? (
-                <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               ) : (
-                <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               )
             ) : (
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             )}
             <span className={cn("truncate", node.type === "unknown" && "opacity-50")}>{title}</span>
           </button>
