@@ -17,7 +17,10 @@ function readStringConfig(
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function buildClaudeArgs(config: Record<string, unknown>): string[] {
+function buildClaudeArgs(
+  config: Record<string, unknown>,
+  resumeSessionId?: string | null
+): string[] {
   const args = [
     "-p",
     "--output-format",
@@ -25,8 +28,13 @@ function buildClaudeArgs(config: Record<string, unknown>): string[] {
     "--include-partial-messages",
     "--verbose",
     "--dangerously-skip-permissions",
-    "--no-session-persistence",
   ];
+
+  if (resumeSessionId) {
+    args.push("--resume", resumeSessionId);
+  } else {
+    args.push("--no-session-persistence");
+  }
 
   const model = readStringConfig(config, "model");
   if (model) {
@@ -70,7 +78,7 @@ export const claudeLocalAdapter: AgentExecutionAdapter = {
   providerId: claudeCodeProvider.id,
   executionEngine: "structured_cli",
   supportsDetachedRuns: true,
-  supportsSessionResume: false,
+  supportsSessionResume: true,
   models: claudeCodeProvider.models,
   effortLevels: claudeCodeProvider.effortLevels,
   async testEnvironment() {
@@ -83,7 +91,7 @@ export const claudeLocalAdapter: AgentExecutionAdapter = {
   async execute(ctx) {
     const command =
       readStringConfig(ctx.config, "command") || resolveCliCommand(claudeCodeProvider);
-    const args = buildClaudeArgs(ctx.config);
+    const args = buildClaudeArgs(ctx.config, ctx.sessionId ?? null);
     const accumulator = createClaudeStreamAccumulator();
 
     await ctx.onMeta?.({

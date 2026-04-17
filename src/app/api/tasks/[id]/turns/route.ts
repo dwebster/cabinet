@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendTurn, readTask } from "@/lib/agents/task-store";
+import { runTaskTurn } from "@/lib/agents/task-runner";
 import type { AppendTurnInput, TurnRole } from "@/types/tasks";
 
 export async function POST(
@@ -40,6 +41,14 @@ export async function POST(
 
     const result = await appendTurn(id, input, cabinetPath);
     if (!result) return NextResponse.json({ error: "task not found" }, { status: 404 });
+
+    // After a user turn, kick off the adapter in the background.
+    // We don't await — the UI subscribes to SSE for live updates.
+    if (role === "user" && body.skipAgentRun !== true) {
+      void runTaskTurn(id, { cabinetPath }).catch((err) => {
+        console.error(`[task-runner] ${id} failed`, err);
+      });
+    }
 
     return NextResponse.json({ ok: true, turn: result.turn, task: result.task }, { status: 201 });
   } catch (error) {

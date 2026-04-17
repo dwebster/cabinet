@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createTask, listTaskMetas } from "@/lib/agents/task-store";
+import { runTaskTurn } from "@/lib/agents/task-runner";
 import type { TaskStatus, TaskTrigger } from "@/types/tasks";
 
 const VALID_STATUSES: ReadonlySet<TaskStatus> = new Set([
@@ -80,6 +81,12 @@ export async function POST(req: NextRequest) {
       jobId: typeof body.jobId === "string" ? body.jobId : undefined,
       jobName: typeof body.jobName === "string" ? body.jobName : undefined,
     });
+
+    if (body.skipAgentRun !== true) {
+      void runTaskTurn(task.meta.id, { cabinetPath: task.meta.cabinetPath }).catch((err) => {
+        console.error(`[task-runner] ${task.meta.id} failed`, err);
+      });
+    }
 
     return NextResponse.json({ ok: true, task }, { status: 201 });
   } catch (error) {

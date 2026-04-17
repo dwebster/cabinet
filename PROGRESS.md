@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-17] Task runner wiring: new `src/lib/agents/task-runner.ts` (with sibling `task-heuristics.ts`, both with tests) is now invoked in the background after `createTask` and `appendTurn` so the adapter starts running without blocking the API response. Skippable via `skipAgentRun: true` in the request body. Claude local adapter gained session-resume support — when `ctx.sessionId` is present it appends `--resume <id>` instead of `--no-session-persistence`. Default task `runtime.contextWindow` now falls back to 200k.
+
 [2026-04-17] Image Creator agent heartbeat: built a pre-script visual mockup of Slide 2 (labeled chat inventory) for the "Group Chat Shame Spiral" carousel brief, answering the Script Writer's open research question (inventory reads at 4 rows, not 5). Added visual-direction doc, linked it from the brief, and registered the carousel as "Mockup (pre-script)" in the carousels index.
 
 [2026-04-17] Sidebar list-item hover background tuned: dropped to `hover:bg-foreground/[0.03]` — visible enough to register as a hover state but quiet enough not to compete with the colored agent chips and the selected-row treatment. Replaces the original near-invisible `hover:bg-accent/50`.

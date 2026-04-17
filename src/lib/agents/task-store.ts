@@ -335,7 +335,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     providerId: input.providerId,
     adapterType: input.adapterType,
     adapterConfig: input.adapterConfig,
-    runtime: input.runtime,
+    runtime: input.runtime ?? { contextWindow: 200_000 },
     tokens: { input: 0, output: 0, cache: 0, total: 0 },
     createdAt: startedAt,
     startedAt,
