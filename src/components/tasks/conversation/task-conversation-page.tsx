@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TurnBlock } from "./turn-block";
 import { ArtifactsList } from "./artifacts-list";
+import { DiffPanel } from "./diff-panel";
+import { LogsPanel } from "./logs-panel";
 import { TaskComposerPanel } from "./task-composer-panel";
 import { MOCK_TASK } from "./mock-data";
 import type { Task, TaskEvent, TaskStatus } from "@/types/tasks";
@@ -606,8 +608,14 @@ export function TaskConversationPage({
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="mx-auto max-w-3xl px-6 py-12 text-center text-sm text-muted-foreground">
-              Diff view — placeholder. Will show a unified diff of all file changes across the task.
+            <div className="mx-auto max-w-3xl">
+              {isDemo ? (
+                <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+                  Diff view is only available for real tasks.
+                </p>
+              ) : (
+                <DiffPanel taskId={taskId} cabinetPath={task.meta.cabinetPath} />
+              )}
             </div>
           </div>
         </TabsContent>
@@ -617,8 +625,14 @@ export function TaskConversationPage({
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="mx-auto max-w-3xl px-6 py-12 text-center text-sm text-muted-foreground">
-              Logs view — placeholder. Will show raw adapter stdout/stderr per turn.
+            <div className="mx-auto max-w-3xl">
+              {isDemo ? (
+                <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+                  Logs view is only available for real tasks.
+                </p>
+              ) : (
+                <LogsPanel taskId={taskId} cabinetPath={task.meta.cabinetPath} />
+              )}
             </div>
           </div>
         </TabsContent>

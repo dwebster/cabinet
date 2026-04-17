@@ -50,6 +50,7 @@ function directory(p: string): string {
   return parts.slice(0, -1).join(" / ");
 }
 
+/* eslint-disable react-hooks/static-components */
 function KbArtifactRow({ path }: { path: string }) {
   const setSection = useAppStore((s) => s.setSection);
   const selectPage = useTreeStore((s) => s.selectPage);
@@ -82,6 +83,7 @@ function KbArtifactRow({ path }: { path: string }) {
     </button>
   );
 }
+/* eslint-enable react-hooks/static-components */
 
 function collectArtifactPaths(turn: Turn): string[] {
   const seen = new Set<string>();

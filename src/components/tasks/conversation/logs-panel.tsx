@@ -1,0 +1,171 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { ChevronDown, ChevronRight, ScrollText } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface EventLine {
+  ts?: string;
+  type?: string;
+  [key: string]: unknown;
+}
+
+export function LogsPanel({
+  taskId,
+  cabinetPath,
+}: {
+  taskId: string;
+  cabinetPath?: string;
+}) {
+  const [events, setEvents] = useState<EventLine[] | null>(null);
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [eventsOpen, setEventsOpen] = useState(true);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const query = new URLSearchParams();
+    if (cabinetPath) query.set("cabinetPath", cabinetPath);
+    const qs = query.size ? `?${query}` : "";
+
+    fetch(`/api/agents/conversations/${encodeURIComponent(taskId)}/events-log${qs}`, {
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then((data: { events?: EventLine[] }) => {
+        if (!cancelled) setEvents(data.events ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setEvents([]);
+      });
+
+    fetch(`/api/agents/conversations/${encodeURIComponent(taskId)}${qs}`, {
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then((data: { rawTranscript?: string }) => {
+        if (!cancelled) setTranscript(data.rawTranscript ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) setTranscript("");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId, cabinetPath]);
+
+  return (
+    <div className="space-y-4 px-6 py-6">
+      {/* Events log */}
+      <section className="rounded-xl border border-border/70 bg-card">
+        <button
+          type="button"
+          onClick={() => setEventsOpen((v) => !v)}
+          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[12px] font-medium transition-colors hover:bg-muted/40"
+        >
+          {eventsOpen ? (
+            <ChevronDown className="size-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="size-3.5 text-muted-foreground" />
+          )}
+          <ScrollText className="size-3.5 text-muted-foreground" />
+          Events
+          <span className="ml-1 rounded-full bg-muted px-1.5 py-px text-[10px] tabular-nums text-muted-foreground">
+            {events?.length ?? "…"}
+          </span>
+        </button>
+        {eventsOpen ? (
+          <div className="border-t border-border/70 p-3">
+            {events === null ? (
+              <p className="text-[12px] text-muted-foreground">Loading…</p>
+            ) : events.length === 0 ? (
+              <p className="text-[12px] text-muted-foreground">No events yet.</p>
+            ) : (
+              <ul className="space-y-1">
+                {events.map((event, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 font-mono text-[11.5px] leading-relaxed"
+                  >
+                    <span className="shrink-0 text-muted-foreground/70">
+                      {event.ts ? new Date(event.ts).toLocaleTimeString() : ""}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium",
+                        event.type === "turn.appended"
+                          ? "bg-sky-500/15 text-sky-700 dark:text-sky-400"
+                          : event.type === "turn.updated"
+                            ? "bg-violet-500/15 text-violet-700 dark:text-violet-400"
+                            : event.type === "task.updated"
+                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                              : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {event.type ?? "—"}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-foreground/75">
+                      {formatEventPayload(event)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
+      </section>
+
+      {/* Raw transcript */}
+      <section className="rounded-xl border border-border/70 bg-card">
+        <button
+          type="button"
+          onClick={() => setTranscriptOpen((v) => !v)}
+          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[12px] font-medium transition-colors hover:bg-muted/40"
+        >
+          {transcriptOpen ? (
+            <ChevronDown className="size-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="size-3.5 text-muted-foreground" />
+          )}
+          <ScrollText className="size-3.5 text-muted-foreground" />
+          Raw transcript
+        </button>
+        {transcriptOpen ? (
+          <div className="border-t border-border/70 p-3">
+            {transcript === null ? (
+              <p className="text-[12px] text-muted-foreground">Loading…</p>
+            ) : transcript.trim() === "" ? (
+              <p className="text-[12px] text-muted-foreground">No transcript yet.</p>
+            ) : (
+              <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/40 p-3 font-mono text-[11.5px] leading-relaxed text-foreground/85">
+                {transcript}
+              </pre>
+            )}
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function formatEventPayload(event: EventLine): string {
+  const { ts, type, ...rest } = event;
+  void ts;
+  void type;
+  const keys = Object.keys(rest);
+  if (keys.length === 0) return "";
+  const parts = keys.map((k) => `${k}=${stringify(rest[k])}`);
+  return parts.join(" ");
+}
+
+function stringify(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
