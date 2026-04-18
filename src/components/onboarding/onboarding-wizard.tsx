@@ -11,7 +11,6 @@ import {
   ClipboardCheck,
   Copy,
   ExternalLink,
-  Info,
   Loader2,
   Rocket,
   ChevronDown,
@@ -25,9 +24,17 @@ import {
   Zap,
 } from "lucide-react";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
+import { RuntimeSelectionBanner } from "@/components/composer/task-runtime-picker";
 import type { ProviderInfo } from "@/types/agents";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
 import { RegistryBrowser } from "@/components/registry/registry-browser";
+import {
+  ROOMS,
+  ROOM_TYPES,
+  STARTER_TEAMS,
+  type RoomType,
+  type StarterTeam,
+} from "@/lib/onboarding/rooms";
 import {
   Dialog,
   DialogContent,
@@ -79,7 +86,9 @@ const ONBOARDING_VERIFY_META: Record<OnboardingVerifyStatus, { label: string; co
 interface OnboardingAnswers {
   name: string;
   role: string;
-  companyName: string;
+  homeName: string;
+  roomType: RoomType;
+  workspaceName: string;
   description: string;
   teamSize: string;
   priority: string;
@@ -116,11 +125,19 @@ const GITHUB_REPO_URL = "https://github.com/hilash/cabinet";
 const GITHUB_STATS_URL = "/api/github/repo";
 const GITHUB_STARS_FALLBACK = 393;
 const CABINET_CLOUD_URL = "https://runcabinet.com/waitlist";
-const ROLES = ["CEO", "Marketer", "Engineer", "Designer", "Product", "Other"];
 const TEAM_SIZES = ["Just me", "2-5", "5-20", "20+"];
-const COMMUNITY_START_STEP = 4;
-const COMMUNITY_END_STEP = 6;
-const STEP_COUNT = 8;
+const HOUSEHOLD_SIZES = ["Just me", "Couple", "3-4", "5+"];
+
+// Step indices after the compress pass:
+// 0 intro · 1 welcome-home · 2 room-setup (pick + name + describe) ·
+// 3 team · 4 provider · 5 github · 6 discord · 7 cloud · 8 launch
+const COMMUNITY_START_STEP = 5;
+const COMMUNITY_END_STEP = 7;
+const STEP_COUNT = 9;
+const STEP_WELCOME_HOME = 1;
+const STEP_ROOM_SETUP = 2;
+const STEP_TEAM = 3;
+const STEP_PROVIDER = 4;
 
 /* ─── Colors from runcabinet.com ─── */
 const WEB = {
@@ -218,47 +235,21 @@ function CommunityCardTile({ card }: { card: CommunityCard }) {
   );
 }
 
-/* ─── Keyword → agent pre-check mapping ─── */
-const KEYWORD_CHECKS: [RegExp, string[]][] = [
-  [/content|blog|social|market|brand|newsletter/, ["content-marketer", "social-media", "copywriter"]],
-  [/seo|search|rank|keyword|organic|google/, ["seo"]],
-  [/sales|lead|outreach|revenue|pipeline|deal/, ["sales", "customer-success"]],
-  [/quality|review|proofread|test|audit/, ["qa"]],
-  [/tech|code|engineer|dev|infra|deploy/, ["cto", "devops"]],
-  [/product|feature|roadmap|user research/, ["product-manager"]],
-  [/design|ux|wireframe|prototype/, ["ux-designer"]],
-  [/data|analytics|metrics|dashboard/, ["data-analyst"]],
-  [/finance|budget|runway|fundraise/, ["cfo"]],
-  [/growth|funnel|acquisition|conversion/, ["growth-marketer"]],
-  [/research|competitive|market analysis/, ["researcher"]],
-  [/legal|compliance|contract|privacy/, ["legal"]],
-  [/hiring|culture|hr|onboarding|team health/, ["people-ops"]],
-  [/operations|process|efficiency/, ["coo"]],
-];
+// Agent pre-check + mandatory-lock logic is now room-aware — see getKeywordChecks
+// and getAlwaysChecked below. The old KEYWORD_CHECKS / ALWAYS_CHECKED constants
+// were per-room-type "office" defaults.
 
-const ALWAYS_CHECKED = new Set(["ceo", "editor"]);
-
-interface PreMadeTeam {
-  name: string;
-  description: string;
-  agents: number;
-  domain: string;
+function getKeywordChecksForRoom(roomType: RoomType): [RegExp, string[]][] {
+  return ROOMS[roomType].keywordMap;
 }
 
-const PRE_MADE_TEAMS: PreMadeTeam[] = [
-  { name: "Content Engine", description: "Blog posts, newsletters & social media on autopilot", agents: 5, domain: "Marketing" },
-  { name: "Cold Email Agency", description: "ICP research, list building, copy & sending", agents: 7, domain: "Sales" },
-  { name: "Carousel Factory", description: "Design Instagram, LinkedIn & TikTok carousels", agents: 4, domain: "Marketing" },
-  { name: "SEO War Room", description: "Keyword research, write, optimize & rank", agents: 6, domain: "Marketing" },
-  { name: "LinkedIn Lead Gen Shop", description: "Profile optimization, connections & DM sequences", agents: 5, domain: "Sales" },
-  { name: "Podcast Booking Agency", description: "Research shows, pitch, schedule & prep talking points", agents: 6, domain: "Media" },
-  { name: "TikTok Shop Operator", description: "Product listings, affiliate outreach & live stream", agents: 8, domain: "E-commerce" },
-  { name: "Ghostwriting Studio", description: "LinkedIn posts, Twitter threads & newsletters", agents: 5, domain: "Content" },
-  { name: "PR Pitching Machine", description: "Media list, write pitches, send & track", agents: 5, domain: "Marketing" },
-  { name: "App Store Optimization", description: "Keyword research, screenshots & A/B test", agents: 5, domain: "Marketing" },
-  { name: "Shopify Store Setup", description: "Theme, products, payments & launch checklist", agents: 5, domain: "E-commerce" },
-  { name: "Proposal & RFP Factory", description: "Parse RFPs, draft responses, format & submit", agents: 6, domain: "Services" },
-];
+function getAlwaysCheckedForRoom(roomType: RoomType): Set<string> {
+  return new Set(ROOMS[roomType].mandatoryAgents);
+}
+
+// Starter teams are now defined in src/lib/onboarding/rooms.ts (STARTER_TEAMS)
+// with a `rooms` field so the carousel can filter per room type.
+type PreMadeTeam = StarterTeam;
 
 const TEAM_DOMAIN_COLORS: Record<string, { bg: string; text: string }> = {
   Marketing: { bg: "#EDE7F6", text: "#6B4FA0" },
@@ -267,6 +258,13 @@ const TEAM_DOMAIN_COLORS: Record<string, { bg: string; text: string }> = {
   "E-commerce": { bg: "#E0F2F1", text: "#3A7A6D" },
   Content: { bg: "#FFF8E1", text: "#8D7039" },
   Services: { bg: "#E3F2FD", text: "#4A7FB5" },
+  PKM: { bg: "#E1F1FF", text: "#3F6DB5" },
+  Writing: { bg: "#FFF0F5", text: "#9B4B6B" },
+  Admin: { bg: "#F1F1EC", text: "#6F6F57" },
+  Research: { bg: "#E8F5E9", text: "#3F7B44" },
+  Teaching: { bg: "#FFF4E0", text: "#9C6B2A" },
+  Household: { bg: "#FBEFE1", text: "#8C5E3A" },
+  Kids: { bg: "#E8F9F5", text: "#3A8879" },
 };
 
 function TerminalCommand({ command }: { command: string }) {
@@ -302,16 +300,20 @@ function TerminalCommand({ command }: { command: string }) {
 
 function TeamCarousel({
   templates,
+  roomType,
   onSelect,
 }: {
   templates: RegistryTemplate[];
+  roomType: RoomType;
   onSelect: (t: RegistryTemplate) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Use real templates if loaded, otherwise fall back to hardcoded placeholders
-  const items = templates.length > 0 ? templates : PRE_MADE_TEAMS;
+  // Use real templates if loaded, otherwise fall back to room-filtered starter teams.
+  const fallbackTeams = STARTER_TEAMS.filter((t) => t.rooms.includes(roomType));
+  const items: (RegistryTemplate | PreMadeTeam)[] =
+    templates.length > 0 ? templates : fallbackTeams;
   const isReal = templates.length > 0;
 
   useEffect(() => {
@@ -708,6 +710,8 @@ function TeamBuildStep({
   selectedCount,
   maxAgents,
   toggleAgent,
+  roomType,
+  mandatoryAgents,
   onBack,
   onNext,
 }: {
@@ -718,6 +722,8 @@ function TeamBuildStep({
   selectedCount: number;
   maxAgents: number;
   toggleAgent: (slug: string) => void;
+  roomType: RoomType;
+  mandatoryAgents: Set<string>;
   onBack: () => void;
   onNext: () => void;
 }) {
@@ -843,6 +849,7 @@ function TeamBuildStep({
         >
           <TeamCarousel
             templates={registryTemplates}
+            roomType={roomType}
             onSelect={(t) => {
               setImportTemplate(t);
               setImportName(t.name);
@@ -974,7 +981,7 @@ function TeamBuildStep({
           </div>
         ) : (
           <div className="flex gap-3 overflow-x-auto px-6 pb-2 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
-            {groupByDepartment(suggestedAgents, libraryTemplates).map(([label, agents]) => (
+            {groupByDepartment(suggestedAgents, libraryTemplates, roomType).map(([label, agents]) => (
               <div
                 key={label}
                 className="rounded-xl p-3 shrink-0"
@@ -988,7 +995,7 @@ function TeamBuildStep({
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {agents.map((agent) => {
-                    const isMandatory = ALWAYS_CHECKED.has(agent.slug);
+                    const isMandatory = mandatoryAgents.has(agent.slug);
                     const atLimit = selectedCount >= maxAgents && !agent.checked;
                     return (
                       <button
@@ -1059,40 +1066,131 @@ function TeamBuildStep({
   );
 }
 
-const DEPARTMENT_ORDER: [string, string][] = [
+// Room-aware grouping: each room has its own vocabulary for organising the
+// agent picker. A department not mapped for the active room falls to "Other".
+type DepartmentOrder = [string, string][];
+
+const OFFICE_ORDER: DepartmentOrder = [
   ["leadership", "Leadership"],
   ["marketing", "Marketing"],
+  ["content", "Content"],
+  ["publishing", "Content"],
   ["engineering", "Engineering"],
   ["product", "Product & Design"],
   ["design", "Product & Design"],
   ["sales", "Business"],
   ["support", "Business"],
   ["analytics", "Business"],
-  ["research", "Business"],
+  ["research", "Research"],
   ["finance", "Finance & Ops"],
   ["legal", "Finance & Ops"],
   ["hr", "Finance & Ops"],
+  ["personal", "Personal"],
+  ["household", "Personal"],
 ];
 
-function getDepartmentLabel(dept: string): string {
-  const entry = DEPARTMENT_ORDER.find(([key]) => key === dept);
+const STUDY_ORDER: DepartmentOrder = [
+  ["leadership", "Leadership"],
+  ["personal", "Second brain"],
+  ["content", "Writing"],
+  ["publishing", "Writing"],
+  ["research", "Research"],
+  ["engineering", "Tools"],
+  ["household", "Life admin"],
+  ["finance", "Life admin"],
+  ["marketing", "From the Office"],
+  ["sales", "From the Office"],
+  ["support", "From the Office"],
+  ["product", "From the Office"],
+  ["design", "From the Office"],
+  ["analytics", "From the Office"],
+  ["legal", "From the Office"],
+  ["hr", "From the Office"],
+];
+
+const LAB_ORDER: DepartmentOrder = [
+  ["leadership", "Leadership"],
+  ["research", "Research"],
+  ["personal", "Writing & notes"],
+  ["content", "Writing & notes"],
+  ["publishing", "Writing & notes"],
+  ["engineering", "Tools"],
+  ["household", "Other"],
+  ["finance", "Other"],
+  ["marketing", "From the Office"],
+  ["sales", "From the Office"],
+  ["support", "From the Office"],
+  ["product", "From the Office"],
+  ["design", "From the Office"],
+  ["analytics", "From the Office"],
+  ["legal", "From the Office"],
+  ["hr", "From the Office"],
+];
+
+const FAMILY_ROOM_ORDER: DepartmentOrder = [
+  ["leadership", "Leadership"],
+  ["household", "Household"],
+  ["personal", "Admin"],
+  ["finance", "Money"],
+  ["engineering", "Tools"],
+  ["research", "Other"],
+  ["content", "Other"],
+  ["publishing", "Other"],
+  ["marketing", "From the Office"],
+  ["sales", "From the Office"],
+  ["support", "From the Office"],
+  ["product", "From the Office"],
+  ["design", "From the Office"],
+  ["analytics", "From the Office"],
+  ["legal", "From the Office"],
+  ["hr", "From the Office"],
+];
+
+// Blank room has no opinion — just show everything in one flat list, leadership first.
+const BLANK_ORDER: DepartmentOrder = [
+  ["leadership", "Leadership"],
+  ["marketing", "Marketing"],
+  ["content", "Content"],
+  ["publishing", "Content"],
+  ["engineering", "Engineering"],
+  ["product", "Product"],
+  ["design", "Design"],
+  ["sales", "Sales"],
+  ["support", "Support"],
+  ["analytics", "Analytics"],
+  ["research", "Research"],
+  ["finance", "Finance"],
+  ["legal", "Legal"],
+  ["hr", "People"],
+  ["personal", "Personal"],
+  ["household", "Household"],
+];
+
+const DEPARTMENT_ORDERS: Record<RoomType, DepartmentOrder> = {
+  office: OFFICE_ORDER,
+  study: STUDY_ORDER,
+  lab: LAB_ORDER,
+  "family-room": FAMILY_ROOM_ORDER,
+  blank: BLANK_ORDER,
+};
+
+function getDepartmentLabel(dept: string, roomType: RoomType): string {
+  const order = DEPARTMENT_ORDERS[roomType];
+  const entry = order.find(([key]) => key === dept);
   return entry ? entry[1] : "Other";
 }
 
 function computeChecked(answers: OnboardingAnswers): Set<string> {
-  const checked = new Set(ALWAYS_CHECKED);
+  const roomConfig = ROOMS[answers.roomType];
+  const checked = new Set<string>(roomConfig.mandatoryAgents);
+  // Pre-check the room's default suggestions.
+  for (const s of roomConfig.suggestedAgents) checked.add(s);
   const desc = (answers.description + " " + answers.role + " " + answers.priority).toLowerCase();
 
-  for (const [pattern, slugs] of KEYWORD_CHECKS) {
+  for (const [pattern, slugs] of roomConfig.keywordMap) {
     if (pattern.test(desc)) {
       for (const s of slugs) checked.add(s);
     }
-  }
-
-  // Fallback: ensure at least 3 agents are pre-checked
-  if (checked.size < 3) {
-    checked.add("content-marketer");
-    if (checked.size < 3) checked.add("product-manager");
   }
 
   return checked;
@@ -1107,19 +1205,24 @@ interface LibraryTemplate {
   type: string;
 }
 
-function groupByDepartment(agents: SuggestedAgent[], templates: LibraryTemplate[]): [string, SuggestedAgent[]][] {
+function groupByDepartment(
+  agents: SuggestedAgent[],
+  templates: LibraryTemplate[],
+  roomType: RoomType
+): [string, SuggestedAgent[]][] {
   const deptMap = new Map<string, string>();
   for (const t of templates) deptMap.set(t.slug, t.department);
 
   const groups = new Map<string, SuggestedAgent[]>();
   for (const agent of agents) {
-    const label = getDepartmentLabel(deptMap.get(agent.slug) || "general");
+    const label = getDepartmentLabel(deptMap.get(agent.slug) || "general", roomType);
     if (!groups.has(label)) groups.set(label, []);
     groups.get(label)!.push(agent);
   }
 
   // Sort groups by the predefined order
-  const labelOrder = Array.from(new Set(DEPARTMENT_ORDER.map(([, l]) => l))).concat("Other");
+  const order = DEPARTMENT_ORDERS[roomType];
+  const labelOrder = Array.from(new Set(order.map(([, l]) => l))).concat("Other");
   return labelOrder
     .filter((label) => groups.has(label))
     .map((label) => [label, groups.get(label)!]);
@@ -1127,50 +1230,92 @@ function groupByDepartment(agents: SuggestedAgent[], templates: LibraryTemplate[
 
 /* ─── Agent Chat Preview (launch step) ─── */
 
-function AgentChatPreview({ agents, companyName }: { agents: SuggestedAgent[]; companyName: string }) {
+function AgentChatPreview({
+  agents,
+  workspaceName,
+  homeName,
+  roomType,
+}: {
+  agents: SuggestedAgent[];
+  workspaceName: string;
+  homeName: string;
+  roomType: RoomType;
+}) {
   const [visibleCount, setVisibleCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Build conversation script from the selected agents
+  // Build conversation script from the selected agents. The lead (first agent
+  // in ROOMS[roomType].mandatoryAgents) speaks first with a room-specific
+  // greeting; followups come from the specialists.
   const messages = useMemo(() => {
-    const ceo = agents.find((a) => a.slug === "ceo") || agents[0];
-    const others = agents.filter((a) => a.slug !== ceo?.slug);
-    if (!ceo) return [];
+    const config = ROOMS[roomType];
+    const leadSlug = config.mandatoryAgents[0];
+    const lead = agents.find((a) => a.slug === leadSlug) || agents[0];
+    const others = agents.filter((a) => a.slug !== lead?.slug);
+    if (!lead) return [];
 
     const script: { agent: SuggestedAgent; text: string }[] = [
-      { agent: ceo, text: `Good morning team! Welcome to ${companyName || "the company"}. Let's hit the ground running.` },
+      { agent: lead, text: config.greetingTemplate(homeName, workspaceName) },
     ];
 
-    if (others[0]) {
-      script.push(
-        { agent: ceo, text: `${others[0].name}, can you start on competitor research?` },
-        { agent: others[0], text: "On it. I'll have a landscape overview ready by end of day." },
-      );
-    }
-    if (others[1]) {
-      script.push(
-        { agent: ceo, text: `${others[1].name}, let's get our content calendar set up.` },
-        { agent: others[1], text: "Already drafting a plan. I'll share it in #content shortly." },
-      );
-    }
-    if (others[0] && others[1]) {
-      script.push(
-        { agent: others[0], text: `${others[1].name}, I found some gaps in our positioning. Want to sync?` },
-        { agent: others[1], text: "Yes! Let's coordinate. I can weave the insights into our first blog post." },
-      );
-    }
-    if (others[2]) {
-      script.push(
-        { agent: ceo, text: `${others[2].name}, what's the status on your side?` },
-        { agent: others[2], text: "Setting up the foundational workflows now. Looking good so far." },
-      );
-    }
-    script.push(
-      { agent: ceo, text: "Great energy everyone. Let's make this a strong first week." },
-    );
+    const roomReplies: Record<RoomType, string[]> = {
+      office: [
+        "On it. I'll have a landscape overview ready by end of day.",
+        "Already drafting a plan. I'll share it in #content shortly.",
+        "Setting up the foundational workflows now. Looking good so far.",
+      ],
+      study: [
+        "I'll triage the inbox and surface what needs you.",
+        "Calendar looks clear until 3pm — good window for writing.",
+        "I've linked three new notes to the 'Daily' index already.",
+      ],
+      lab: [
+        "Pulling the latest paper on this now — draft summary in an hour.",
+        "I'll sync the bibliography after this and flag duplicates.",
+        "Lecture outline for Thursday is almost ready for review.",
+      ],
+      "family-room": [
+        "Schedule looks clear after 4. Flagging overlapping drop-offs.",
+        "Menu drafted for the week — grocery list is ready to review.",
+        "Kids' activities synced. DnD night is still on for Friday.",
+      ],
+      blank: [
+        "Got it. Ready whenever you are.",
+        "Standing by.",
+        "I'll wait for direction.",
+      ],
+    };
+
+    const replies = roomReplies[roomType];
+
+    const topics: Record<RoomType, string[]> = {
+      office: ["competitor research", "the content calendar", "the launch plan"],
+      study: ["today's inbox triage", "this week's writing", "my reading list"],
+      lab: ["the lit review", "Thursday's lecture prep", "the references list"],
+      "family-room": ["today's schedule", "the meal plan", "the kids' activities"],
+      blank: ["the first thing", "whatever's next", "the open question"],
+    };
+    const topicList = topics[roomType];
+
+    others.slice(0, 3).forEach((other, idx) => {
+      const topic = topicList[idx] || "what's next";
+      script.push({ agent: lead, text: `${other.name}, can you take on ${topic}?` });
+      if (replies[idx]) {
+        script.push({ agent: other, text: replies[idx] });
+      }
+    });
+
+    const closing: Record<RoomType, string> = {
+      office: "Great energy everyone. Let's make this a strong first week.",
+      study: "Good. Ping me when anything needs me — otherwise I'll stay out of your way.",
+      lab: "Keep me posted. I'll review whatever you push by end of day.",
+      "family-room": "Thanks all. Ping me if anything shifts during the day.",
+      blank: "Whenever you're ready, tell us what to do.",
+    };
+    script.push({ agent: lead, text: closing[roomType] });
 
     return script;
-  }, [agents, companyName]);
+  }, [agents, workspaceName, homeName, roomType]);
 
   useEffect(() => {
     if (visibleCount >= messages.length) return;
@@ -1266,11 +1411,19 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [answers, setAnswers] = useState<OnboardingAnswers>({
     name: "",
     role: "",
-    companyName: "",
+    homeName: "",
+    roomType: "office",
+    workspaceName: "",
     description: "",
     teamSize: "",
     priority: "",
   });
+  const mandatoryAgents = useMemo(
+    () => new Set<string>(ROOMS[answers.roomType].mandatoryAgents),
+    [answers.roomType]
+  );
+  const activeRoom = ROOMS[answers.roomType];
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
   const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[]>([]);
   const [libraryTemplates, setLibraryTemplates] = useState<LibraryTemplate[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
@@ -1332,6 +1485,15 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   );
   const activeModels = activeProvider?.models || [];
   const activeEffortLevels = getModelEffortLevels(activeProvider, activeModel?.id);
+  const sortedProviders = useMemo(() => {
+    const rank = (p: ProviderInfo) =>
+      p.available && p.authenticated ? 0 : p.available ? 1 : 2;
+    return [...providers].sort((a, b) => rank(a) - rank(b));
+  }, [providers]);
+  const expandedProviderInfo = useMemo(
+    () => (expandedProvider ? providers.find((p) => p.id === expandedProvider) || null : null),
+    [expandedProvider, providers]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1367,7 +1529,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           if (data.manifest.name) {
             setAnswers((prev) => ({
               ...prev,
-              companyName: prev.companyName || data.manifest.name,
+              workspaceName: prev.workspaceName || data.manifest.name,
             }));
           }
         }
@@ -1404,13 +1566,13 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   }, [selectedProvider]);
 
   useEffect(() => {
-    if (step === 3) {
+    if (step === STEP_PROVIDER) {
       void checkProvider();
     }
   }, [step, checkProvider]);
 
   const goToTeamSuggestion = async () => {
-    setStep(2);
+    setStep(STEP_TEAM);
     setAgentsLoading(true);
     try {
       const res = await fetch("/api/agents/library");
@@ -1428,10 +1590,11 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         }))
       );
     } catch {
-      // Fallback: at least offer CEO + Editor
+      // Fallback: at least offer the room's mandatory pair
+      const [leadSlug, editorSlug] = ROOMS[answers.roomType].mandatoryAgents;
       setSuggestedAgents([
-        { slug: "ceo", name: "CEO Agent", emoji: "\u{1F3AF}", role: "Strategic planning, goal tracking, task delegation", checked: true },
-        { slug: "editor", name: "Editor", emoji: "\u{1F4DD}", role: "KB content, documentation, formatting", checked: true },
+        { slug: leadSlug, name: leadSlug, emoji: "\u{1F916}", role: "Lead", checked: true },
+        { slug: editorSlug, name: editorSlug, emoji: "\u{1F4DD}", role: "Support", checked: true },
       ]);
     } finally {
       setAgentsLoading(false);
@@ -1441,8 +1604,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const MAX_AGENTS = 5;
 
   const toggleAgent = (slug: string) => {
-    // CEO and Editor are mandatory — cannot be unchecked
-    if (ALWAYS_CHECKED.has(slug)) return;
+    // The room's mandatory agents cannot be unchecked.
+    if (mandatoryAgents.has(slug)) return;
 
     setSuggestedAgents((prev) => {
       const target = prev.find((a) => a.slug === slug);
@@ -1481,7 +1644,15 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          answers,
+          homeName: answers.homeName || (answers.name ? `${answers.name}'s Home` : "Home"),
+          roomType: answers.roomType,
+          answers: {
+            name: answers.name,
+            workspaceName: answers.workspaceName,
+            description: answers.description,
+            teamSize: answers.teamSize,
+            priority: answers.priority,
+          },
           selectedAgents: selected,
         }),
       });
@@ -1612,100 +1783,35 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             <IntroStep onNext={() => setStep(1)} />
           )}
 
-          {/* Step 1: Welcome — About you */}
-          {step === 1 && (
+          {/* Step 1: Welcome home — name only */}
+          {step === STEP_WELCOME_HOME && (
             <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-3">
                 <h1 className="font-logo text-2xl tracking-tight italic">
-                  Welcome to <span style={{ color: WEB.accent }}>your</span> Cabinet
+                  Welcome <span style={{ color: WEB.accent }}>home</span>
                 </h1>
+                <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
+                  Your Home is yours. Inside it, you&apos;ll set up rooms for different parts of your life — work, second brain, research, family. And every room has cabinets: your notes, your files, and an AI team quietly getting things done in the background.
+                </p>
               </div>
 
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
-                    What&apos;s your name?
-                  </label>
-                  <input
-                    value={answers.name}
-                    onChange={(e) =>
-                      setAnswers({ ...answers, name: e.target.value })
+              <div className="space-y-2">
+                <label className="text-sm font-medium" style={{ color: WEB.text }}>
+                  What&apos;s your name?
+                </label>
+                <input
+                  value={answers.name}
+                  onChange={(e) => setAnswers({ ...answers, name: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && answers.name.trim()) {
+                      e.preventDefault();
+                      setStep(STEP_ROOM_SETUP);
                     }
-                    placeholder="Jane"
-                    style={inputStyle}
-                    autoFocus
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
-                    What&apos;s your company or project name?
-                  </label>
-                  <input
-                    value={answers.companyName}
-                    onChange={(e) =>
-                      setAnswers({ ...answers, companyName: e.target.value })
-                    }
-                    placeholder="Acme Corp"
-                    style={inputStyle}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
-                    What do you do?
-                  </label>
-                  <input
-                    value={answers.description}
-                    onChange={(e) =>
-                      setAnswers({ ...answers, description: e.target.value })
-                    }
-                    placeholder="We make a podcast about AI startups"
-                    style={inputStyle}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
-                    How big is your team?
-                  </label>
-                  <div className="flex gap-2">
-                    {TEAM_SIZES.map((size) => (
-                      <button
-                        key={size}
-                        onClick={() =>
-                          setAnswers({ ...answers, teamSize: size })
-                        }
-                        className="flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all"
-                        style={{
-                          border: `1px solid ${answers.teamSize === size ? WEB.accent : WEB.border}`,
-                          background: answers.teamSize === size ? WEB.accentBg : WEB.bgCard,
-                          color: answers.teamSize === size ? WEB.accent : WEB.textSecondary,
-                        }}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span
-                      className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
-                      style={{
-                        color: WEB.textSecondary,
-                        background: `${WEB.bg}`,
-                        border: `1px solid ${WEB.border}`,
-                      }}
-                    >
-                      Coming soon
-                    </span>
-                    <span
-                      className="text-[11px] font-semibold uppercase tracking-wider"
-                      style={{ color: WEB.textTertiary }}
-                    >
-                      Pre-made multi-human multi-agent teams
-                    </span>
-                  </div>
-                </div>
+                  }}
+                  placeholder="Jane"
+                  style={inputStyle}
+                  autoFocus
+                />
               </div>
 
               <div className="flex items-center justify-between pt-2">
@@ -1718,8 +1824,8 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   Back
                 </button>
                 <button
-                  onClick={goToTeamSuggestion}
-                  disabled={!answers.name.trim() || !answers.companyName.trim()}
+                  onClick={() => setStep(STEP_ROOM_SETUP)}
+                  disabled={!answers.name.trim()}
                   className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
                   style={{ background: WEB.accent }}
                 >
@@ -1730,8 +1836,179 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
 
-          {/* Step 2: Team Suggestion — carousel + agent picker */}
-          {step === 2 && (
+          {/* Step 2: Pick a room + name + describe the cabinet (merged) */}
+          {step === STEP_ROOM_SETUP && (
+            <div className="mx-auto flex max-w-4xl flex-col gap-7 animate-in fade-in duration-300">
+              <div className="text-center space-y-2">
+                <h1 className="font-logo text-2xl tracking-tight italic">
+                  Pick a <span style={{ color: WEB.accent }}>room</span>
+                </h1>
+                <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
+                  What&apos;s this cabinet for? Each room comes with its own AI team.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {ROOM_TYPES.map((id) => {
+                  const room = ROOMS[id];
+                  const Icon = room.icon;
+                  const isSelected = answers.roomType === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setAnswers({ ...answers, roomType: id })}
+                      className="group relative flex flex-col gap-2.5 rounded-xl p-4 text-left transition-all hover:-translate-y-0.5 overflow-hidden"
+                      style={{
+                        background: isSelected ? WEB.accentBg : WEB.bgCard,
+                        border: `1px solid ${isSelected ? WEB.accent : WEB.border}`,
+                        boxShadow: isSelected
+                          ? "0 4px 14px rgba(139, 94, 60, 0.15)"
+                          : "0 1px 2px rgba(59, 47, 47, 0.03)",
+                        minHeight: 170,
+                      }}
+                    >
+                      {/* Vague background glyph — blurred, tiny-opacity, bleeds off the card */}
+                      <Icon
+                        aria-hidden="true"
+                        className="pointer-events-none absolute transition-opacity duration-300"
+                        style={{
+                          right: -40,
+                          bottom: -40,
+                          width: 190,
+                          height: 190,
+                          color: WEB.accent,
+                          opacity: isSelected ? 0.09 : 0.045,
+                          strokeWidth: 1,
+                          filter: "blur(1.5px)",
+                        }}
+                      />
+                      <div className="relative space-y-1">
+                        <p className="text-sm font-semibold" style={{ color: WEB.text }}>
+                          {room.label}
+                        </p>
+                        <p className="text-[11px] leading-relaxed" style={{ color: WEB.textSecondary }}>
+                          {room.tagline}
+                        </p>
+                      </div>
+                      <div
+                        className="relative mt-auto flex flex-wrap items-center gap-1 pt-2"
+                        style={{ borderTop: `1px solid ${WEB.borderLight}` }}
+                      >
+                        {room.exampleAgents.slice(0, 2).map((ex) => (
+                          <span
+                            key={ex}
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                            style={{
+                              background: isSelected ? WEB.bgCard : WEB.bgWarm,
+                              color: WEB.textSecondary,
+                            }}
+                          >
+                            {ex}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Cabinet name + description inputs, adaptive to the active room */}
+              <div
+                className="space-y-5 rounded-2xl p-5"
+                style={{ background: WEB.bgCard, border: `1px solid ${WEB.border}` }}
+              >
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
+                    {activeRoom.workspaceLabel}
+                  </label>
+                  <input
+                    value={answers.workspaceName}
+                    onChange={(e) =>
+                      setAnswers({ ...answers, workspaceName: e.target.value })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        descriptionInputRef.current?.focus();
+                      }
+                    }}
+                    placeholder={activeRoom.workspacePlaceholder}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
+                    {activeRoom.descriptionLabel}
+                  </label>
+                  <input
+                    ref={descriptionInputRef}
+                    value={answers.description}
+                    onChange={(e) =>
+                      setAnswers({ ...answers, description: e.target.value })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && answers.workspaceName.trim()) {
+                        e.preventDefault();
+                        void goToTeamSuggestion();
+                      }
+                    }}
+                    placeholder={activeRoom.descriptionPlaceholder}
+                    style={inputStyle}
+                  />
+                </div>
+
+                {activeRoom.askTeamSize && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium" style={{ color: WEB.text }}>
+                      {activeRoom.teamSizeLabel || "How big is your team?"}
+                    </label>
+                    <div className="flex gap-2">
+                      {(answers.roomType === "family-room" ? HOUSEHOLD_SIZES : TEAM_SIZES).map((size) => (
+                        <button
+                          key={size}
+                          onClick={() =>
+                            setAnswers({ ...answers, teamSize: size })
+                          }
+                          className="flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all"
+                          style={{
+                            border: `1px solid ${answers.teamSize === size ? WEB.accent : WEB.border}`,
+                            background: answers.teamSize === size ? WEB.accentBg : WEB.bgCard,
+                            color: answers.teamSize === size ? WEB.accent : WEB.textSecondary,
+                          }}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  onClick={() => setStep(STEP_WELCOME_HOME)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                  style={{ color: WEB.textSecondary }}
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Back
+                </button>
+                <button
+                  onClick={goToTeamSuggestion}
+                  disabled={!answers.workspaceName.trim()}
+                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+                  style={{ background: WEB.accent }}
+                >
+                  Next
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Team Suggestion — carousel + agent picker */}
+          {step === STEP_TEAM && (
             <TeamBuildStep
               agentsLoading={agentsLoading}
               suggestedAgents={suggestedAgents}
@@ -1740,13 +2017,15 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               selectedCount={selectedAgentCount}
               maxAgents={MAX_AGENTS}
               toggleAgent={toggleAgent}
-              onBack={() => setStep(1)}
-              onNext={() => setStep(3)}
+              roomType={answers.roomType}
+              mandatoryAgents={mandatoryAgents}
+              onBack={() => setStep(STEP_ROOM_SETUP)}
+              onNext={() => setStep(STEP_PROVIDER)}
             />
           )}
 
-          {/* Step 3: AI Provider Check */}
-          {step === 3 && (
+          {/* Step 5: AI Provider Check */}
+          {step === STEP_PROVIDER && (
             <div className="mx-auto flex max-w-xl flex-col gap-6 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
                 <h1 className="font-logo text-2xl tracking-tight italic">
@@ -1763,273 +2042,142 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <Loader2 className="size-6 animate-spin" style={{ color: WEB.textTertiary }} />
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {providers.map((p) => {
-                    const isReady = !!(p.available && p.authenticated);
-                    const isInstalled = !!p.available;
-                    const isExpanded = expandedProvider === p.id;
-                    const isSelected = selectedProvider === p.id;
-                    const statusColor = isReady ? "#16a34a" : isInstalled ? "#d97706" : WEB.textTertiary;
-                    const statusText = isReady
-                      ? `Ready ${p.version ? `\u2014 ${p.version}` : ""}`
-                      : isInstalled
-                        ? "Installed but not logged in"
-                        : "Not detected on this machine";
-                    const setupSteps: { title: string; detail: string; cmd?: string; openTerminal?: boolean; link?: { label: string; url: string } }[] = [
-                      { title: "Open a terminal", detail: "You'll need a terminal to run the next steps.", openTerminal: true },
-                      ...((p.installSteps || []).map((step) => {
-                        return {
-                          title: step.title,
-                          detail: step.detail,
-                          cmd: step.command,
-                          link: step.link,
-                        };
-                      })),
-                    ];
-                    return (
-                      <div
-                        key={p.id}
-                        className="group rounded-xl p-4 space-y-3 transition-all cursor-pointer"
-                        style={{
-                          background: isSelected && isReady ? WEB.accentBg : WEB.bgCard,
-                          border: `1px solid ${isSelected && isReady ? WEB.borderDark : WEB.borderLight}`,
-                        }}
-                        onClick={() => {
-                          if (!isReady) return;
-                          const nextModelId = p.models?.[0]?.id ?? null;
-                          setSelectedProvider(p.id);
-                          setSelectedModel(nextModelId);
-                          setSelectedEffort(
-                            getSuggestedProviderEffort(
-                              p,
-                              nextModelId || undefined
-                            )?.id || null
-                          );
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          {/* Radio selector for ready providers */}
-                          {isReady && (
-                            <div
-                              className="flex size-4 shrink-0 items-center justify-center rounded-full"
-                              style={{
-                                border: `1.5px solid ${isSelected ? WEB.accent : WEB.borderDark}`,
-                                background: isSelected ? WEB.accent : "transparent",
-                              }}
-                            >
-                              {isSelected && <Check className="size-2.5 text-white" />}
-                            </div>
-                          )}
-                          <div
-                            className="flex size-9 items-center justify-center rounded-lg"
-                            style={{ background: WEB.bgWarm, color: WEB.accent }}
-                          >
-                            <ProviderGlyph icon={p.icon} className="size-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium" style={{ color: WEB.text }}>
-                              {p.name}
-                            </p>
-                            <p className="text-[11px]" style={{ color: statusColor }}>
-                              {statusText}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setExpandedProvider(isExpanded ? null : p.id); }}
-                              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all"
-                              style={{
-                                background: isExpanded ? WEB.bgWarm : "transparent",
-                                color: WEB.textTertiary,
-                              }}
-                            >
-                              <Info className="size-3" />
-                              Guide
-                              <ChevronDown
-                                className="size-3 transition-transform duration-300"
-                                style={{ transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)" }}
-                              />
-                            </button>
-                            {isReady && (
-                              <CheckCircle2 className="size-5" style={{ color: "#16a34a" }} />
-                            )}
-                            {isInstalled && !isReady && (
-                              <XCircle className="size-5" style={{ color: "#d97706" }} />
-                            )}
-                            {!isInstalled && (
-                              <XCircle className="size-5" style={{ color: WEB.textTertiary }} />
-                            )}
-                          </div>
-                        </div>
-
-                        <div
-                          className="overflow-hidden transition-all duration-300 ease-in-out"
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                    {sortedProviders.map((p) => {
+                      const isReady = !!(p.available && p.authenticated);
+                      const isInstalled = !!p.available;
+                      const isSelected = selectedProvider === p.id;
+                      const isExpanded = expandedProvider === p.id;
+                      const verifyState =
+                        onboardingVerifyState[p.id] ?? { phase: "idle" as const };
+                      const verifyMeta =
+                        verifyState.phase === "done"
+                          ? ONBOARDING_VERIFY_META[verifyState.result.status]
+                          : null;
+                      const statusLabel = isReady
+                        ? "Ready"
+                        : isInstalled
+                          ? "Log in required"
+                          : "Not installed";
+                      const statusColor = isReady
+                        ? "#16a34a"
+                        : isInstalled
+                          ? "#d97706"
+                          : WEB.textTertiary;
+                      const statusBg = isReady
+                        ? "rgba(22,163,74,0.12)"
+                        : isInstalled
+                          ? "rgba(217,119,6,0.12)"
+                          : "rgba(100,116,139,0.12)";
+                      const cardBorder = isReady
+                        ? isSelected
+                          ? WEB.accent
+                          : WEB.borderLight
+                        : isInstalled
+                          ? "rgba(217,119,6,0.45)"
+                          : WEB.borderLight;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            if (isReady) {
+                              const nextModelId = p.models?.[0]?.id ?? null;
+                              setSelectedProvider(p.id);
+                              setSelectedModel(nextModelId);
+                              setSelectedEffort(
+                                getSuggestedProviderEffort(
+                                  p,
+                                  nextModelId || undefined
+                                )?.id || null
+                              );
+                            } else {
+                              setExpandedProvider(isExpanded ? null : p.id);
+                            }
+                          }}
+                          className="group relative flex flex-col items-start gap-2 rounded-xl p-3 text-left transition-all hover:-translate-y-0.5"
                           style={{
-                            maxHeight: isExpanded ? 500 : 0,
-                            opacity: isExpanded ? 1 : 0,
+                            background:
+                              isSelected && isReady ? WEB.accentBg : WEB.bgCard,
+                            border: `1px solid ${cardBorder}`,
+                            boxShadow:
+                              isSelected && isReady
+                                ? `0 0 0 2px ${WEB.accent}22`
+                                : undefined,
+                            opacity: isReady ? 1 : isInstalled ? 0.95 : 0.7,
                           }}
                         >
-                          <div
-                            className="rounded-lg p-3 space-y-3"
-                            style={{ background: WEB.bgWarm }}
-                          >
-                            {(() => {
-                              const verifyState =
-                                onboardingVerifyState[p.id] ?? { phase: "idle" as const };
-                              const verifyResult =
-                                verifyState.phase === "done" ? verifyState.result : null;
-                              const verifyMeta = verifyResult
-                                ? ONBOARDING_VERIFY_META[verifyResult.status]
-                                : null;
-                              return (
-                                <>
-                                  {setupSteps.map((setupStep, i) => {
-                                    const isFailedStep =
-                                      verifyResult?.status !== undefined &&
-                                      verifyResult.status !== "pass" &&
-                                      setupStep.title.trim().toLowerCase() ===
-                                        verifyResult.failedStepTitle.trim().toLowerCase();
-                                    const isPassStep =
-                                      verifyResult?.status === "pass" &&
-                                      /verify\s+setup/i.test(setupStep.title);
-                                    return (
-                                      <div
-                                        key={i}
-                                        className="flex items-start gap-2.5 rounded-md p-1.5"
-                                        style={{
-                                          background: isFailedStep
-                                            ? "rgba(225,29,72,0.08)"
-                                            : isPassStep
-                                              ? "rgba(22,163,74,0.08)"
-                                              : "transparent",
-                                          boxShadow: isFailedStep
-                                            ? "0 0 0 1px rgba(225,29,72,0.3) inset"
-                                            : isPassStep
-                                              ? "0 0 0 1px rgba(22,163,74,0.3) inset"
-                                              : undefined,
-                                        }}
-                                      >
-                                        <span
-                                          className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5"
-                                          style={{
-                                            background: isFailedStep
-                                              ? "#e11d48"
-                                              : isPassStep
-                                                ? "#16a34a"
-                                                : WEB.accent,
-                                            color: "white",
-                                          }}
-                                        >
-                                          {isFailedStep ? "!" : isPassStep ? "✓" : i + 1}
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-[13px] font-medium" style={{ color: WEB.text }}>
-                                            {setupStep.title}
-                                          </p>
-                                          <p className="text-[11px] mt-0.5" style={{ color: WEB.textSecondary }}>
-                                            {setupStep.detail}
-                                          </p>
-                                          {setupStep.cmd && (
-                                            <TerminalCommand command={setupStep.cmd} />
-                                          )}
-                                          {setupStep.openTerminal && (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                fetch("/api/terminal/open", { method: "POST" }).catch(() => {
-                                                  alert("Could not open terminal automatically. Please open Terminal.app (Mac) or your system terminal manually.");
-                                                });
-                                              }}
-                                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 mt-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5"
-                                              style={{ background: "#1e1e1e", color: "#d4d4d4" }}
-                                            >
-                                              <Terminal className="size-3" />
-                                              Open terminal
-                                            </button>
-                                          )}
-                                          {setupStep.link && (
-                                            <a
-                                              href={setupStep.link.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              onClick={(e) => e.stopPropagation()}
-                                              className="inline-flex items-center gap-1 text-[11px] font-medium mt-1.5"
-                                              style={{ color: WEB.accent }}
-                                            >
-                                              {setupStep.link.label}
-                                              <ExternalLink className="size-3" />
-                                            </a>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-
-                                  <div
-                                    className="flex flex-wrap items-center gap-2 pt-2 border-t"
-                                    style={{ borderColor: WEB.borderLight }}
-                                  >
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        void runOnboardingVerify(p.id);
-                                      }}
-                                      disabled={verifyState.phase === "running"}
-                                      className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5 disabled:opacity-50"
-                                      style={{ background: WEB.accent, color: "white" }}
-                                    >
-                                      {verifyState.phase === "running" ? (
-                                        <RefreshCw className="size-3 animate-spin" />
-                                      ) : (
-                                        <CheckCircle2 className="size-3" />
-                                      )}
-                                      {verifyState.phase === "running"
-                                        ? "Verifying…"
-                                        : verifyState.phase === "done"
-                                          ? "Re-run verify"
-                                          : "Run verify"}
-                                    </button>
-                                    {verifyMeta && (
-                                      <span
-                                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                                        style={{ background: verifyMeta.bg, color: verifyMeta.color }}
-                                      >
-                                        {verifyMeta.label}
-                                      </span>
-                                    )}
-                                    {verifyResult &&
-                                      verifyResult.status !== "pass" &&
-                                      verifyResult.failedStepTitle && (
-                                        <span className="text-[11px]" style={{ color: WEB.textSecondary }}>
-                                          Failed at step:{" "}
-                                          <strong style={{ color: WEB.text }}>
-                                            {verifyResult.failedStepTitle}
-                                          </strong>
-                                        </span>
-                                      )}
-                                    {verifyState.phase === "error" && (
-                                      <span className="text-[11px]" style={{ color: "#e11d48" }}>
-                                        {verifyState.message}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {verifyResult?.hint && verifyResult.status !== "pass" && (
-                                    <p className="text-[11px]" style={{ color: WEB.textSecondary }}>
-                                      {verifyResult.hint}
-                                    </p>
-                                  )}
-                                </>
-                              );
-                            })()}
-
-                            <p className="text-[11px]" style={{ color: WEB.textTertiary }}>
-                              Verify runs your provider's headless prompt end-to-end and classifies any failure so you know which step to revisit.
-                            </p>
+                          {isSelected && isReady && (
+                            <span
+                              className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full"
+                              style={{ background: WEB.accent }}
+                            >
+                              <Check className="size-2.5 text-white" />
+                            </span>
+                          )}
+                          <div className="flex w-full items-center gap-2">
+                            <div
+                              className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                              style={{
+                                background: WEB.bgWarm,
+                                color: WEB.accent,
+                              }}
+                            >
+                              <ProviderGlyph icon={p.icon} className="size-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className="truncate text-[13px] font-medium"
+                                style={{ color: WEB.text }}
+                              >
+                                {p.name}
+                              </p>
+                              {isReady && p.version && (
+                                <p
+                                  className="truncate text-[10px]"
+                                  style={{ color: WEB.textTertiary }}
+                                >
+                                  {p.version}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                          <div className="flex w-full items-center justify-between gap-2">
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                              style={{ background: statusBg, color: statusColor }}
+                            >
+                              {verifyMeta ? verifyMeta.label : statusLabel}
+                            </span>
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] font-medium"
+                              style={{ color: WEB.textTertiary }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedProvider(isExpanded ? null : p.id);
+                              }}
+                              role="button"
+                            >
+                              {isReady
+                                ? "Guide"
+                                : isInstalled
+                                  ? "Log in"
+                                  : "Install"}
+                              <ChevronDown
+                                className="size-3 transition-transform"
+                                style={{
+                                  transform: isExpanded
+                                    ? "rotate(180deg)"
+                                    : "rotate(0deg)",
+                                }}
+                              />
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
 
                   <button
                     onClick={checkProvider}
@@ -2039,7 +2187,207 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     <RefreshCw className="size-3" />
                     Re-check providers
                   </button>
+
+                  {/* Install / verify guide drawer */}
+                  {expandedProviderInfo && (() => {
+                    const p = expandedProviderInfo;
+                    const setupSteps: { title: string; detail: string; cmd?: string; openTerminal?: boolean; link?: { label: string; url: string } }[] = [
+                      { title: "Open a terminal", detail: "You'll need a terminal to run the next steps.", openTerminal: true },
+                      ...((p.installSteps || []).map((step) => ({
+                        title: step.title,
+                        detail: step.detail,
+                        cmd: step.command,
+                        link: step.link,
+                      }))),
+                    ];
+                    const verifyState =
+                      onboardingVerifyState[p.id] ?? { phase: "idle" as const };
+                    const verifyResult =
+                      verifyState.phase === "done" ? verifyState.result : null;
+                    const verifyMeta = verifyResult
+                      ? ONBOARDING_VERIFY_META[verifyResult.status]
+                      : null;
+                    return (
+                      <div
+                        className="rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200"
+                        style={{
+                          background: WEB.bgWarm,
+                          border: `1px solid ${WEB.borderLight}`,
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="flex size-7 items-center justify-center rounded-lg"
+                              style={{ background: WEB.bgCard, color: WEB.accent }}
+                            >
+                              <ProviderGlyph icon={p.icon} className="size-3.5" />
+                            </div>
+                            <p className="text-[13px] font-semibold" style={{ color: WEB.text }}>
+                              {p.name} setup
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setExpandedProvider(null)}
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium"
+                            style={{ color: WEB.textTertiary }}
+                          >
+                            Close
+                          </button>
+                        </div>
+
+                        {setupSteps.map((setupStep, i) => {
+                          const isFailedStep =
+                            verifyResult?.status !== undefined &&
+                            verifyResult.status !== "pass" &&
+                            setupStep.title.trim().toLowerCase() ===
+                              verifyResult.failedStepTitle.trim().toLowerCase();
+                          const isPassStep =
+                            verifyResult?.status === "pass" &&
+                            /verify\s+setup/i.test(setupStep.title);
+                          return (
+                            <div
+                              key={i}
+                              className="flex items-start gap-2.5 rounded-md p-1.5"
+                              style={{
+                                background: isFailedStep
+                                  ? "rgba(225,29,72,0.08)"
+                                  : isPassStep
+                                    ? "rgba(22,163,74,0.08)"
+                                    : "transparent",
+                                boxShadow: isFailedStep
+                                  ? "0 0 0 1px rgba(225,29,72,0.3) inset"
+                                  : isPassStep
+                                    ? "0 0 0 1px rgba(22,163,74,0.3) inset"
+                                    : undefined,
+                              }}
+                            >
+                              <span
+                                className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5"
+                                style={{
+                                  background: isFailedStep
+                                    ? "#e11d48"
+                                    : isPassStep
+                                      ? "#16a34a"
+                                      : WEB.accent,
+                                  color: "white",
+                                }}
+                              >
+                                {isFailedStep ? "!" : isPassStep ? "✓" : i + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-medium" style={{ color: WEB.text }}>
+                                  {setupStep.title}
+                                </p>
+                                <p className="text-[11px] mt-0.5" style={{ color: WEB.textSecondary }}>
+                                  {setupStep.detail}
+                                </p>
+                                {setupStep.cmd && (
+                                  <TerminalCommand command={setupStep.cmd} />
+                                )}
+                                {setupStep.openTerminal && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      fetch("/api/terminal/open", { method: "POST" }).catch(() => {
+                                        alert("Could not open terminal automatically. Please open Terminal.app (Mac) or your system terminal manually.");
+                                      });
+                                    }}
+                                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 mt-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5"
+                                    style={{ background: "#1e1e1e", color: "#d4d4d4" }}
+                                  >
+                                    <Terminal className="size-3" />
+                                    Open terminal
+                                  </button>
+                                )}
+                                {setupStep.link && (
+                                  <a
+                                    href={setupStep.link.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] font-medium mt-1.5"
+                                    style={{ color: WEB.accent }}
+                                  >
+                                    {setupStep.link.label}
+                                    <ExternalLink className="size-3" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <div
+                          className="flex flex-wrap items-center gap-2 pt-2 border-t"
+                          style={{ borderColor: WEB.borderLight }}
+                        >
+                          <button
+                            onClick={() => void runOnboardingVerify(p.id)}
+                            disabled={verifyState.phase === "running"}
+                            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-medium transition-all hover:-translate-y-0.5 disabled:opacity-50"
+                            style={{ background: WEB.accent, color: "white" }}
+                          >
+                            {verifyState.phase === "running" ? (
+                              <RefreshCw className="size-3 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="size-3" />
+                            )}
+                            {verifyState.phase === "running"
+                              ? "Verifying…"
+                              : verifyState.phase === "done"
+                                ? "Re-run verify"
+                                : "Run verify"}
+                          </button>
+                          {verifyMeta && (
+                            <span
+                              className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                              style={{ background: verifyMeta.bg, color: verifyMeta.color }}
+                            >
+                              {verifyMeta.label}
+                            </span>
+                          )}
+                          {verifyResult &&
+                            verifyResult.status !== "pass" &&
+                            verifyResult.failedStepTitle && (
+                              <span className="text-[11px]" style={{ color: WEB.textSecondary }}>
+                                Failed at step:{" "}
+                                <strong style={{ color: WEB.text }}>
+                                  {verifyResult.failedStepTitle}
+                                </strong>
+                              </span>
+                            )}
+                          {verifyState.phase === "error" && (
+                            <span className="text-[11px]" style={{ color: "#e11d48" }}>
+                              {verifyState.message}
+                            </span>
+                          )}
+                        </div>
+                        {verifyResult?.hint && verifyResult.status !== "pass" && (
+                          <p className="text-[11px]" style={{ color: WEB.textSecondary }}>
+                            {verifyResult.hint}
+                          </p>
+                        )}
+
+                        <p className="text-[11px]" style={{ color: WEB.textTertiary }}>
+                          Verify runs the provider's headless prompt end-to-end and classifies any failure so you know which step to revisit.
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
+              )}
+
+              {/* Selected runtime summary */}
+              {activeProvider && (
+                <RuntimeSelectionBanner
+                  providers={providers}
+                  value={{
+                    providerId: selectedProvider,
+                    model: selectedModel,
+                    effort: selectedEffort,
+                  }}
+                  label="Default Model"
+                />
               )}
 
               {/* Model selector — shown when a ready provider is selected */}
@@ -2145,10 +2493,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[
-                    { name: "Gemini CLI", type: "CLI", icon: "terminal" },
                     { name: "Anthropic API", type: "API", icon: "api" },
                     { name: "OpenAI API", type: "API", icon: "api" },
                     { name: "Google AI API", type: "API", icon: "api" },
+                    { name: "Plugin SDK", type: "SDK", icon: "terminal" },
                   ].map((p) => (
                     <div
                       key={p.name}
@@ -2183,7 +2531,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
               <div className="flex items-center justify-between pt-2">
                 <button
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(STEP_TEAM)}
                   className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
                   style={{ color: WEB.textSecondary }}
                 >
@@ -2202,7 +2550,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
 
-          {/* Steps 5-7: Community */}
+          {/* Steps 6-8: Community */}
           {communityStep && (
             <div className="relative mx-auto flex max-w-2xl flex-col gap-8 animate-in fade-in duration-300">
               {/* Floating emoji backdrop per community step */}
@@ -2409,7 +2757,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 <div className="p-5 space-y-4 flex-1 overflow-y-auto">
                   <div className="space-y-1">
                     <h2 className="font-logo text-xl tracking-tight italic" style={{ color: WEB.text }}>
-                      {answers.companyName || "Your Cabinet"}
+                      {answers.workspaceName || "Your Cabinet"}
                     </h2>
                     <p
                       className="text-[11px] font-semibold uppercase tracking-wider"
@@ -2464,7 +2812,12 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                     <span className="text-[11px] font-semibold" style={{ color: WEB.text }}>general</span>
                   </div>
                   <div className="flex-1 overflow-y-auto p-3 pb-2 space-y-0.5">
-                    <AgentChatPreview agents={suggestedAgents.filter((a) => a.checked)} companyName={answers.companyName} />
+                    <AgentChatPreview
+                      agents={suggestedAgents.filter((a) => a.checked)}
+                      workspaceName={answers.workspaceName}
+                      homeName={answers.homeName || (answers.name ? `${answers.name}'s Home` : "Home")}
+                      roomType={answers.roomType}
+                    />
                   </div>
                 </div>
               </div>

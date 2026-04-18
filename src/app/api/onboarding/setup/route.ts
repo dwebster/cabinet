@@ -5,23 +5,29 @@ import matter from "gray-matter";
 import { DATA_DIR } from "@/lib/storage/path-utils";
 import { scaffoldCabinet } from "@/lib/storage/cabinet-scaffold";
 import {
-  MANDATORY_AGENT_SLUGS,
+  getMandatoryAgentSlugs,
   mergeMandatoryAgentSlugs,
   resolveAgentLibraryDir,
 } from "@/lib/agents/library-manager";
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
+import { getRoomConfig, type RoomType } from "@/lib/onboarding/rooms";
 
 const AGENTS_DIR = path.join(DATA_DIR, ".agents");
 const CONFIG_DIR = path.join(AGENTS_DIR, ".config");
 const CHAT_DIR = path.join(DATA_DIR, ".chat");
 
 interface OnboardingRequest {
+  homeName?: string;
+  roomType?: RoomType;
   answers: {
-    companyName: string;
+    name?: string;
+    // New field; falls back to legacy companyName if absent.
+    workspaceName?: string;
+    companyName?: string;
     description: string;
-    goals: string;
+    goals?: string;
     teamSize: string;
-    priority: string;
+    priority?: string;
   };
   selectedAgents: string[];
 }
@@ -30,7 +36,18 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as OnboardingRequest;
     const { answers } = body;
-    const selectedAgents = mergeMandatoryAgentSlugs(body.selectedAgents || []);
+    const roomType: RoomType = body.roomType || "office";
+    const roomConfig = getRoomConfig(roomType);
+    const workspaceName =
+      answers.workspaceName?.trim() || answers.companyName?.trim() || "My Cabinet";
+    const homeName =
+      body.homeName?.trim() || (answers.name ? `${answers.name}'s Home` : "Home");
+
+    const selectedAgents = mergeMandatoryAgentSlugs(
+      body.selectedAgents || [],
+      roomType
+    );
+    const mandatorySlugs = getMandatoryAgentSlugs(roomType);
     const libraryDir = await resolveAgentLibraryDir();
 
     if (!libraryDir) {
@@ -40,21 +57,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Save company config
+    // 1. Save workspace config (v2 shape, forward-compatible with multi-room).
     await fs.mkdir(CONFIG_DIR, { recursive: true });
+    const workspaceConfig = {
+      exists: true,
+      version: 2,
+      home: { name: homeName },
+      room: {
+        id: `${roomType}-01`,
+        type: roomType,
+        name: roomConfig.label,
+      },
+      cabinet: {
+        name: workspaceName,
+        description: answers.description,
+        size: answers.teamSize || "",
+      },
+      setupDate: new Date().toISOString(),
+    };
+    await fs.writeFile(
+      path.join(CONFIG_DIR, "workspace.json"),
+      JSON.stringify(workspaceConfig, null, 2)
+    );
+
+    // Legacy company.json — keeps old code paths working (config route fallback, etc.)
     await fs.writeFile(
       path.join(CONFIG_DIR, "company.json"),
       JSON.stringify(
         {
           exists: true,
           company: {
-            name: answers.companyName,
+            name: workspaceName,
             description: answers.description,
-            goals: answers.goals,
+            goals: answers.goals || "",
             teamSize: answers.teamSize,
-            priority: answers.priority,
+            priority: answers.priority || "",
           },
-          setupDate: new Date().toISOString(),
+          setupDate: workspaceConfig.setupDate,
         },
         null,
         2
@@ -63,11 +102,11 @@ export async function POST(req: NextRequest) {
 
     // 2. Bootstrap root cabinet structure (cabinet protocol compliance)
     await scaffoldCabinet(DATA_DIR, {
-      name: answers.companyName,
+      name: workspaceName,
       kind: "root",
       description: answers.description,
       body: answers.description,
-      tags: ["company"],
+      tags: [roomType],
       skipExisting: true,
     });
 
@@ -91,7 +130,7 @@ export async function POST(req: NextRequest) {
       try {
         await fs.access(templateDir);
       } catch {
-        if (MANDATORY_AGENT_SLUGS.includes(slug as (typeof MANDATORY_AGENT_SLUGS)[number])) {
+        if (mandatorySlugs.includes(slug)) {
           return NextResponse.json(
             { error: `Required agent template "${slug}" is unavailable` },
             { status: 500 }
@@ -112,17 +151,18 @@ export async function POST(req: NextRequest) {
       await copyDir(templateDir, targetDir);
       await ensureAgentScaffold(targetDir);
 
-      // Inject company context into persona.md
+      // Inject context into persona.md. Substitutes both variable families so
+      // new personas (using workspace_*) and legacy ones (using company_*) both work.
       const personaPath = path.join(targetDir, "persona.md");
       try {
         const raw = await fs.readFile(personaPath, "utf-8");
         const injected = raw
-          .replace(/\{\{company_name\}\}/g, answers.companyName)
-          .replace(/\{\{company_description\}\}/g, answers.description)
-          .replace(
-            /\{\{goals\}\}/g,
-            answers.goals || answers.priority || ""
-          );
+          .replace(/\{\{company_name\}\}/g, workspaceName)
+          .replace(/\{\{workspace_name\}\}/g, workspaceName)
+          .replace(/\{\{company_description\}\}/g, answers.description || "")
+          .replace(/\{\{workspace_description\}\}/g, answers.description || "")
+          .replace(/\{\{home_name\}\}/g, homeName)
+          .replace(/\{\{goals\}\}/g, answers.goals || answers.priority || "");
         await fs.writeFile(personaPath, injected);
       } catch {
         // Ignore injection errors
@@ -161,12 +201,24 @@ export async function POST(req: NextRequest) {
     }
 
     const channelDescriptions: Record<string, string> = {
-      general: "Company-wide announcements and discussion",
+      general: "Shared space for announcements and discussion",
       leadership: "Strategic planning and goal setting",
       marketing: "Marketing campaigns, content, and SEO",
       content: "Content creation, editing, and review",
       sales: "Lead generation, outreach, and deals",
       engineering: "Technical work and code quality",
+      notes: "PKM curation, links, and indexes",
+      writing: "Drafting, editing, and review",
+      inbox: "Email triage and drafts",
+      calendar: "Scheduling and reminders",
+      habits: "Habit tracking and reflection",
+      tools: "Small scripts, dashboards, and plugins",
+      research: "Research agenda and paper reviews",
+      teaching: "Lecture prep, slides, problem sets",
+      schedule: "Family calendar and logistics",
+      meals: "Meal planning and grocery lists",
+      kids: "Kids' schedules, activities, and projects",
+      household: "Household coordination and admin",
     };
 
     const channels = Array.from(channelMembers.entries()).map(
@@ -175,7 +227,7 @@ export async function POST(req: NextRequest) {
         name: slug.charAt(0).toUpperCase() + slug.slice(1),
         members: Array.from(members),
         description:
-          channelDescriptions[slug] || `${slug} team channel`,
+          channelDescriptions[slug] || `${slug} channel`,
       })
     );
 

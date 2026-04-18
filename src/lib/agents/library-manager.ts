@@ -17,7 +17,16 @@ export const SOURCE_AGENT_LIBRARY_DIR = path.join(
   "library"
 );
 
+import { getMandatoryAgentsForRoom, type RoomType } from "@/lib/onboarding/rooms";
+
+// Legacy default — kept for callers that haven't been taught about rooms yet.
+// New code should use getMandatoryAgentSlugs(roomType).
 export const MANDATORY_AGENT_SLUGS = ["ceo", "editor"] as const;
+
+export function getMandatoryAgentSlugs(roomType?: RoomType | string): readonly string[] {
+  if (!roomType) return MANDATORY_AGENT_SLUGS;
+  return getMandatoryAgentsForRoom(roomType);
+}
 
 export async function resolveAgentLibraryDir(): Promise<string | null> {
   for (const dir of [SEEDED_AGENT_LIBRARY_DIR, SOURCE_AGENT_LIBRARY_DIR]) {
@@ -41,8 +50,12 @@ export async function resolveAgentTemplateDir(slug: string): Promise<string | nu
   return templateDir;
 }
 
-export function mergeMandatoryAgentSlugs(selectedAgents: string[]): string[] {
-  return Array.from(new Set([...MANDATORY_AGENT_SLUGS, ...selectedAgents]));
+export function mergeMandatoryAgentSlugs(
+  selectedAgents: string[],
+  roomType?: RoomType | string
+): string[] {
+  const mandatory = getMandatoryAgentSlugs(roomType);
+  return Array.from(new Set([...mandatory, ...selectedAgents]));
 }
 
 export async function readLibraryPersona(
