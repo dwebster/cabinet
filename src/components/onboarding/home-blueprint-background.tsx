@@ -131,7 +131,7 @@ const ROOMS: Room[] = [
   {
     label: "KITCHEN",
     cx: 800,
-    cy: 235,
+    cy: 275,
     appearAt: 2.62,
     cabinets: [
       { x: 870, y: 200, w: 50, h: 220, shelves: 6, appearAt: 3.05, kind: "shelf" },
@@ -168,6 +168,46 @@ const ROOMS: Room[] = [
       { x: 840, y: 470, w: 60, h: 70, shelves: 0, appearAt: 3.4, kind: "plant" },
     ],
   },
+];
+
+// Agents — small filled circles that drift inside each room's interior. Two per
+// room, placed away from furniture. Wander variants + durations are staggered
+// so they don't all move in lockstep.
+interface Agent {
+  cx: number;
+  cy: number;
+  r: number;
+  opacity: number;
+  wander: "a" | "b" | "c";
+  duration: number; // seconds
+  delay: number;    // seconds
+}
+
+const AGENTS: Agent[] = [
+  // OFFICE (x 20-320, y 20-175)
+  { cx: 160, cy: 60,  r: 4.5, opacity: 0.5,  wander: "a", duration: 7,  delay: 3.5 },
+  { cx: 240, cy: 50,  r: 4,   opacity: 0.42, wander: "b", duration: 9,  delay: 3.9 },
+  // STUDY (x 350-650)
+  { cx: 430, cy: 55,  r: 4.5, opacity: 0.5,  wander: "b", duration: 8,  delay: 3.6 },
+  { cx: 580, cy: 60,  r: 4,   opacity: 0.42, wander: "c", duration: 10, delay: 4.0 },
+  // LAB
+  { cx: 750, cy: 55,  r: 4.5, opacity: 0.5,  wander: "c", duration: 7.5, delay: 3.7 },
+  { cx: 900, cy: 60,  r: 4,   opacity: 0.42, wander: "a", duration: 9.5, delay: 4.1 },
+  // LIBRARY (x 20-320, y 200-420) — avoid the shelf at x 80-130
+  { cx: 230, cy: 240, r: 4.5, opacity: 0.5,  wander: "a", duration: 8.5, delay: 3.8 },
+  { cx: 250, cy: 330, r: 4,   opacity: 0.42, wander: "c", duration: 10.5, delay: 4.2 },
+  // KITCHEN (x 680-940) — avoid shelf at x 870-920
+  { cx: 740, cy: 270, r: 4.5, opacity: 0.5,  wander: "b", duration: 8,  delay: 3.9 },
+  { cx: 820, cy: 360, r: 4,   opacity: 0.42, wander: "a", duration: 10, delay: 4.3 },
+  // FAMILY (x 20-320, y 455-610)
+  { cx: 180, cy: 460, r: 4.5, opacity: 0.5,  wander: "c", duration: 7.5, delay: 4.0 },
+  { cx: 280, cy: 455, r: 4,   opacity: 0.42, wander: "b", duration: 9,  delay: 4.4 },
+  // DINING
+  { cx: 430, cy: 455, r: 4.5, opacity: 0.5,  wander: "a", duration: 8.5, delay: 4.1 },
+  { cx: 570, cy: 460, r: 4,   opacity: 0.42, wander: "c", duration: 9.5, delay: 4.5 },
+  // STUDIO
+  { cx: 745, cy: 455, r: 4.5, opacity: 0.5,  wander: "b", duration: 8,  delay: 4.2 },
+  { cx: 870, cy: 455, r: 4,   opacity: 0.42, wander: "a", duration: 10, delay: 4.6 },
 ];
 
 // Patio (central courtyard) — open space with corner plants + a dashed garden border.
@@ -258,9 +298,33 @@ export function HomeBlueprintBackground({
           stroke-dashoffset: 10;
           animation: bp-draw 0.4s ease-out var(--bp-d, 0s) forwards;
         }
+        @keyframes bp-wander-a {
+          0%, 100% { transform: translate(0, 0); }
+          33%      { transform: translate(20px, -12px); }
+          66%      { transform: translate(-14px, 14px); }
+        }
+        @keyframes bp-wander-b {
+          0%, 100% { transform: translate(0, 0); }
+          25%      { transform: translate(-18px, -8px); }
+          50%      { transform: translate(14px, 6px); }
+          75%      { transform: translate(-6px, 18px); }
+        }
+        @keyframes bp-wander-c {
+          0%, 100% { transform: translate(0, 0); }
+          40%      { transform: translate(16px, 10px); }
+          80%      { transform: translate(-20px, 4px); }
+        }
+        .bp-agent {
+          opacity: 0;
+          transform-origin: center;
+          transform-box: fill-box;
+          animation: bp-fade-in 0.6s ease-out var(--bp-d, 0s) forwards,
+                     var(--bp-wander, bp-wander-a) var(--bp-dur, 14s) ease-in-out var(--bp-d, 0s) infinite;
+        }
         @media (prefers-reduced-motion: reduce) {
           .bp-wall, .bp-door, .bp-tick { stroke-dashoffset: 0; animation: none; }
           .bp-label, .bp-cabinet, .bp-dot { opacity: var(--bp-op, 1); transform: none; animation: none; }
+          .bp-agent { opacity: 1; transform: none; animation: none; }
           .bp-grid-fade { opacity: 1; animation: none; }
         }
       `}</style>
@@ -529,27 +593,30 @@ export function HomeBlueprintBackground({
               />
             </g>
           ))}
-          {/* PATIO label tucked at the top of the courtyard, above the popup */}
-          <text
-            x={PATIO.x + PATIO.w / 2}
-            y={PATIO.y + 14}
-            textAnchor="middle"
-            fontFamily="'JetBrains Mono', ui-monospace, monospace"
-            fontSize={11}
-            letterSpacing={5}
-            fontWeight={600}
-            fill={accent}
-            opacity={0.55}
-            className="bp-label"
-            style={
-              {
-                ["--bp-d" as string]: `${PATIO.labelDelay}s`,
-                ["--bp-op" as string]: 0.55,
-              } as React.CSSProperties
-            }
-          >
-            PATIO
-          </text>
+          {/* Patio label intentionally omitted — the courtyard stays empty so
+              the popup sits in clean space. */}
+        </g>
+
+        {/* Agents — small filled circles wandering inside each room. */}
+        <g>
+          {AGENTS.map((a, i) => (
+            <circle
+              key={`agent-${i}`}
+              cx={a.cx}
+              cy={a.cy}
+              r={a.r}
+              fill={accent}
+              opacity={a.opacity}
+              className="bp-agent"
+              style={
+                {
+                  ["--bp-d" as string]: `${a.delay}s`,
+                  ["--bp-wander" as string]: `bp-wander-${a.wander}`,
+                  ["--bp-dur" as string]: `${a.duration}s`,
+                } as React.CSSProperties
+              }
+            />
+          ))}
         </g>
 
         {/* Small decorative dots scattered in each room — kept clear of the patio */}

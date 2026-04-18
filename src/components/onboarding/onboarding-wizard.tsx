@@ -129,6 +129,12 @@ const CABINET_CLOUD_URL = "https://runcabinet.com/waitlist";
 const TEAM_SIZES = ["Just me", "2-5", "5-20", "20+"];
 const HOUSEHOLD_SIZES = ["Just me", "Couple", "3-4", "5+"];
 
+// Typewritten on the Welcome home step after the blueprint finishes drawing.
+const WELCOME_PARAGRAPH =
+  "Your Home is yours. Inside it, you'll set up rooms for different parts of your life: work, second brain, research, family. And every room has cabinets: your notes, your files, and an AI team quietly getting things done in the background.";
+const WELCOME_TYPE_START_MS = 4800; // begin typing shortly after heading fades in
+const WELCOME_TYPE_CHAR_MS = 32;
+
 // Step indices after the compress pass:
 // 0 intro · 1 welcome-home · 2 room-setup (pick + name + describe) ·
 // 3 team · 4 provider · 5 github · 6 discord · 7 cloud · 8 launch
@@ -1425,6 +1431,32 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   );
   const activeRoom = ROOMS[answers.roomType];
   const descriptionInputRef = useRef<HTMLInputElement>(null);
+
+  // Welcome-home typewriter. Starts after the blueprint-draw delay so the
+  // cursor begins typing inside the freshly-appeared popup.
+  const [welcomeTyped, setWelcomeTyped] = useState(0);
+  useEffect(() => {
+    if (step !== STEP_WELCOME_HOME) {
+      setWelcomeTyped(0);
+      return;
+    }
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const start = window.setTimeout(() => {
+      interval = setInterval(() => {
+        setWelcomeTyped((c) => {
+          if (c >= WELCOME_PARAGRAPH.length) {
+            if (interval) clearInterval(interval);
+            return c;
+          }
+          return c + 1;
+        });
+      }, WELCOME_TYPE_CHAR_MS);
+    }, WELCOME_TYPE_START_MS);
+    return () => {
+      window.clearTimeout(start);
+      if (interval) clearInterval(interval);
+    };
+  }, [step]);
   const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[]>([]);
   const [libraryTemplates, setLibraryTemplates] = useState<LibraryTemplate[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
@@ -1772,54 +1804,115 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         </div>
       )}
       <div
-        className="relative mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-6 py-10"
+        className={`relative mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center ${
+          step === STEP_WELCOME_HOME ? "px-4 py-4" : "px-6 py-10"
+        }`}
         style={step === STEP_WELCOME_HOME ? undefined : dotGridStyle}
       >
         <div className="w-full">
-          {/* Progress indicator */}
-          <div className="mb-10 flex items-center justify-center gap-2">
-            {Array.from({ length: STEP_COUNT }, (_, i) => i).map((i) => (
-              <div
-                key={i}
-                className="rounded-full transition-all duration-300"
-                style={{
-                  height: 8,
-                  width: i <= step ? 40 : 24,
-                  background: i <= step ? WEB.accent : WEB.borderLight,
-                }}
-              />
-            ))}
-          </div>
+          {/* Progress indicator — hidden on Welcome home so the popup truly
+              centers over the blueprint's patio. */}
+          {step !== STEP_WELCOME_HOME && (
+            <div className="mb-10 flex items-center justify-center gap-2">
+              {Array.from({ length: STEP_COUNT }, (_, i) => i).map((i) => (
+                <div
+                  key={i}
+                  className="rounded-full transition-all duration-300"
+                  style={{
+                    height: 8,
+                    width: i <= step ? 40 : 24,
+                    background: i <= step ? WEB.accent : WEB.borderLight,
+                  }}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Step 0: Welcome — Dictionary card */}
           {step === 0 && (
             <IntroStep onNext={() => setStep(1)} />
           )}
 
-          {/* Step 1: Welcome home — name only */}
+          {/* Step 1: Welcome home — appears after the blueprint finishes drawing */}
           {step === STEP_WELCOME_HOME && (
             <div className="relative">
+              <style>{`
+                @keyframes wh-popup-in {
+                  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+                  to   { opacity: 1; transform: translateY(0)   scale(1); }
+                }
+                @keyframes wh-item-in {
+                  from { opacity: 0; transform: translateY(6px); }
+                  to   { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes wh-caret-blink {
+                  0%, 100% { opacity: 1; }
+                  50%      { opacity: 0; }
+                }
+                .wh-popup {
+                  opacity: 0;
+                  animation: wh-popup-in 0.75s cubic-bezier(0.2, 0.9, 0.2, 1) var(--wh-d, 4.3s) forwards;
+                }
+                .wh-item {
+                  opacity: 0;
+                  animation: wh-item-in 0.55s ease-out var(--wh-d, 4.5s) forwards;
+                }
+                .wh-caret {
+                  display: inline-block;
+                  margin-left: 1px;
+                  font-weight: 400;
+                  animation: wh-caret-blink 0.9s steps(2) infinite;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                  .wh-popup, .wh-item, .wh-caret { opacity: 1; transform: none; animation: none; }
+                }
+              `}</style>
               <div
-                className="relative z-10 mx-auto flex max-w-xl flex-col gap-7 rounded-2xl px-6 py-7 animate-in fade-in duration-500"
+                className="wh-popup relative z-10 mx-auto flex w-full max-w-xl flex-col gap-5 rounded-2xl px-7 py-7"
                 style={{
-                  background: "rgba(253, 250, 244, 0.82)",
+                  background: "rgba(253, 250, 244, 0.88)",
                   backdropFilter: "blur(10px) saturate(1.2)",
                   WebkitBackdropFilter: "blur(10px) saturate(1.2)",
                   border: `1px solid ${WEB.accent}33`,
                   boxShadow:
                     "0 20px 60px -20px rgba(139, 94, 60, 0.28), 0 0 0 1px rgba(255,255,255,0.6) inset",
-                }}
+                  ["--wh-d" as string]: "4.3s",
+                } as React.CSSProperties}
               >
-                <div className="text-center space-y-3">
-                  <h1 className="font-logo text-2xl tracking-tight italic">
+                <div className="text-center space-y-2.5">
+                  <h1
+                    className="wh-item font-logo text-2xl tracking-tight italic"
+                    style={{ ["--wh-d" as string]: "4.6s" } as React.CSSProperties}
+                  >
                     Welcome <span style={{ color: WEB.accent }}>home</span>
                   </h1>
-                  <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
-                    Your Home is yours. Inside it, you&apos;ll set up rooms for different parts of your life — work, second brain, research, family. And every room has cabinets: your notes, your files, and an AI team quietly getting things done in the background.
+                  {/* Typewriter paragraph — reserves its full final height via a
+                      transparent clone of the remaining text so the layout
+                      doesn't jump while characters are being revealed. */}
+                  <p
+                    className="text-sm leading-relaxed text-center"
+                    style={{ color: WEB.textSecondary, minHeight: "5.5em" }}
+                  >
+                    <span>{WELCOME_PARAGRAPH.slice(0, welcomeTyped)}</span>
+                    {welcomeTyped < WELCOME_PARAGRAPH.length && (
+                      <span
+                        className="wh-caret"
+                        aria-hidden="true"
+                        style={{ color: WEB.accent }}
+                      >
+                        |
+                      </span>
+                    )}
+                    <span aria-hidden="true" style={{ color: "transparent" }}>
+                      {WELCOME_PARAGRAPH.slice(welcomeTyped)}
+                    </span>
                   </p>
                 </div>
 
-                <div className="space-y-2">
+                <div
+                  className="wh-item space-y-2"
+                  style={{ ["--wh-d" as string]: "5.0s" } as React.CSSProperties}
+                >
                   <label className="text-sm font-medium" style={{ color: WEB.text }}>
                     What&apos;s your name?
                   </label>
@@ -1838,10 +1931,13 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   />
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
+                <div
+                  className="wh-item flex items-center justify-between pt-1"
+                  style={{ ["--wh-d" as string]: "5.15s" } as React.CSSProperties}
+                >
                   <button
                     onClick={() => setStep(0)}
-                    className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors"
                     style={{ color: WEB.textSecondary }}
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
