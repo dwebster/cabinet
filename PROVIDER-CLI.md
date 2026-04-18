@@ -1,16 +1,16 @@
 # Provider CLI Runtime
 
-Date: 2026-04-17
+Date: 2026-04-18
 
-Consolidated reference for Cabinet's multi-CLI provider system. Describes the adapter runtime, the eight built-in providers, shared utilities, plugin loader, session codec, and the in-UI verification surface. For the chronological migration history see `AI_PROVIDER_RUNTIME_PROGRESS.md`.
+Consolidated reference for Cabinet's multi-CLI provider system. Describes the adapter runtime, the eight built-in providers, shared utilities, plugin loader, session codec, in-UI verification, runtime picker, migration history, and outstanding work.
 
 ## 1. Goal
 
 Cabinet executes agent work through interchangeable CLI providers. Each provider is a local binary the user installs and authenticates once. Cabinet spawns it headless, streams structured output into the transcript, persists session handles, and classifies failures in the UI.
 
-Previous state: Claude + Codex + Gemini hard-wired, each one owning its own `<provider>-local.ts` + `<provider>-stream.ts` with heavy duplication.
+Previous state: Claude + Codex hard-wired into a terminal-first execution model with heavy per-provider duplication.
 
-Current state: eight built-in providers + a plugin loader for third-party adapters, a shared adapter interface, and a reusable runtime picker that is driven entirely off provider metadata.
+Current state: eight built-in providers + a plugin loader for third-party adapters, a shared adapter interface, a reusable runtime picker driven entirely off provider metadata, and a standalone troubleshooting page that exercises every provider server API.
 
 ## 2. Built-in Providers
 
@@ -59,11 +59,11 @@ interface AdapterSessionCodec {
 
 ## 4. Shared Utilities
 
-All adapters reuse the same building blocks (currently co-located in `src/lib/agents/adapters/`, to be moved into `_shared/` in the Round B refactor):
+All adapters reuse the same building blocks (currently co-located in `src/lib/agents/adapters/`, to be extracted into `_shared/`):
 
 - **Stream-JSON consumer** — line-by-line JSONL accumulator with typed event callbacks. Template: `claude-stream.ts` accumulator shape.
 - **`runChildProcess`** — spawn wrapper used by every adapter: handles PATH (`ADAPTER_RUNTIME_PATH`), stdin piping, stdout/stderr chunking, timeouts, clean termination.
-- **Stderr noise filters** — per-provider regex lists that drop CLI bootstrap chatter (e.g. OpenCode `sqlite-migration:*`, Gemini YOLO notices) so only real errors reach the user.
+- **Stderr noise filters** — per-provider regex lists that drop CLI bootstrap chatter (OpenCode `sqlite-migration:*`, Gemini YOLO notices) so only real errors reach the user.
 - **Session-codec pattern** — `{ sessionId, cwd }` shape (Cursor/Claude/Codex) or file-backed snapshot (Pi). On unknown-session error the runner retries with `clearSession: true`.
 - **CLI arg builders** — effort → flag mappings (`--variant`, `--thinking`, `--reasoning-effort`) kept beside each adapter; all return arrays so call sites compose cleanly.
 
@@ -104,6 +104,17 @@ Consumed by:
 - **Providers Demo** (`/providers-demo`, see §6.1) — full test harness that hits every provider server API end-to-end.
 
 Both onboarding + settings surfaces drive their install steps off `provider.installSteps` (via `buildProviderSetupSteps`) — no hardcoded per-provider content.
+
+Unified verify command per provider (matches the adapter's exact invocation so "works in terminal" implies "works in Cabinet"):
+
+- **Claude Code** — `claude -p 'Reply with exactly OK' --output-format text`
+- **Codex CLI** — `codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox 'Reply with exactly OK'`
+- **Gemini CLI** — `gemini -p 'Reply with exactly OK' --yolo`
+- **Cursor CLI** — `cursor-agent -p 'Reply with exactly OK' --output-format text --yolo`
+- **OpenCode** — `opencode run 'Reply with exactly OK'`
+- **Pi** — `pi --mode json -p 'Reply with exactly OK'`
+- **Grok CLI** — `grok -p 'Reply with exactly OK'`
+- **Copilot CLI** — `copilot -p 'Reply with exactly OK' --allow-all-tools`
 
 ### 6.1 Providers Demo page
 
@@ -146,7 +157,7 @@ Behavior:
 - **Horizontal scroll** — `overflow-x-auto scrollbar-none` + `w-max min-w-full` so 8+ tabs don't clip in a narrow column.
 - **Banner** — colored `Default Model: (icon)(provider)(model)` strip tied to the provider's own `iconAsset` + theme accent; shared between composer and Settings.
 
-The Settings page replaced three hand-rolled blocks (provider buttons + model grid + effort grid) with a single `<RuntimeMatrixPicker includeUnavailable />` + `<RuntimeSelectionBanner />`.
+Settings replaced three hand-rolled blocks (provider buttons + model grid + effort grid) with a single `<RuntimeMatrixPicker includeUnavailable />` + `<RuntimeSelectionBanner />`.
 
 ## 8. Glyphs & Icons
 
@@ -176,37 +187,85 @@ src/lib/agents/
     claude-local.ts + claude-stream.ts
     codex-local.ts  + codex-stream.ts
     gemini-local.ts + gemini-stream.ts
-    cursor-local.ts
-    opencode-local.ts
-    pi-local.ts
+    cursor-local.ts + cursor-stream.ts
+    opencode-local.ts + opencode-stream.ts
+    pi-local.ts + pi-stream.ts
     grok-local.ts
     copilot-local.ts
 src/app/
   api/agents/providers/route.ts             // GET list + PUT settings
   api/agents/providers/status/route.ts      // GET { available, authenticated } cache (30s)
   api/agents/providers/[id]/verify/route.ts // POST verify + classify
-  api/agents/headless/route.ts              // POST one-shot prompt (used by /providers-demo)
+  api/agents/headless/route.ts              // POST one-shot prompt
   providers-demo/page.tsx                   // troubleshooting harness
 src/components/
   composer/task-runtime-picker.tsx          // RuntimeMatrixPicker + Banner
-  settings/settings-page.tsx                // uses RuntimeMatrixPicker includeUnavailable + Troubleshoot link
-  onboarding/onboarding-wizard.tsx          // 4-col grid + per-provider verify + setup steps
+  settings/settings-page.tsx                // runtime picker + Troubleshoot link
+  onboarding/onboarding-wizard.tsx          // 4-col grid + verify drawer
   onboarding/home-blueprint-background.tsx  // animated floorplan on Welcome home
   agents/provider-glyph.tsx                 // asset-driven glyph
+  agents/conversation-{content-viewer,live-view,session-view}.tsx
 public/providers/{claude,codex,gemini,cursor,opencode,pi,grok,copilot}.svg
 server/cabinet-daemon.ts                    // awaits plugin loader at boot
 ```
 
-## 11. Deferred (Round B)
+## 11. Migration History
 
-- Move each adapter into its own `adapters/<name>/{index,execute,parse,test,skills}.ts` directory per paperclip's shape (current flat layout works, the refactor is bookkeeping).
-- Daemon wiring of session-codec persistence keyed by agent/conversation id + automatic `clearSession` retry on stale ids.
-- Daemon wiring of skills injection — resolve skill set → symlink into tmpdir → pass to adapter via `--add-dir` or adapter-specific env.
-- Dynamic model listing: `opencode models` / `pi --list-models` cached 60 s.
-- Per-provider directory extraction of `_shared/{stream-json,cli-args,stderr-filter,session-codec,skills-injection,health-check}.ts`.
+Phased work that landed on this branch (see commit trail below):
 
-## 12. Operational Notes
+1. **Adapter foundation** — shared adapter system under `src/lib/agents/adapters/`, threading `adapterType` / `adapterConfig` / execution engine through personas, jobs, conversations, and daemon sessions.
+2. **Structured adapters for Claude / Codex / Gemini** — stream-json parsing instead of raw PTY replay; structured usage + session metadata flow into transcripts natively.
+3. **Daemon runtime generalization** — `server/cabinet-daemon.ts` manages both legacy PTY and structured adapter-backed sessions, writing into the same conversation store.
+4. **Provider + adapter selection UI** — providers API exposes adapter metadata; runtime-selection helpers surface defaults, available adapters, and override semantics across agent settings / creation / job editors / mission control.
+5. **Legacy preservation** — legacy CLI paths kept as experimental escape hatches. `WebTerminal` retained as a product capability for interactive use.
+6. **Native live-session UI** — replaced task live-rendering that previously depended on `WebTerminal`. Shared renderer across `task-detail-panel`, `jobs-manager`, `agents-workspace`.
+7. **Shared task composer** — per-task runtime overrides + compact runtime picker (brain-icon trigger) unified across task board, home screen, agents workspace, AI panel, and status-bar entry points.
+8. **Runtime picker consolidation** — provider tabs / model rows / effort columns matrix with a selected-model summary row.
+9. **Paperclip-style adapter shape** — three new providers (Cursor / OpenCode / Pi) added using CLI-spawn + stream-json + session-codec pattern, consistent with Claude / Codex / Gemini.
+10. **Session codec groundwork** — optional `AdapterSessionCodec` on the adapter interface; each new adapter ships its own codec. Per-conversation persistence is the Round B item.
+11. **External adapter plugin loader** — `~/.cabinet/adapter-plugins.json`, dynamic `import()`, `registerExternal` + fallback preservation.
+12. **Provider branding** — `iconAsset` field + local SVG assets for all providers; `ProviderGlyph` shared component.
+13. **Settings guide generalization** — hardcoded per-provider setup map replaced with `buildProviderSetupSteps(provider.installSteps)`.
+14. **Unified headless verify step** — every provider's install guide ends with the same "Reply with exactly OK" one-shot that matches the adapter's exact invocation.
+15. **Runtime picker layout for 6+ providers** — horizontal scroll on tab row + relaxed width constraint; Cursor renamed to "Cursor CLI" for tab balance.
+16. **Grok CLI + Copilot CLI providers** — plain-stdout passthrough (no stream-json), subscription/api billing, ship monogram SVGs + registry entries.
+17. **Adapter tests** — stream-parsing + session-codec round-trip tests for Cursor / OpenCode / Pi; registry test asserts all 10 adapter types + 8 provider defaults.
+18. **Onboarding redesign (2026-04-18)** — 4-col responsive card grid sorted ready-first, single install/verify drawer below the grid, `RuntimeSelectionBanner` above model chips. Fixed refetch-on-select bug (`checkProvider` deps). Welcome home step gained `HomeBlueprintBackground` — animated SVG floor plan with 8 rooms + wandering agent dots, respects `prefers-reduced-motion`.
+19. **Providers Demo page (2026-04-18)** — `/providers-demo` exercises every provider server API; API call log with expandable bodies; "Troubleshoot AI providers" button added to Settings → Providers.
 
-- When adding a new provider: (1) drop metadata in `providers/<id>.ts`, (2) add an adapter in `adapters/<type>-local.ts`, (3) register both, (4) drop an SVG in `public/providers/`, (5) ensure the final install step is a `Verify setup` command that exits 0 on success. UI surfaces (composer picker, Settings, onboarding, glyph) pick the provider up automatically.
-- Unready providers stay visible in Settings (`includeUnavailable`) but are hidden in the composer picker by default. Users can always see what's available vs. installable from Settings.
-- Verify failures surface the failing step title + hint inline — users know whether to install, authenticate, pay, or wait out a quota without reading raw stderr.
+### Commit trail (selected)
+
+- `7cd6c31` scaffold adapter foundation
+- `3e30f5a` thread adapter metadata through daemon sessions
+- `5aa39a5` run claude through structured adapter sessions
+- `0a9e52c` run codex through structured adapter sessions
+- `5428af5` expose adapter selection in agent settings
+- `1e0f1a3` expose adapter selection in mission control dialogs
+- `85fa8d9` replace task live terminal with native view
+- `2357097` share native live conversation view
+- `88de2b1` 5 CLI providers + in-UI verification + shared runtime picker
+- `89a3cc4` animated home blueprint + redesigned provider step + study default
+- `19980e0` /providers-demo page + Troubleshoot button in Settings
+
+## 12. Next Steps
+
+Remaining work on the multi-provider track, in priority order:
+
+1. **Persist session codec per conversation** — wire `AdapterSessionCodec.serialize/deserialize` through `server/cabinet-daemon.ts` so resume params survive across conversations (today they round-trip only within a single run). Store `sessionParams` per conversation/agent under `data/` alongside existing metadata. Retry with `clearSession: true` on stale ids.
+2. **Skills injection through the daemon** — wire `listSkills` / `syncSkills` so a curated skill set is symlinked into the per-adapter skills home (`~/.claude/skills`, `~/.cursor/skills`, etc.) before `execute()`. Requires a decision on where Cabinet stores the skill catalog.
+3. **Dynamic model discovery** — implement `listModels()` for OpenCode (`opencode models`) and Pi (`pi --list-models`) with a 60 s cache so the runtime picker reflects each user's actual provider catalog.
+4. **Per-provider directory refactor** — split each flat `<provider>-local.ts` + `<provider>-stream.ts` pair into `adapters/<provider>-local/{index,execute,parse,test,skills}.ts` and extract the shared helpers into `_shared/{stream-json,cli-args,stderr-filter,session-codec,skills-injection,health-check}.ts`. Structural cleanup, not a functional gap.
+5. **Port remaining live surfaces to native view** — extend the transcript-based renderer to `src/components/agents/agent-detail.tsx`, `src/components/agents/agent-live-panel.tsx`, and non-interactive portions of `src/components/ai-panel/ai-panel.tsx`.
+6. **Label legacy PTY adapters as experimental** — explicitly mark the legacy runtime as optional/experimental in every UI surface where it's selectable. Keep `WebTerminal` as the interactive/debug subsystem for direct CLI usage and future tmux-like workflows.
+7. **Integration coverage for adapter lifecycle** — tests around adapter selection, session resume path (including stale-session retry), and the structured-session persistence wiring from step 1.
+8. **Reduce "provider = PTY CLI" assumptions** — continue auditing code paths that assume a terminal-backed CLI; ensure API-only providers can slot in cleanly once we add them.
+9. **Reasoning-effort policy per provider** — decide how far to push effort controls. Cursor has none, OpenCode/Pi have per-variant levels, Codex has low/medium/high, Claude/Gemini/Grok/Copilot have none. Some providers should expose model choice with no effort at all.
+10. **Model-override param on `/api/agents/headless`** — currently the headless endpoint only accepts `{ providerId, prompt }`. Extend to accept optional `model` + `effort` so `/providers-demo` can test non-default models without spinning up a full conversation. Unlocks per-provider model testing in the demo.
+11. **Polish placeholder glyphs** — replace the monogram SVGs for `cursor`, `opencode`, `pi`, `grok`, `copilot` with official artwork where licensing allows.
+
+## 13. Operational Notes
+
+- **Adding a new provider**: (1) drop metadata in `providers/<id>.ts`, (2) add an adapter in `adapters/<type>-local.ts`, (3) register both, (4) drop an SVG in `public/providers/`, (5) ensure the final install step is a `Verify setup` command that exits 0 on success. UI surfaces (composer picker, Settings, onboarding, glyph, demo) pick the provider up automatically.
+- **Unready providers** stay visible in Settings (`includeUnavailable`) but are hidden in the composer picker by default. Users can always see what's available vs. installable from Settings.
+- **Verify failures** surface the failing step title + hint inline — users know whether to install, authenticate, pay, or wait out a quota without reading raw stderr.
+- **Debugging a provider**: open `/providers-demo` from Settings → Providers → **Troubleshoot AI providers**. Runs every provider API end-to-end with live logs.
