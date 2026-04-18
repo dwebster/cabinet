@@ -100,9 +100,27 @@ All adapters reuse the same building blocks (currently co-located in `src/lib/ag
 Consumed by:
 
 - **Settings → Providers** (`src/components/settings/settings-page.tsx`) — per-provider verify button, status chip, failed-step highlighting, hint line.
-- **Onboarding wizard** (`src/components/onboarding/onboarding-wizard.tsx`) — same surface themed to the wizard palette.
+- **Onboarding wizard** (`src/components/onboarding/onboarding-wizard.tsx`) — 4-column responsive grid sorted ready → installed-but-not-auth → not-installed, with a single install/verify drawer below the grid (not inline per card). Auto-selects the first ready provider and reuses `RuntimeSelectionBanner` above the model chips.
+- **Providers Demo** (`/providers-demo`, see §6.1) — full test harness that hits every provider server API end-to-end.
 
-Both surfaces drive their install steps off `provider.installSteps` (via `buildProviderSetupSteps`) — no hardcoded per-provider content.
+Both onboarding + settings surfaces drive their install steps off `provider.installSteps` (via `buildProviderSetupSteps`) — no hardcoded per-provider content.
+
+### 6.1 Providers Demo page
+
+`/providers-demo` (`src/app/providers-demo/page.tsx`) is a standalone troubleshooting harness. Linked from Settings → Providers via a **Troubleshoot AI providers** button (Stethoscope icon) that opens it in a new tab. Inherits the app's theme tokens so it renders in whichever theme the user picked.
+
+What it exercises in one view:
+
+- `GET /api/agents/providers` — populates the provider cards + summary bar (provider count, ready count, default provider/model/effort).
+- `GET /api/agents/providers/status` — separate button; renders the cached `{ available, authenticated }` mini-grid.
+- `POST /api/agents/providers/:id/verify` — per-card Verify button with inline result (status pill, exit code, duration, failed-step label, hint, collapsible command + stdout + stderr).
+- `POST /api/agents/headless` — per-card Send prompt button; shared prompt textarea with `{{provider}}` templating replaced against the provider's display name. Disabled when the provider isn't ready.
+
+UX details:
+
+- Scrolling **API call log** at the bottom records every fetch (method, URL, status, duration, timestamp) with expandable request/response JSON.
+- Model + effort selectors are rendered for reference; `/api/agents/headless` currently uses each provider's default model, noted inline.
+- Log cap: 100 entries (FIFO). Clear button resets.
 
 ## 7. Runtime Picker (shared component)
 
@@ -163,11 +181,17 @@ src/lib/agents/
     pi-local.ts
     grok-local.ts
     copilot-local.ts
-src/app/api/agents/providers/[id]/verify/route.ts
+src/app/
+  api/agents/providers/route.ts             // GET list + PUT settings
+  api/agents/providers/status/route.ts      // GET { available, authenticated } cache (30s)
+  api/agents/providers/[id]/verify/route.ts // POST verify + classify
+  api/agents/headless/route.ts              // POST one-shot prompt (used by /providers-demo)
+  providers-demo/page.tsx                   // troubleshooting harness
 src/components/
   composer/task-runtime-picker.tsx          // RuntimeMatrixPicker + Banner
-  settings/settings-page.tsx                // uses RuntimeMatrixPicker includeUnavailable
-  onboarding/onboarding-wizard.tsx          // per-provider verify + setup steps
+  settings/settings-page.tsx                // uses RuntimeMatrixPicker includeUnavailable + Troubleshoot link
+  onboarding/onboarding-wizard.tsx          // 4-col grid + per-provider verify + setup steps
+  onboarding/home-blueprint-background.tsx  // animated floorplan on Welcome home
   agents/provider-glyph.tsx                 // asset-driven glyph
 public/providers/{claude,codex,gemini,cursor,opencode,pi,grok,copilot}.svg
 server/cabinet-daemon.ts                    // awaits plugin loader at boot

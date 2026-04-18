@@ -256,6 +256,29 @@ Additional progress on this branch:
 - Extended `registry.test.ts` to assert all eight adapter types (2 legacy + 6 structured — Claude, Codex, Gemini, Cursor, OpenCode, Pi) and per-provider default mappings.
 - Each new test also exercises the adapter's `sessionCodec` round-trip.
 
+### 2.19 Onboarding Provider Step Redesign (2026-04-18)
+
+- Replaced the stacked full-width provider list with a 4-column responsive card grid (`2 → 3 → 4` at xs/sm/md+) in `src/components/onboarding/onboarding-wizard.tsx`.
+- Sort order: ready → installed-but-not-authenticated → not-installed. Stable within each bucket to preserve registry order.
+- Auto-selects the first ready provider on load. Fixed a bug where clicking a card caused the provider list to refetch (the `checkProvider` `useCallback` had `selectedProvider` in its deps; switched the auto-select to `setSelectedProvider((current) => current || first.id)` so the callback is stable).
+- Per-state card styling: ready = normal card + green "Ready" pill, installed = amber border + "Log in" chip, not-installed = muted + "Install" chip.
+- A single install/verify **drawer** appears below the whole grid (not inline in each card), driven by one `expandedProvider` state.
+- `RuntimeSelectionBanner` (from the composer) now sits above the model chip grid for visual continuity with the task composer.
+- Welcome home step gained `HomeBlueprintBackground` — an animated SVG floor plan with 8 rooms (OFFICE / STUDY / LAB / LIBRARY / KITCHEN / FAMILY / DINING / STUDIO) wrapping a central patio where the onboarding card sits. Walls draw line-by-line, door arcs swing open, room labels fade in, furniture pops in, and 16 agent dots wander the rooms forever. Respects `prefers-reduced-motion`.
+
+### 2.20 Providers Demo + Troubleshoot Button (2026-04-18)
+
+- New `/providers-demo` page (`src/app/providers-demo/page.tsx`) — a single-view test harness for every provider server API.
+- Exercises:
+  - `GET /api/agents/providers` — populates cards + a summary bar (count / ready / default provider / default model+effort).
+  - `GET /api/agents/providers/status` — cached `{available, authenticated}` mini-grid.
+  - `POST /api/agents/providers/:id/verify` — per-card Verify button with inline result (status pill, exit code, duration, failed-step label, hint, collapsible stdout/stderr).
+  - `POST /api/agents/headless` — per-card Send-prompt button; shared textarea with `{{provider}}` templated to the provider name; disabled when the provider isn't ready.
+- Scrolling **API call log** at the bottom records every fetch (method, URL, status, ms, timestamp) with expandable request/response JSON. 100-entry FIFO cap + Clear button.
+- Model + effort selectors display current provider metadata for reference; documented inline that `/api/agents/headless` uses each provider's default model (no model override parameter yet).
+- Settings → Providers gained a **Troubleshoot AI providers** button (Stethoscope icon) that opens `/providers-demo` in a new tab. Wired in `src/components/settings/settings-page.tsx`.
+- Uses Tailwind theme tokens (`bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, etc.) so it respects whichever theme the user selected; no standalone palette.
+
 ## 3. Current Architecture Direction
 
 Cabinet now has the core pieces needed for multi-provider, multi-runtime execution:
