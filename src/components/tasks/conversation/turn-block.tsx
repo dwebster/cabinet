@@ -3,11 +3,13 @@
 import { useSyncExternalStore } from "react";
 import { ChevronRight, Pause, Sparkles, User } from "lucide-react";
 import {
+  artifactPathToTreePath,
   inferPageTypeFromPath,
   pageTypeColor,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
 import { useAppStore } from "@/stores/app-store";
+import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { cn } from "@/lib/utils";
 import type { Turn } from "@/types/tasks";
@@ -54,6 +56,7 @@ function directory(p: string): string {
 function KbArtifactRow({ path }: { path: string }) {
   const setSection = useAppStore((s) => s.setSection);
   const selectPage = useTreeStore((s) => s.selectPage);
+  const loadPage = useEditorStore((s) => s.loadPage);
   const kind = inferPageTypeFromPath(path);
   const Icon = pageTypeIcon(kind);
   const color = pageTypeColor(kind);
@@ -63,8 +66,10 @@ function KbArtifactRow({ path }: { path: string }) {
     <button
       type="button"
       onClick={() => {
-        selectPage(path);
+        const treePath = artifactPathToTreePath(path);
+        selectPage(treePath);
         setSection({ type: "page" });
+        void loadPage(treePath);
       }}
       className="group flex w-full items-center gap-2.5 rounded-md bg-card/80 px-2.5 py-2 text-left ring-1 ring-border/60 transition-colors hover:bg-muted/40"
     >

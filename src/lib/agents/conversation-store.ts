@@ -203,7 +203,13 @@ function normalizeArtifactPath(rawPath: string): string | null {
     return virtualPathFromFs(candidate);
   }
 
-  const normalized = candidate.replace(/^\.?\//, "");
+  let normalized = candidate.replace(/^\.?\//, "");
+  // Agents sometimes emit relative "data/..." paths (no leading slash). The
+  // KB tree is rooted AT data/, so the prefix is redundant and breaks path
+  // matching on the UI side (tree node path has no data/ prefix).
+  if (normalized.startsWith("data/")) {
+    normalized = normalized.slice(5);
+  }
   if (!normalized || normalized.startsWith("..")) return null;
   if (/^relative\/path\/to\/file\d*$/i.test(normalized)) return null;
   return normalized;

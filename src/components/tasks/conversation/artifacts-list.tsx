@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import {
+  artifactPathToTreePath,
   inferPageTypeFromPath,
   pageTypeColor,
   pageTypeIcon,
@@ -70,6 +72,7 @@ function usePageMeta(paths: string[]): Map<string, PageMetaEntry> {
 export function ArtifactsList({ turns }: { turns: Turn[] }) {
   const setSection = useAppStore((s) => s.setSection);
   const selectPage = useTreeStore((s) => s.selectPage);
+  const loadPage = useEditorStore((s) => s.loadPage);
   const paths = useMemo(() => {
     const seen = new Set<string>();
     for (const t of turns) {
@@ -112,8 +115,10 @@ export function ArtifactsList({ turns }: { turns: Turn[] }) {
             key={path}
             type="button"
             onClick={() => {
-              selectPage(path);
+              const treePath = artifactPathToTreePath(path);
+              selectPage(treePath);
               setSection({ type: "page" });
+              void loadPage(treePath);
             }}
             className="group flex w-full items-center gap-3 rounded-md bg-card px-3 py-2.5 text-left ring-1 ring-border/60 transition-colors hover:bg-muted/40"
           >

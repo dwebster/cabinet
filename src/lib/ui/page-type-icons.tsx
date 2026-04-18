@@ -89,3 +89,21 @@ export function inferPageTypeFromPath(path: string): PageTypeKind {
   }
   return "unknown";
 }
+
+/**
+ * Normalize an agent-authored artifact path so it matches the KB tree's
+ * canonical `selectedPath` format. Tree nodes are rooted AT `data/` and
+ * drop `.md` / `/index.md` extensions, so e.g. `data/have-fun/bellatrix.md`
+ * must be rewritten to `have-fun/bellatrix` before calling `selectPage`.
+ *
+ * Idempotent — safe to apply twice.
+ */
+export function artifactPathToTreePath(path: string): string {
+  if (!path) return path;
+  let next = path.trim();
+  next = next.replace(/^\/+/, "");
+  if (next.startsWith("data/")) next = next.slice(5);
+  next = next.replace(/\/index\.md$/, "");
+  next = next.replace(/\.md$/, "");
+  return next;
+}
