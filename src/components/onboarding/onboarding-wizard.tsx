@@ -23,6 +23,7 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
+import { HomeBlueprintBackground } from "@/components/onboarding/home-blueprint-background";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { RuntimeSelectionBanner } from "@/components/composer/task-runtime-picker";
 import type { ProviderInfo } from "@/types/agents";
@@ -1412,7 +1413,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     name: "",
     role: "",
     homeName: "",
-    roomType: "office",
+    roomType: "study",
     workspaceName: "",
     description: "",
     teamSize: "",
@@ -1757,10 +1758,22 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: WEB.bg, color: WEB.text }}>
+    <div
+      className="relative min-h-screen overflow-hidden"
+      style={{ background: WEB.bg, color: WEB.text }}
+    >
+      {step === STEP_WELCOME_HOME && (
+        <div className="pointer-events-none absolute inset-0">
+          <HomeBlueprintBackground
+            accent={WEB.accent}
+            accentSoft={WEB.accentBg}
+            paper={WEB.bgWarm}
+          />
+        </div>
+      )}
       <div
-        className="mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-6 py-10"
-        style={dotGridStyle}
+        className="relative mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-6 py-10"
+        style={step === STEP_WELCOME_HOME ? undefined : dotGridStyle}
       >
         <div className="w-full">
           {/* Progress indicator */}
@@ -1785,53 +1798,65 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
           {/* Step 1: Welcome home — name only */}
           {step === STEP_WELCOME_HOME && (
-            <div className="mx-auto flex max-w-xl flex-col gap-8 animate-in fade-in duration-300">
-              <div className="text-center space-y-3">
-                <h1 className="font-logo text-2xl tracking-tight italic">
-                  Welcome <span style={{ color: WEB.accent }}>home</span>
-                </h1>
-                <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
-                  Your Home is yours. Inside it, you&apos;ll set up rooms for different parts of your life — work, second brain, research, family. And every room has cabinets: your notes, your files, and an AI team quietly getting things done in the background.
-                </p>
-              </div>
+            <div className="relative">
+              <div
+                className="relative z-10 mx-auto flex max-w-xl flex-col gap-7 rounded-2xl px-6 py-7 animate-in fade-in duration-500"
+                style={{
+                  background: "rgba(253, 250, 244, 0.82)",
+                  backdropFilter: "blur(10px) saturate(1.2)",
+                  WebkitBackdropFilter: "blur(10px) saturate(1.2)",
+                  border: `1px solid ${WEB.accent}33`,
+                  boxShadow:
+                    "0 20px 60px -20px rgba(139, 94, 60, 0.28), 0 0 0 1px rgba(255,255,255,0.6) inset",
+                }}
+              >
+                <div className="text-center space-y-3">
+                  <h1 className="font-logo text-2xl tracking-tight italic">
+                    Welcome <span style={{ color: WEB.accent }}>home</span>
+                  </h1>
+                  <p className="text-sm leading-relaxed" style={{ color: WEB.textSecondary }}>
+                    Your Home is yours. Inside it, you&apos;ll set up rooms for different parts of your life — work, second brain, research, family. And every room has cabinets: your notes, your files, and an AI team quietly getting things done in the background.
+                  </p>
+                </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium" style={{ color: WEB.text }}>
-                  What&apos;s your name?
-                </label>
-                <input
-                  value={answers.name}
-                  onChange={(e) => setAnswers({ ...answers, name: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && answers.name.trim()) {
-                      e.preventDefault();
-                      setStep(STEP_ROOM_SETUP);
-                    }
-                  }}
-                  placeholder="Jane"
-                  style={inputStyle}
-                  autoFocus
-                />
-              </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" style={{ color: WEB.text }}>
+                    What&apos;s your name?
+                  </label>
+                  <input
+                    value={answers.name}
+                    onChange={(e) => setAnswers({ ...answers, name: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && answers.name.trim()) {
+                        e.preventDefault();
+                        setStep(STEP_ROOM_SETUP);
+                      }
+                    }}
+                    placeholder="Jane"
+                    style={inputStyle}
+                    autoFocus
+                  />
+                </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  onClick={() => setStep(0)}
-                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
-                  style={{ color: WEB.textSecondary }}
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  Back
-                </button>
-                <button
-                  onClick={() => setStep(STEP_ROOM_SETUP)}
-                  disabled={!answers.name.trim()}
-                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
-                  style={{ background: WEB.accent }}
-                >
-                  Next
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={() => setStep(0)}
+                    className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+                    style={{ color: WEB.textSecondary }}
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setStep(STEP_ROOM_SETUP)}
+                    disabled={!answers.name.trim()}
+                    className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+                    style={{ background: WEB.accent }}
+                  >
+                    Next
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           )}
