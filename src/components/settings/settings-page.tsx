@@ -12,6 +12,7 @@ import {
   Bell,
   Plug,
   Cpu,
+  Stethoscope,
   Eye,
   EyeOff,
   Save,
@@ -810,7 +811,18 @@ export function SettingsPage() {
           {tab === "providers" && (
             <>
               <div>
-                <h3 className="text-[14px] font-semibold mb-3">Agent Providers</h3>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-[14px] font-semibold">Agent Providers</h3>
+                  <a
+                    href="/providers-demo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    <Stethoscope className="h-3 w-3" />
+                    Troubleshoot AI providers
+                  </a>
+                </div>
                 <p className="text-xs text-muted-foreground mb-4">
                   Configure AI agent providers. CLI agents run via terminal, API agents use direct API calls.
                 </p>
