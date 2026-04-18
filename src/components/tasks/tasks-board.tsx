@@ -1043,6 +1043,22 @@ export function TasksBoard({
       ? null
       : visibleAgents.find((agent) => agent.scopedId === selectedFilterAgentId) || null;
 
+  // Schedule view: respect the agent dropdown so changing it actually filters
+  // the calendar / list (not just the kanban conversations).
+  const scheduleAgents = useMemo(() => {
+    if (!selectedFilterAgent) return overview?.agents || [];
+    return (overview?.agents || []).filter(
+      (a) => a.scopedId === selectedFilterAgent.scopedId,
+    );
+  }, [overview?.agents, selectedFilterAgent]);
+
+  const scheduleJobs = useMemo(() => {
+    if (!selectedFilterAgent) return overview?.jobs || [];
+    return (overview?.jobs || []).filter(
+      (j) => j.ownerScopedId === selectedFilterAgent.scopedId,
+    );
+  }, [overview?.jobs, selectedFilterAgent]);
+
   const filterAgentItems = useMemo(
     () => [
       { label: "All visible agents", value: "all" },
@@ -1579,7 +1595,20 @@ export function TasksBoard({
                 </Select>
               ) : null}
 
-              <Button variant="outline" size="sm" className="h-7" onClick={() => void refreshBoard()} disabled={refreshing}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7"
+                onClick={async () => {
+                  await refreshBoard();
+                  window.dispatchEvent(
+                    new CustomEvent("cabinet:toast", {
+                      detail: { kind: "success", message: "Schedule refreshed" },
+                    }),
+                  );
+                }}
+                disabled={refreshing}
+              >
                 <RefreshCw data-icon="inline-start" className={cn(refreshing && "animate-spin")} />
                 Refresh
               </Button>
@@ -1593,8 +1622,8 @@ export function TasksBoard({
             <ScheduleCalendar
               mode={calendarMode}
               anchor={calendarAnchor}
-              agents={overview?.agents || []}
-              jobs={overview?.jobs || []}
+              agents={scheduleAgents}
+              jobs={scheduleJobs}
               fullscreen={calendarFullscreen}
               density={calendarDensity}
               visibleStartHour={visibleHours.start}
@@ -1605,8 +1634,8 @@ export function TasksBoard({
             />
           ) : (
             <ScheduleList
-              agents={overview?.agents || []}
-              jobs={overview?.jobs || []}
+              agents={scheduleAgents}
+              jobs={scheduleJobs}
               onJobClick={(job, agent) => {
                 setScheduleJobDialog({
                   agentSlug: agent.slug, agentName: agent.name,
