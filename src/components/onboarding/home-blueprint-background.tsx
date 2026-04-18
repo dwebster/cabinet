@@ -35,6 +35,8 @@ interface Cabinet {
 const VB_W = 1000;
 const VB_H = 620;
 
+// 3×3 grid wrapping a central patio courtyard (340-660, 180-440).
+// The onboarding popup sits in the patio; surrounding rooms feel like a house.
 const WALLS: Wall[] = [
   // Outer walls (drawn first, clockwise from top-left)
   { d: "M 60 60 L 940 60", len: 880, delay: 0 },
@@ -42,87 +44,148 @@ const WALLS: Wall[] = [
   { d: "M 940 560 L 60 560", len: 880, delay: 0.44 },
   { d: "M 60 560 L 60 60", len: 500, delay: 0.66 },
 
-  // Interior — horizontal divider between upper row and lower row
-  // Broken into segments to leave a "doorway" gap
-  { d: "M 60 320 L 340 320", len: 280, delay: 1.05 },
-  { d: "M 380 320 L 660 320", len: 280, delay: 1.2 },
-  { d: "M 700 320 L 940 320", len: 240, delay: 1.35 },
+  // Top horizontal divider y=180 — door gap STUDY→PATIO at x=460-540
+  { d: "M 60 180 L 320 180", len: 260, delay: 1.0 },
+  { d: "M 360 180 L 460 180", len: 100, delay: 1.08 },
+  { d: "M 540 180 L 640 180", len: 100, delay: 1.16 },
+  { d: "M 680 180 L 940 180", len: 260, delay: 1.24 },
 
-  // Interior vertical walls (upper row) — 3 rooms on top
-  { d: "M 340 60 L 340 180", len: 120, delay: 1.55 },
-  { d: "M 340 220 L 340 320", len: 100, delay: 1.65 },
-  { d: "M 660 60 L 660 200", len: 140, delay: 1.75 },
-  { d: "M 660 240 L 660 320", len: 80, delay: 1.85 },
+  // Bottom horizontal divider y=440 — door gap DINING→PATIO at x=460-540
+  { d: "M 60 440 L 320 440", len: 260, delay: 1.32 },
+  { d: "M 360 440 L 460 440", len: 100, delay: 1.4 },
+  { d: "M 540 440 L 640 440", len: 100, delay: 1.48 },
+  { d: "M 680 440 L 940 440", len: 260, delay: 1.56 },
 
-  // Interior vertical wall (lower row) — split family room vs lab/blank
-  { d: "M 580 320 L 580 440", len: 120, delay: 1.98 },
-  { d: "M 580 480 L 580 560", len: 80, delay: 2.08 },
+  // Left vertical divider x=340 — door gap LIBRARY→PATIO at y=280-320
+  { d: "M 340 60 L 340 180", len: 120, delay: 1.62 },
+  { d: "M 340 180 L 340 280", len: 100, delay: 1.7 },
+  { d: "M 340 320 L 340 440", len: 120, delay: 1.78 },
+  { d: "M 340 440 L 340 560", len: 120, delay: 1.86 },
+
+  // Right vertical divider x=660 — door gap KITCHEN→PATIO at y=280-320
+  { d: "M 660 60 L 660 180", len: 120, delay: 1.66 },
+  { d: "M 660 180 L 660 280", len: 100, delay: 1.74 },
+  { d: "M 660 320 L 660 440", len: 120, delay: 1.82 },
+  { d: "M 660 440 L 660 560", len: 120, delay: 1.9 },
 ];
 
-// Door arcs (small quarter-circle strokes)
+// Door arcs — four into the patio + corner-room transitions
 const DOORS = [
-  { d: "M 340 180 A 40 40 0 0 1 380 220", delay: 1.58 },
-  { d: "M 660 200 A 40 40 0 0 1 700 240", delay: 1.78 },
-  { d: "M 580 440 A 40 40 0 0 1 620 480", delay: 2.02 },
-  { d: "M 340 320 A 40 40 0 0 1 380 320", delay: 1.15 },
-  { d: "M 660 320 A 40 40 0 0 1 700 320", delay: 1.3 },
+  // Patio entrances from each adjacent room
+  { d: "M 460 180 A 40 40 0 0 1 500 220", delay: 1.12 },  // STUDY → PATIO (top)
+  { d: "M 460 440 A 40 40 0 0 0 500 400", delay: 1.44 },  // DINING → PATIO (bottom)
+  { d: "M 340 280 A 40 40 0 0 1 380 320", delay: 1.74 },  // LIBRARY → PATIO (left)
+  { d: "M 660 280 A 40 40 0 0 0 620 320", delay: 1.78 },  // KITCHEN → PATIO (right)
+  // Side-room passes
+  { d: "M 320 180 A 40 40 0 0 1 360 220", delay: 1.04 },  // OFFICE → LIBRARY
+  { d: "M 640 180 A 40 40 0 0 0 680 220", delay: 1.2 },   // LAB → KITCHEN
+  { d: "M 320 440 A 40 40 0 0 0 360 400", delay: 1.36 },  // FAMILY → LIBRARY
+  { d: "M 640 440 A 40 40 0 0 1 680 400", delay: 1.52 },  // STUDIO → KITCHEN
 ];
 
+// 8 rooms wrapping the central patio (340-660, 180-440).
+// Furniture placed against outer walls so it never crowds the popup.
 const ROOMS: Room[] = [
+  // Top row
   {
     label: "OFFICE",
     cx: 200,
-    cy: 100,
+    cy: 105,
     appearAt: 2.3,
     cabinets: [
-      { x: 90, y: 200, w: 160, h: 40, shelves: 3, appearAt: 2.7, kind: "desk" },
-      { x: 90, y: 250, w: 70, h: 50, shelves: 2, appearAt: 2.85, kind: "shelf" },
+      { x: 80, y: 130, w: 160, h: 30, shelves: 3, appearAt: 2.7, kind: "desk" },
+      { x: 270, y: 80, w: 50, h: 80, shelves: 4, appearAt: 2.82, kind: "shelf" },
     ],
   },
   {
     label: "STUDY",
     cx: 500,
-    cy: 100,
-    appearAt: 2.4,
+    cy: 105,
+    appearAt: 2.38,
     cabinets: [
-      { x: 380, y: 200, w: 90, h: 100, shelves: 4, appearAt: 2.8, kind: "shelf" },
-      { x: 490, y: 240, w: 140, h: 60, shelves: 2, appearAt: 2.95, kind: "desk" },
+      { x: 360, y: 130, w: 90, h: 30, shelves: 0, appearAt: 2.78, kind: "desk" },
+      { x: 550, y: 130, w: 90, h: 30, shelves: 0, appearAt: 2.85, kind: "desk" },
     ],
   },
   {
     label: "LAB",
     cx: 800,
-    cy: 100,
-    appearAt: 2.5,
+    cy: 105,
+    appearAt: 2.46,
     cabinets: [
-      { x: 700, y: 200, w: 140, h: 36, shelves: 5, appearAt: 2.9, kind: "desk" },
-      { x: 860, y: 200, w: 60, h: 90, shelves: 3, appearAt: 3.05, kind: "shelf" },
-      { x: 700, y: 260, w: 60, h: 50, shelves: 0, appearAt: 3.15, kind: "plant" },
+      { x: 680, y: 80, w: 50, h: 80, shelves: 4, appearAt: 2.9, kind: "shelf" },
+      { x: 750, y: 130, w: 170, h: 30, shelves: 5, appearAt: 2.98, kind: "desk" },
+    ],
+  },
+  // Middle row (flanking the patio)
+  {
+    label: "LIBRARY",
+    cx: 200,
+    cy: 235,
+    appearAt: 2.54,
+    cabinets: [
+      { x: 80, y: 200, w: 50, h: 220, shelves: 6, appearAt: 3.0, kind: "shelf" },
+      { x: 160, y: 360, w: 160, h: 60, shelves: 0, appearAt: 3.12, kind: "sofa" },
     ],
   },
   {
-    label: "FAMILY  ROOM",
-    cx: 320,
-    cy: 360,
-    appearAt: 2.65,
+    label: "KITCHEN",
+    cx: 800,
+    cy: 235,
+    appearAt: 2.62,
     cabinets: [
-      { x: 90, y: 440, w: 200, h: 60, shelves: 0, appearAt: 3.05, kind: "sofa" },
-      { x: 310, y: 440, w: 100, h: 60, shelves: 0, appearAt: 3.18, kind: "sofa" },
-      { x: 150, y: 510, w: 220, h: 30, shelves: 0, appearAt: 3.3, kind: "rug" },
+      { x: 870, y: 200, w: 50, h: 220, shelves: 6, appearAt: 3.05, kind: "shelf" },
+      { x: 680, y: 200, w: 170, h: 30, shelves: 0, appearAt: 3.18, kind: "desk" },
+      { x: 700, y: 320, w: 50, h: 60, shelves: 0, appearAt: 3.26, kind: "plant" },
+    ],
+  },
+  // Bottom row
+  {
+    label: "FAMILY",
+    cx: 200,
+    cy: 500,
+    appearAt: 2.7,
+    cabinets: [
+      { x: 80, y: 470, w: 220, h: 60, shelves: 0, appearAt: 3.2, kind: "sofa" },
     ],
   },
   {
-    label: "BLANK",
-    cx: 760,
-    cy: 360,
-    appearAt: 2.75,
+    label: "DINING",
+    cx: 500,
+    cy: 500,
+    appearAt: 2.78,
     cabinets: [
-      { x: 620, y: 440, w: 120, h: 60, shelves: 2, appearAt: 3.15, kind: "shelf" },
-      { x: 780, y: 440, w: 140, h: 70, shelves: 3, appearAt: 3.25, kind: "desk" },
-      { x: 620, y: 510, w: 50, h: 40, shelves: 0, appearAt: 3.35, kind: "plant" },
+      { x: 380, y: 460, w: 240, h: 70, shelves: 0, appearAt: 3.28, kind: "rug" },
+    ],
+  },
+  {
+    label: "STUDIO",
+    cx: 800,
+    cy: 500,
+    appearAt: 2.86,
+    cabinets: [
+      { x: 680, y: 470, w: 130, h: 60, shelves: 3, appearAt: 3.32, kind: "desk" },
+      { x: 840, y: 470, w: 60, h: 70, shelves: 0, appearAt: 3.4, kind: "plant" },
     ],
   },
 ];
+
+// Patio (central courtyard) — open space with corner plants + a dashed garden border.
+// The popup card lives inside this rectangle.
+const PATIO = {
+  x: 340,
+  y: 180,
+  w: 320,
+  h: 260,
+  // Corner plants framing the courtyard
+  plants: [
+    { x: 360, y: 200, w: 40, h: 40, appearAt: 2.95 },
+    { x: 600, y: 200, w: 40, h: 40, appearAt: 3.02 },
+    { x: 360, y: 400, w: 40, h: 40, appearAt: 3.09 },
+    { x: 600, y: 400, w: 40, h: 40, appearAt: 3.16 },
+  ],
+  labelDelay: 2.5,
+};
 
 export function HomeBlueprintBackground({
   accent,
@@ -418,19 +481,92 @@ export function HomeBlueprintBackground({
           )}
         </g>
 
-        {/* Small decorative dots scattered in each room (books/papers/sparks) */}
+        {/* Patio — dashed garden border + corner plants framing the courtyard */}
+        <g>
+          <rect
+            x={PATIO.x + 18}
+            y={PATIO.y + 18}
+            width={PATIO.w - 36}
+            height={PATIO.h - 36}
+            rx={10}
+            fill={accentSoft}
+            opacity={0.18}
+            stroke={accent}
+            strokeWidth={0.9}
+            strokeDasharray="4 5"
+            className="bp-cabinet"
+            style={
+              {
+                ["--bp-d" as string]: "2.85s",
+                ["--bp-op" as string]: 0.7,
+              } as React.CSSProperties
+            }
+          />
+          {PATIO.plants.map((p, i) => (
+            <g
+              key={`patio-plant-${i}`}
+              className="bp-cabinet"
+              style={
+                {
+                  ["--bp-d" as string]: `${p.appearAt}s`,
+                  ["--bp-op" as string]: 0.85,
+                } as React.CSSProperties
+              }
+            >
+              <circle
+                cx={p.x + p.w / 2}
+                cy={p.y + p.h / 2 - 4}
+                r={p.w / 2 - 4}
+                fill={accentSoft}
+                opacity={0.4}
+                stroke={accent}
+                strokeWidth={1.3}
+              />
+              <path
+                d={`M ${p.x + p.w / 2} ${p.y + p.h / 2 + 2} L ${p.x + p.w / 2} ${p.y + p.h - 2}`}
+                stroke={accent}
+                strokeWidth={1.1}
+              />
+            </g>
+          ))}
+          {/* PATIO label tucked at the top of the courtyard, above the popup */}
+          <text
+            x={PATIO.x + PATIO.w / 2}
+            y={PATIO.y + 14}
+            textAnchor="middle"
+            fontFamily="'JetBrains Mono', ui-monospace, monospace"
+            fontSize={11}
+            letterSpacing={5}
+            fontWeight={600}
+            fill={accent}
+            opacity={0.55}
+            className="bp-label"
+            style={
+              {
+                ["--bp-d" as string]: `${PATIO.labelDelay}s`,
+                ["--bp-op" as string]: 0.55,
+              } as React.CSSProperties
+            }
+          >
+            PATIO
+          </text>
+        </g>
+
+        {/* Small decorative dots scattered in each room — kept clear of the patio */}
         <g fill={accent}>
           {[
-            { cx: 160, cy: 160, delay: 3.4 },
-            { cx: 280, cy: 135, delay: 3.55 },
-            { cx: 480, cy: 160, delay: 3.45 },
-            { cx: 550, cy: 145, delay: 3.6 },
-            { cx: 760, cy: 155, delay: 3.5 },
-            { cx: 870, cy: 150, delay: 3.65 },
-            { cx: 220, cy: 410, delay: 3.75 },
-            { cx: 420, cy: 400, delay: 3.85 },
-            { cx: 700, cy: 405, delay: 3.9 },
-            { cx: 860, cy: 395, delay: 3.95 },
+            { cx: 160, cy: 100, delay: 3.4 },
+            { cx: 280, cy: 80, delay: 3.55 },
+            { cx: 480, cy: 100, delay: 3.45 },
+            { cx: 560, cy: 90, delay: 3.6 },
+            { cx: 760, cy: 100, delay: 3.5 },
+            { cx: 870, cy: 95, delay: 3.65 },
+            { cx: 200, cy: 270, delay: 3.7 },
+            { cx: 870, cy: 290, delay: 3.78 },
+            { cx: 220, cy: 510, delay: 3.85 },
+            { cx: 420, cy: 510, delay: 3.9 },
+            { cx: 700, cy: 510, delay: 3.95 },
+            { cx: 860, cy: 510, delay: 4.0 },
           ].map((d, i) => (
             <circle
               key={`dot-${i}`}
