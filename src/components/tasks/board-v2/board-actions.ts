@@ -46,3 +46,46 @@ export async function setConversationBoardOrder(
 ): Promise<void> {
   await patchConversation(id, { boardOrder }, cabinetPath);
 }
+
+/**
+ * Stops a live conversation. Backed by `PATCH { action: "stop" }` which
+ * kills the daemon session and finalizes the conversation as failed.
+ */
+export async function stopConversation(id: string, cabinetPath?: string): Promise<void> {
+  const params = new URLSearchParams();
+  if (cabinetPath) params.set("cabinetPath", cabinetPath);
+  const qs = params.toString();
+  const res = await fetch(`/api/agents/conversations/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "stop" }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`stop ${id} failed: ${res.status} ${text}`);
+  }
+}
+
+/**
+ * Restarts a finalized conversation by spawning a fresh run from its
+ * original prompt. Returns the new conversation meta.
+ * Backed by `PATCH { action: "restart" }`.
+ */
+export async function restartConversation(
+  id: string,
+  cabinetPath?: string
+): Promise<{ conversation: { id: string; cabinetPath?: string } }> {
+  const params = new URLSearchParams();
+  if (cabinetPath) params.set("cabinetPath", cabinetPath);
+  const qs = params.toString();
+  const res = await fetch(`/api/agents/conversations/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "restart" }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`restart ${id} failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as { conversation: { id: string; cabinetPath?: string } };
+}

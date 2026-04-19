@@ -32,8 +32,14 @@ import type { TaskMeta } from "@/types/tasks";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { LaneKey } from "./lane-rules";
 import { TaskCard } from "./task-card";
-import { archiveConversation, restoreConversation } from "./board-actions";
+import {
+  archiveConversation,
+  restartConversation,
+  restoreConversation,
+  stopConversation,
+} from "./board-actions";
 import type { PendingUndo } from "./undo-toast";
+import type { PendingConfirm } from "./confirm-popover";
 
 interface LaneDef {
   key: LaneKey;
@@ -169,6 +175,7 @@ export function KanbanView({
   now,
   onSelect,
   onUndoQueued,
+  onConfirmRequested,
   onRefresh,
 }: {
   byLane: Record<LaneKey, TaskMeta[]>;
@@ -177,6 +184,7 @@ export function KanbanView({
   now: number;
   onSelect: (id: string) => void;
   onUndoQueued: (undo: PendingUndo) => void;
+  onConfirmRequested: (confirm: PendingConfirm) => void;
   onRefresh: () => Promise<void>;
 }) {
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -218,7 +226,67 @@ export function KanbanView({
     if (!task) return;
     const cabinetPath = task.cabinetPath;
 
-    // Archive: any non-archive lane → archive
+    // ── Destructive: Running → anywhere else (Phase 3) ─────────────────
+    // Stopping a live run cancels the active turn. Confirm inline.
+    if (sourceLane === "running" && targetLane !== "running") {
+      const archiveAfter = targetLane === "archive";
+      onConfirmRequested({
+        id: `stop:${activeId}`,
+        title: "Stop running conversation?",
+        body: archiveAfter
+          ? `Cancels the active turn and archives "${shorten(task.title)}".`
+          : `Cancels the active turn for "${shorten(task.title)}".`,
+        confirmLabel: archiveAfter ? "Stop & archive" : "Stop run",
+        destructive: true,
+        onConfirm: async () => {
+          try {
+            await stopConversation(activeId, cabinetPath);
+            if (archiveAfter) await archiveConversation(activeId, cabinetPath);
+            await onRefresh();
+            onUndoQueued({
+              id: `stop:${activeId}`,
+              message: archiveAfter
+                ? `Stopped & archived "${shorten(task.title)}"`
+                : `Stopped "${shorten(task.title)}"`,
+              undo: async () => {
+                // Restart the conversation to recover. Archive was added on
+                // top of stop so we also unarchive.
+                if (archiveAfter) await restoreConversation(activeId, cabinetPath);
+                await restartConversation(activeId, cabinetPath);
+                await onRefresh();
+              },
+            });
+          } catch (err) {
+            console.error("[board-v2] stop failed", err);
+          }
+        },
+      });
+      return;
+    }
+
+    // ── Destructive: Archive → Running (Phase 3) ───────────────────────
+    // Restart spawns a new run from the original prompt. Confirm inline.
+    if (sourceLane === "archive" && targetLane === "running") {
+      onConfirmRequested({
+        id: `restart:${activeId}`,
+        title: "Restart conversation?",
+        body: `Spawns a fresh run from the original prompt of "${shorten(task.title)}". The archived run stays in history.`,
+        confirmLabel: "Restart",
+        destructive: false,
+        onConfirm: async () => {
+          try {
+            await restoreConversation(activeId, cabinetPath);
+            await restartConversation(activeId, cabinetPath);
+            await onRefresh();
+          } catch (err) {
+            console.error("[board-v2] restart failed", err);
+          }
+        },
+      });
+      return;
+    }
+
+    // ── Non-destructive: Archive (any non-archive → archive) ──────────
     if (sourceLane !== "archive" && targetLane === "archive") {
       try {
         await archiveConversation(activeId, cabinetPath);
@@ -237,7 +305,7 @@ export function KanbanView({
       return;
     }
 
-    // Restore: archive → anywhere else
+    // ── Non-destructive: Restore (archive → non-running) ─────────────
     if (sourceLane === "archive" && targetLane !== "archive") {
       try {
         await restoreConversation(activeId, cabinetPath);
@@ -256,9 +324,8 @@ export function KanbanView({
       return;
     }
 
-    // Reorder / other cross-lane drops: no-op in Phase 2. @dnd-kit's
-    // SortableContext handles the visual rearrange; persistence via
-    // boardOrder comes in Phase 2b.
+    // Reorder / other cross-lane drops: no-op. @dnd-kit's SortableContext
+    // handles the visual rearrange; persistence via boardOrder is Phase 2b.
   }
 
   return (

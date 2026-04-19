@@ -12,6 +12,7 @@ import { DetailPanel } from "./detail-panel";
 import { ViewToggle, type BoardViewMode } from "./view-toggle";
 import { FilterBar } from "./filter-bar";
 import { UndoToast, type PendingUndo } from "./undo-toast";
+import { ConfirmPopover, type PendingConfirm } from "./confirm-popover";
 import { deriveLane, laneSort, type LaneKey } from "./lane-rules";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
@@ -52,6 +53,7 @@ export function TasksBoardV2({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [agentFilter, setAgentFilter] = useState<string | null>(null);
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   // Client-side agent filter. Null = all. Non-null narrows tasks +
   // conversations to that agent; byLane is rebuilt from the filtered set so
@@ -127,6 +129,7 @@ export function TasksBoardV2({
                 now={now}
                 onSelect={setSelectedId}
                 onUndoQueued={setPendingUndo}
+                onConfirmRequested={setPendingConfirm}
                 onRefresh={refresh}
               />
             )}
@@ -169,6 +172,10 @@ export function TasksBoardV2({
       </div>
 
       <UndoToast pending={pendingUndo} onDismiss={() => setPendingUndo(null)} />
+      <ConfirmPopover
+        pending={pendingConfirm}
+        onDismiss={() => setPendingConfirm(null)}
+      />
     </div>
   );
 }
