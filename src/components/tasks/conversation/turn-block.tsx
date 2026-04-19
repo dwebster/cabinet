@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { ChevronRight, Pause, Sparkles, User } from "lucide-react";
 import {
   artifactPathToTreePath,
@@ -39,6 +39,68 @@ function RelativeTime({ iso }: { iso: string }) {
   );
   const label = tick === 0 ? "\u00a0" : computeRelative(iso);
   return <span suppressHydrationWarning>{label}</span>;
+}
+
+const THINKING_VERBS = [
+  "Thinking",
+  "Pondering",
+  "Cogitating",
+  "Musing",
+  "Ruminating",
+  "Forging",
+  "Weaving",
+  "Conjuring",
+  "Brewing",
+  "Mulling",
+  "Stirring",
+  "Sizzling",
+  "Tinkering",
+  "Grokking",
+  "Percolating",
+  "Hacking",
+  "Wrangling",
+  "Divining",
+  "Plotting",
+  "Scheming",
+  "Jizzling",
+  "Noodling",
+  "Riffing",
+  "Whirring",
+  "Simmering",
+];
+
+function PendingIndicator() {
+  const [idx, setIdx] = useState(() =>
+    Math.floor(Math.random() * THINKING_VERBS.length)
+  );
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const verbIv = setInterval(() => {
+      setIdx((i) => (i + 1 + Math.floor(Math.random() * 3)) % THINKING_VERBS.length);
+    }, 2400);
+    const tickIv = setInterval(() => setElapsed((t) => t + 1), 1000);
+    return () => {
+      clearInterval(verbIv);
+      clearInterval(tickIv);
+    };
+  }, []);
+  return (
+    <div className="mt-2 inline-flex items-center gap-2 text-[13px] italic text-muted-foreground">
+      <span className="font-medium text-foreground/75">
+        {THINKING_VERBS[idx]}
+      </span>
+      <span className="inline-flex items-end gap-0.5" aria-hidden>
+        <span className="size-1 rounded-full bg-foreground/60 animate-bounce [animation-delay:-0.3s] [animation-duration:1s]" />
+        <span className="size-1 rounded-full bg-foreground/60 animate-bounce [animation-delay:-0.15s] [animation-duration:1s]" />
+        <span className="size-1 rounded-full bg-foreground/60 animate-bounce [animation-duration:1s]" />
+      </span>
+      {elapsed > 2 ? (
+        <span className="ml-1 font-mono text-[10.5px] tabular-nums opacity-60">
+          {elapsed}s
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function basename(p: string): string {
@@ -150,9 +212,11 @@ export function TurnBlock({ turn }: { turn: Turn }) {
             content={turn.content}
             className="text-[14.5px] leading-[1.65] tracking-[-0.005em] text-foreground/95"
           />
-        ) : (
+        ) : turn.content.trim() ? (
           <ConversationContentViewer text={turn.content} />
-        )}
+        ) : null}
+
+        {!isUser && turn.pending ? <PendingIndicator /> : null}
 
         {artifactPaths.length > 0 ? (
           <div className="mt-3.5 space-y-1.5 rounded-xl border border-border/60 bg-muted/40 p-2 dark:bg-muted/20">
