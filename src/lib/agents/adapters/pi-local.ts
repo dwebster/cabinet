@@ -16,14 +16,7 @@ import {
 } from "./pi-stream";
 import type { AdapterSessionCodec, AgentExecutionAdapter } from "./types";
 import { ADAPTER_RUNTIME_PATH, runChildProcess } from "./utils";
-
-function readStringConfig(
-  config: Record<string, unknown>,
-  key: string
-): string | undefined {
-  const value = config[key];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
+import { readStringConfig, readEffortConfig } from "./_shared/cli-args";
 
 function firstNonEmptyLine(text: string): string | null {
   return (
@@ -87,10 +80,7 @@ function buildPiArgs(
     if (explicitProvider) args.push("--provider", explicitProvider);
   }
 
-  const thinking =
-    readStringConfig(config, "thinking") ||
-    readStringConfig(config, "effort") ||
-    readStringConfig(config, "reasoningEffort");
+  const thinking = readStringConfig(config, "thinking") || readEffortConfig(config);
   if (thinking) {
     args.push("--thinking", thinking);
   }

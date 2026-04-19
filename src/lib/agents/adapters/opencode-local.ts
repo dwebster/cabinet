@@ -18,14 +18,7 @@ import type {
   AgentExecutionAdapter,
 } from "./types";
 import { ADAPTER_RUNTIME_PATH, runChildProcess } from "./utils";
-
-function readStringConfig(
-  config: Record<string, unknown>,
-  key: string
-): string | undefined {
-  const value = config[key];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
+import { readStringConfig, readEffortConfig } from "./_shared/cli-args";
 
 function firstNonEmptyLine(text: string): string | null {
   return (
@@ -59,10 +52,7 @@ function buildOpenCodeArgs(
     args.push("--model", model);
   }
 
-  const variant =
-    readStringConfig(config, "variant") ||
-    readStringConfig(config, "effort") ||
-    readStringConfig(config, "reasoningEffort");
+  const variant = readStringConfig(config, "variant") || readEffortConfig(config);
   if (variant) {
     args.push("--variant", variant);
   }

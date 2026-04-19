@@ -12,6 +12,7 @@ import {
 } from "./error-classification";
 import type { AdapterSessionCodec, AgentExecutionAdapter } from "./types";
 import { ADAPTER_RUNTIME_PATH, runChildProcess } from "./utils";
+import { readStringConfig, readEffortConfig } from "./_shared/cli-args";
 
 const claudeSessionCodec: AdapterSessionCodec = {
   deserialize(raw) {
@@ -35,14 +36,6 @@ const claudeSessionCodec: AdapterSessionCodec = {
     return typeof id === "string" ? `Claude · ${id.slice(0, 8)}` : null;
   },
 };
-
-function readStringConfig(
-  config: Record<string, unknown>,
-  key: string
-): string | undefined {
-  const value = config[key];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
 
 function buildClaudeArgs(
   config: Record<string, unknown>,
@@ -69,9 +62,7 @@ function buildClaudeArgs(
     args.push("--model", model);
   }
 
-  const effort =
-    readStringConfig(config, "effort") ||
-    readStringConfig(config, "reasoningEffort");
+  const effort = readEffortConfig(config);
   if (effort) {
     args.push("--effort", effort);
   }

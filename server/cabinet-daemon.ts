@@ -408,6 +408,44 @@ function maybeAutoExitClaudeSession(session: PtySession): void {
   }, CLAUDE_AUTO_EXIT_GRACE_MS);
 }
 
+/**
+ * Distill raw PTY output into a 1-line summary suitable for the task detail
+ * header. PTY output is full of TUI chrome (box-drawing, CLI banners, prompt
+ * strings) that makes `makeSummaryFromOutput`'s "first non-blank line" rule
+ * useless for terminal-mode tasks. Build a deterministic synthetic line
+ * instead, keyed off exit code + line count + any extracted agent-looking
+ * response.
+ */
+function distillPtyOutput(
+  plain: string,
+  exitCode: number | null,
+  providerId: string | undefined
+): string {
+  const lines = plain
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const lineCount = lines.length;
+  const providerLabel = providerId ? `${providerId} ` : "";
+  const status = exitCode === 0 ? "exited cleanly" : `exited with code ${exitCode ?? "?"}`;
+  // Find the last substantive non-chrome line — strips box-drawing, lone
+  // punctuation, and common prompt strings. Acts as a best-effort preview of
+  // what the agent actually said.
+  const chromePattern =
+    /^[\s│┃┆┊╎╏║┋╿╽─━┄┅┈┉━╌╍═╴╸╼╾┎┏┒┓┖┗┚┛┤├┬┴┼╋╬╏╢╠╣╦╩╬>❯•●○◦·.…:;,!?\-*+=^~`'"]*$/;
+  let preview: string | null = null;
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const candidate = lines[i];
+    if (candidate.length < 20) continue;
+    if (chromePattern.test(candidate)) continue;
+    if (/^\s*\[Process exited/.test(candidate)) continue;
+    preview = candidate.slice(0, 160);
+    break;
+  }
+  const tail = preview ? ` — last output: ${preview}` : "";
+  return `Terminal ${providerLabel}session ${status} · ${lineCount} line${lineCount === 1 ? "" : "s"}${tail}`;
+}
+
 async function finalizeSessionConversation(session: ActiveSession): Promise<void> {
   const meta = await readConversationMeta(session.id);
   if (!meta) return;
@@ -426,10 +464,19 @@ async function finalizeSessionConversation(session: ActiveSession): Promise<void
   const adapterErrorRetryAfterSec =
     session.kind === "structured" ? session.adapterErrorRetryAfterSec ?? null : null;
 
+  // For legacy PTY sessions, substitute a distilled 1-liner for summary
+  // extraction so the task detail doesn't render random box-drawing chars as
+  // the task summary. The raw transcript is already on disk (appended chunk
+  // by chunk), so nothing is lost — this only affects meta.summary.
+  const summaryOutput =
+    session.kind === "pty"
+      ? distillPtyOutput(plain, session.exitCode, session.providerId)
+      : plain;
+
   await finalizeConversation(session.id, {
     status: session.resolvedStatus || (session.exitCode === 0 ? "completed" : "failed"),
     exitCode: session.resolvedStatus === "completed" ? 0 : session.exitCode,
-    output: plain,
+    output: summaryOutput,
     tokens: adapterUsage
       ? {
           input: adapterUsage.inputTokens,

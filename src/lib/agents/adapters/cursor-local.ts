@@ -17,14 +17,7 @@ import type {
   AgentExecutionAdapter,
 } from "./types";
 import { ADAPTER_RUNTIME_PATH, runChildProcess } from "./utils";
-
-function readStringConfig(
-  config: Record<string, unknown>,
-  key: string
-): string | undefined {
-  const value = config[key];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
+import { readStringConfig } from "./_shared/cli-args";
 
 function firstNonEmptyLine(text: string): string | null {
   return (

@@ -13,6 +13,7 @@ import {
   classifyChain,
   classifyCommonError,
 } from "./error-classification";
+import { readStringConfig, readEffortConfig } from "./_shared/cli-args";
 import type { AdapterSessionCodec, AgentExecutionAdapter } from "./types";
 import { ADAPTER_RUNTIME_PATH, runChildProcess } from "./utils";
 
@@ -38,14 +39,6 @@ const codexSessionCodec: AdapterSessionCodec = {
     return typeof id === "string" ? `Codex · ${id.slice(0, 8)}` : null;
   },
 };
-
-function readStringConfig(
-  config: Record<string, unknown>,
-  key: string
-): string | undefined {
-  const value = config[key];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
 
 function firstNonEmptyLine(text: string): string | null {
   return (
@@ -75,9 +68,7 @@ function buildCodexArgs(config: Record<string, unknown>): string[] {
     args.push("--profile", profile);
   }
 
-  const effort =
-    readStringConfig(config, "effort") ||
-    readStringConfig(config, "reasoningEffort");
+  const effort = readEffortConfig(config);
   if (effort) {
     args.push("-c", `model_reasoning_effort="${effort}"`);
   }
