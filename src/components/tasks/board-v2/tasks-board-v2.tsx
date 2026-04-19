@@ -24,6 +24,7 @@ import { FilterBar } from "./filter-bar";
 import { UndoToast, type PendingUndo } from "./undo-toast";
 import { ConfirmPopover, type PendingConfirm } from "./confirm-popover";
 import { useDragHandler } from "./use-drag-handler";
+import { usePersistentState } from "./use-persistent-state";
 import { TaskCard } from "./task-card";
 import { CARD_DROP_PREFIX } from "./dnd-keys";
 import { deriveLane, laneSort, type LaneKey } from "./lane-rules";
@@ -62,9 +63,17 @@ export function TasksBoardV2({
     refresh,
   } = useBoardData({ cabinetPath, visibilityMode });
 
-  const [view, setView] = useState<BoardViewMode>("kanban");
+  const [view, setView] = usePersistentState<BoardViewMode>(
+    "cabinet.tasks.v2.view",
+    "kanban",
+    (raw) => (raw === "kanban" || raw === "list" || raw === "schedule" ? raw : null)
+  );
+  const [agentFilter, setAgentFilter] = usePersistentState<string | null>(
+    "cabinet.tasks.v2.agent",
+    null,
+    (raw) => (raw === "" || raw === "null" ? null : raw)
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [agentFilter, setAgentFilter] = useState<string | null>(null);
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
