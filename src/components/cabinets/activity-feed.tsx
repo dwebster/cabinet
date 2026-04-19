@@ -126,55 +126,72 @@ export function ActivityFeed({
               ? providerIcons.get(conv.providerId)
               : null;
             const tokens = conv.tokens?.total ?? 0;
+            const modelName =
+              typeof conv.adapterConfig?.model === "string"
+                ? conv.adapterConfig.model
+                : undefined;
             return (
               <li key={buildConversationInstanceKey(conv)}>
                 <button
                   type="button"
                   onClick={() => onOpen(conv)}
-                  className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
+                  className="flex w-full flex-col gap-2 px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
                 >
-                  {/* Left: status + agent pill */}
-                  <div className="flex shrink-0 items-center gap-2 pt-0.5">
-                    <StatusIcon state={cardState} />
-                    <AgentPill agent={agent} slug={conv.agentSlug} size="sm" />
-                  </div>
-
-                  {/* Center: title + summary */}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13.5px] font-medium text-foreground">
-                      {conv.title}
-                    </p>
-                    {conv.summary ? (
-                      <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-relaxed text-muted-foreground">
-                        {conv.summary}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {/* Right: time + glyph / tokens */}
-                  <div className="ml-2 flex shrink-0 flex-col items-end gap-0.5 pt-0.5 text-[11px] text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
+                  {/* Row 1: [status] title (left) + time/glyph/tokens (right).
+                      Summary sits below the title, indented under it (inside
+                      the same min-w-0 column as the title). */}
+                  <div className="flex items-start gap-3">
+                    <div className="flex min-w-0 flex-1 items-start gap-2">
+                      <div className="pt-0.5">
+                        <StatusIcon state={cardState} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13.5px] font-medium text-foreground">
+                          {conv.title}
+                        </p>
+                        {conv.summary ? (
+                          <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-relaxed text-muted-foreground">
+                            {conv.summary}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="ml-2 flex shrink-0 flex-col items-end gap-1 text-[11px] text-muted-foreground">
                       <span className="tabular-nums">
                         {formatRelative(conv.lastActivityAt || conv.startedAt)}
                       </span>
-                      {providerIcon ? (
+                      {(providerIcon || modelName) && (
                         <span
-                          className="inline-flex size-4 items-center justify-center rounded border border-border/60 bg-muted/30"
-                          title={providerIcon.name}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-1.5 py-0.5"
+                          title={[providerIcon?.name, modelName].filter(Boolean).join(" · ")}
                         >
-                          <ProviderGlyph
-                            icon={providerIcon.icon}
-                            asset={providerIcon.iconAsset}
-                            className="size-2.5"
-                          />
+                          {providerIcon ? (
+                            <span className="inline-flex size-5 items-center justify-center rounded bg-background/80">
+                              <ProviderGlyph
+                                icon={providerIcon.icon}
+                                asset={providerIcon.iconAsset}
+                                className="size-4"
+                              />
+                            </span>
+                          ) : null}
+                          {modelName ? (
+                            <span className="max-w-[140px] truncate font-mono text-[10.5px] text-foreground/80">
+                              {modelName}
+                            </span>
+                          ) : null}
+                        </span>
+                      )}
+                      {tokens > 0 ? (
+                        <span className="font-mono tabular-nums text-muted-foreground/80">
+                          {(tokens / 1000).toFixed(1)}k tok
                         </span>
                       ) : null}
                     </div>
-                    {tokens > 0 ? (
-                      <span className="font-mono tabular-nums text-muted-foreground/80">
-                        {(tokens / 1000).toFixed(1)}k tok
-                      </span>
-                    ) : null}
+                  </div>
+
+                  {/* Row 2: agent pill on its own line */}
+                  <div>
+                    <AgentPill agent={agent} slug={conv.agentSlug} size="sm" />
                   </div>
                 </button>
               </li>

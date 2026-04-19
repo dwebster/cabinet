@@ -3,6 +3,8 @@
 import { HeartPulse, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
+import { ProviderGlyph } from "@/components/agents/provider-glyph";
+import { useProviderIcons } from "@/hooks/use-provider-icons";
 import type { TaskMeta } from "@/types/tasks";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { LaneKey } from "./lane-rules";
@@ -42,6 +44,11 @@ export function TaskCard({
   const groupSize = task.groupSize && task.groupSize > 1 ? task.groupSize : 0;
 
   const compact = density === "compact";
+  const providerIcons = useProviderIcons();
+  const providerIcon = task.providerId ? providerIcons.get(task.providerId) : null;
+  const modelName =
+    typeof task.adapterConfig?.model === "string" ? task.adapterConfig.model : undefined;
+  const showModelRow = !!(providerIcon || modelName);
   return (
     <button
       type="button"
@@ -84,7 +91,31 @@ export function TaskCard({
       >
         {task.title}
       </p>
-      {!compact && (
+      {!compact && showModelRow && (
+        <div className="mt-2 flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
+          {providerIcon ? (
+            <span
+              className="inline-flex size-5 items-center justify-center rounded border border-border/60 bg-background/60"
+              title={providerIcon.name}
+            >
+              <ProviderGlyph
+                icon={providerIcon.icon}
+                asset={providerIcon.iconAsset}
+                className="size-4"
+              />
+            </span>
+          ) : null}
+          {modelName ? (
+            <span className="truncate font-mono text-[10.5px] text-foreground/70">
+              {modelName}
+            </span>
+          ) : null}
+          <span className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">
+            {relTime(lastActivity, now)}
+          </span>
+        </div>
+      )}
+      {!compact && !showModelRow && (
         <div className="mt-2 flex items-center gap-2 text-[10.5px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
           <span>{relTime(lastActivity, now)}</span>
         </div>
