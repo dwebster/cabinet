@@ -11,6 +11,7 @@ import {
 import { agentAdapterRegistry } from "./adapters/registry";
 import type { AdapterExecutionContext } from "./adapters/types";
 import { syncSkillsToTmpdir } from "./adapters/_shared/skills-injection";
+import { supportsTerminalResume } from "./adapters/legacy-ids";
 import {
   appendAgentTurn,
   appendConversationTranscript,
@@ -970,26 +971,52 @@ export async function continueConversationRun(
       }
     }
 
-    // 2. Fallback: spawn a fresh PTY under the same session id. If the
-    //    previous PTY captured a provider session id via its stream parser
-    //    (Claude `session_id`, etc.), feed it back as adapterSessionId —
-    //    the daemon forwards it as `--resume` / `--session` so the CLI
-    //    rehydrates the prior conversation instead of starting empty.
+    // 2. Fallback: spawn a fresh PTY under the same session id.
+    //    Two recovery paths depending on the CLI's capabilities:
+    //    (a) Native resume — provider supports --resume/--session AND we
+    //        captured its session id last run. Pass it as adapterSessionId;
+    //        CLI rehydrates internally. The user prompt is the raw message.
+    //    (b) Prompt-level replay — provider has no resume contract OR the
+    //        session id wasn't captured. Prepend the prior conversation to
+    //        the user message so the CLI still has context (at the cost of
+    //        more input tokens). This is what native mode already does for
+    //        structured adapters via `buildContinuationPrompt({ mode: "replay" })`.
     const priorSession = await readSession(conversationId, cp);
     const legacyResumeId =
       priorSession?.resumeId && priorSession.resumeId.trim()
         ? priorSession.resumeId.trim()
         : null;
+    const canNativeResume =
+      supportsTerminalResume(meta.providerId) && !!legacyResumeId;
+
+    let effectivePrompt = input.userMessage;
+    if (!canNativeResume) {
+      const priorTurns = (await readConversationTurns(conversationId, cp))
+        .filter((t) => !t.pending)
+        .map((t) => ({ role: t.role, content: t.content, pending: t.pending }));
+      if (priorTurns.length > 0) {
+        effectivePrompt = await buildContinuationPrompt({
+          mode: "replay",
+          meta,
+          userMessage: input.userMessage,
+          mentionedPaths: input.mentionedPaths || [],
+          persona: legacyPersona,
+          baseCwd: legacyBaseCwd,
+          priorTurns,
+        });
+      }
+    }
+
     try {
       await createDaemonSession({
         id: conversationId,
-        prompt: input.userMessage,
+        prompt: effectivePrompt,
         providerId: meta.providerId,
         adapterType,
         adapterConfig: meta.adapterConfig,
         cwd: legacyCwd,
         timeoutSeconds: undefined,
-        adapterSessionId: legacyResumeId,
+        adapterSessionId: canNativeResume ? legacyResumeId : null,
       });
     } catch (error) {
       const message =

@@ -625,12 +625,12 @@ export function TaskConversationPage({
                     </span>
                   </div>
                 ) : (
-                  <div className="mb-1.5 flex items-center gap-1.5 text-[10px] text-amber-400/80">
-                    <CircleAlert className="size-3" />
+                  <div className="mb-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500">
+                    <CheckCircle2 className="size-3 text-emerald-500" />
                     <span>
-                      Session exited. {task.meta.providerId ?? "This CLI"} doesn&apos;t
-                      support resume — Continue will start a fresh session without prior
-                      context.
+                      Session exited. {task.meta.providerId ?? "This CLI"} has no native
+                      resume — Cabinet will prepend the prior transcript so the new run
+                      still has context.
                     </span>
                   </div>
                 )}
