@@ -265,7 +265,7 @@ Phased work that landed on this branch (see commit trail below):
 | 8 | Reduce "provider = PTY CLI" assumptions | 🟨 Deferred — cross-cutting audit, no API providers shipped yet | — |
 | 9 | Reasoning-effort policy per provider | 🟨 Deferred — product call | — |
 | 10 | Model + effort on `/api/agents/headless` | ✅ Done for Claude + Codex — endpoint + `OneShotInvocationOptions` | `979d87a` |
-| 10b | Model-override for the other 6 providers | 🟨 Deferred — same pattern as Claude/Codex, mechanical |  — |
+| 10b | Model-override for the other 6 providers — Gemini (`-m`), Cursor/Grok/Copilot (`--model`), OpenCode (`--model` + `--variant`), Pi (`--model` + `--thinking`) | ✅ Done | `db351ac` |
 | 11 | Polish placeholder glyphs | 🟨 Deferred — needs licensed artwork | — |
 | 12 | Daemon-level PTY keep-alive (same-process continue) | 🟨 Deferred — would require holding PTY open after CLI exit + stdin injection | — |
 
