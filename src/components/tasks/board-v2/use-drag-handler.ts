@@ -25,6 +25,13 @@ import { shorten } from "./kanban-view";
 interface Args {
   byLane: Record<LaneKey, TaskMeta[]>;
   agentsBySlug: Map<string, CabinetAgentSummary>;
+  /**
+   * Multi-selection set (task ids). When the dragged card is a member of
+   * this set and the set has more than one member, the drop action fans
+   * out to every selected card. Otherwise, only the dragged card moves.
+   */
+  selection: Set<string>;
+  clearSelection: () => void;
   onUndoQueued: (undo: PendingUndo) => void;
   onConfirmRequested: (confirm: PendingConfirm) => void;
   onRefresh: () => Promise<void>;
@@ -59,6 +66,8 @@ function computeBoardOrder(
 export function useDragHandler({
   byLane,
   agentsBySlug,
+  selection,
+  clearSelection,
   onUndoQueued,
   onConfirmRequested,
   onRefresh,
@@ -84,31 +93,53 @@ export function useDragHandler({
       if (!task) return;
       const cabinetPath = task.cabinetPath;
 
+      // Resolve bulk set: when the dragged card is a member of the multi-
+      // selection and the set has >1 items, every selected TaskMeta (across
+      // lanes) is the subject of the drop. Otherwise we act on the single
+      // dragged card.
+      const isBulk = selection.has(activeId) && selection.size > 1;
+      const bulkTasks: TaskMeta[] = isBulk
+        ? (Object.values(byLane).flat() as TaskMeta[]).filter((t) => selection.has(t.id))
+        : [task];
+
       // ── Agent handoff drop (Phase 4) ────────────────────────────────
       if (overId.startsWith(AGENT_DROP_PREFIX)) {
         const toSlug = overId.slice(AGENT_DROP_PREFIX.length);
-        if (toSlug === task.agentSlug) return; // no-op on self
-        const fromSlug = task.agentSlug;
-        const fromAgent = fromSlug ? agentsBySlug.get(fromSlug) : undefined;
         const toAgent = agentsBySlug.get(toSlug);
         if (!toAgent) return;
+        // Narrow to tasks not already owned by the target agent.
+        const targets = bulkTasks.filter((t) => t.agentSlug !== toSlug);
+        if (targets.length === 0) return;
+        // Record original owners so undo can fan back correctly.
+        const originals = targets.map((t) => ({
+          id: t.id,
+          fromSlug: t.agentSlug,
+          cabinetPath: t.cabinetPath,
+        }));
         try {
-          await reassignConversation(activeId, toSlug, cabinetPath);
+          await Promise.all(
+            targets.map((t) => reassignConversation(t.id, toSlug, t.cabinetPath))
+          );
+          if (isBulk) clearSelection();
           await onRefresh();
           onUndoQueued({
             id: `reassign:${activeId}`,
-            message: `Reassigned "${shorten(task.title)}" to ${toAgent.displayName ?? toAgent.name}`,
+            message:
+              targets.length === 1
+                ? `Reassigned "${shorten(targets[0].title)}" to ${toAgent.displayName ?? toAgent.name}`
+                : `Reassigned ${targets.length} tasks to ${toAgent.displayName ?? toAgent.name}`,
             undo: async () => {
-              if (fromSlug) {
-                await reassignConversation(activeId, fromSlug, cabinetPath);
-                await onRefresh();
-              }
+              await Promise.all(
+                originals
+                  .filter((o) => o.fromSlug)
+                  .map((o) => reassignConversation(o.id, o.fromSlug!, o.cabinetPath))
+              );
+              await onRefresh();
             },
           });
         } catch (err) {
           console.error("[board-v2] reassign failed", err);
         }
-        void fromAgent;
         return;
       }
 
@@ -128,29 +159,51 @@ export function useDragHandler({
       if (!targetLane) return;
 
       // ── Destructive: Running → anywhere else (Phase 3) ──────────────
+      // Only running cards in the bulk set count as destructive; the rest
+      // are filtered out so a mixed selection doesn't get rescoped away.
       if (sourceLane === "running" && targetLane !== "running") {
         const archiveAfter = targetLane === "archive";
+        const runningTargets = bulkTasks.filter((t) => t.status === "running");
+        if (runningTargets.length === 0) return;
+        const ids = runningTargets.map((t) => ({ id: t.id, cabinetPath: t.cabinetPath }));
         onConfirmRequested({
           id: `stop:${activeId}`,
-          title: "Stop running conversation?",
+          title:
+            runningTargets.length === 1
+              ? "Stop running conversation?"
+              : `Stop ${runningTargets.length} running conversations?`,
           body: archiveAfter
-            ? `Cancels the active turn and archives "${shorten(task.title)}".`
-            : `Cancels the active turn for "${shorten(task.title)}".`,
+            ? runningTargets.length === 1
+              ? `Cancels the active turn and archives "${shorten(runningTargets[0].title)}".`
+              : `Cancels the active turns and archives ${runningTargets.length} conversations.`
+            : runningTargets.length === 1
+              ? `Cancels the active turn for "${shorten(runningTargets[0].title)}".`
+              : `Cancels the active turns for ${runningTargets.length} conversations.`,
           confirmLabel: archiveAfter ? "Stop & archive" : "Stop run",
           destructive: true,
           onConfirm: async () => {
             try {
-              await stopConversation(activeId, cabinetPath);
-              if (archiveAfter) await archiveConversation(activeId, cabinetPath);
+              await Promise.all(ids.map((t) => stopConversation(t.id, t.cabinetPath)));
+              if (archiveAfter) {
+                await Promise.all(ids.map((t) => archiveConversation(t.id, t.cabinetPath)));
+              }
+              if (isBulk) clearSelection();
               await onRefresh();
               onUndoQueued({
                 id: `stop:${activeId}`,
-                message: archiveAfter
-                  ? `Stopped & archived "${shorten(task.title)}"`
-                  : `Stopped "${shorten(task.title)}"`,
+                message:
+                  runningTargets.length === 1
+                    ? archiveAfter
+                      ? `Stopped & archived "${shorten(runningTargets[0].title)}"`
+                      : `Stopped "${shorten(runningTargets[0].title)}"`
+                    : archiveAfter
+                      ? `Stopped & archived ${runningTargets.length} tasks`
+                      : `Stopped ${runningTargets.length} tasks`,
                 undo: async () => {
-                  if (archiveAfter) await restoreConversation(activeId, cabinetPath);
-                  await restartConversation(activeId, cabinetPath);
+                  if (archiveAfter) {
+                    await Promise.all(ids.map((t) => restoreConversation(t.id, t.cabinetPath)));
+                  }
+                  await Promise.all(ids.map((t) => restartConversation(t.id, t.cabinetPath)));
                   await onRefresh();
                 },
               });
@@ -164,16 +217,24 @@ export function useDragHandler({
 
       // ── Destructive: Archive → Running (Phase 3) ────────────────────
       if (sourceLane === "archive" && targetLane === "running") {
+        const archivedTargets = bulkTasks.filter((t) => !!t.archivedAt || t.status === "archived");
+        if (archivedTargets.length === 0) return;
+        const ids = archivedTargets.map((t) => ({ id: t.id, cabinetPath: t.cabinetPath }));
         onConfirmRequested({
           id: `restart:${activeId}`,
-          title: "Restart conversation?",
-          body: `Spawns a fresh run from the original prompt of "${shorten(task.title)}". The archived run stays in history.`,
+          title:
+            archivedTargets.length === 1 ? "Restart conversation?" : `Restart ${archivedTargets.length} conversations?`,
+          body:
+            archivedTargets.length === 1
+              ? `Spawns a fresh run from the original prompt of "${shorten(archivedTargets[0].title)}". The archived run stays in history.`
+              : `Spawns fresh runs from ${archivedTargets.length} original prompts. Archived runs stay in history.`,
           confirmLabel: "Restart",
           destructive: false,
           onConfirm: async () => {
             try {
-              await restoreConversation(activeId, cabinetPath);
-              await restartConversation(activeId, cabinetPath);
+              await Promise.all(ids.map((t) => restoreConversation(t.id, t.cabinetPath)));
+              await Promise.all(ids.map((t) => restartConversation(t.id, t.cabinetPath)));
+              if (isBulk) clearSelection();
               await onRefresh();
             } catch (err) {
               console.error("[board-v2] restart failed", err);
@@ -185,14 +246,22 @@ export function useDragHandler({
 
       // ── Non-destructive: Archive (any non-archive → archive) ───────
       if (sourceLane !== "archive" && targetLane === "archive") {
+        // Archive only members not already archived.
+        const targets = bulkTasks.filter((t) => !t.archivedAt && t.status !== "archived");
+        if (targets.length === 0) return;
+        const ids = targets.map((t) => ({ id: t.id, cabinetPath: t.cabinetPath }));
         try {
-          await archiveConversation(activeId, cabinetPath);
+          await Promise.all(ids.map((t) => archiveConversation(t.id, t.cabinetPath)));
+          if (isBulk) clearSelection();
           await onRefresh();
           onUndoQueued({
             id: `archive:${activeId}`,
-            message: `Archived "${shorten(task.title)}"`,
+            message:
+              targets.length === 1
+                ? `Archived "${shorten(targets[0].title)}"`
+                : `Archived ${targets.length} tasks`,
             undo: async () => {
-              await restoreConversation(activeId, cabinetPath);
+              await Promise.all(ids.map((t) => restoreConversation(t.id, t.cabinetPath)));
               await onRefresh();
             },
           });
@@ -204,14 +273,21 @@ export function useDragHandler({
 
       // ── Non-destructive: Restore (archive → non-running) ──────────
       if (sourceLane === "archive" && targetLane !== "archive") {
+        const targets = bulkTasks.filter((t) => !!t.archivedAt || t.status === "archived");
+        if (targets.length === 0) return;
+        const ids = targets.map((t) => ({ id: t.id, cabinetPath: t.cabinetPath }));
         try {
-          await restoreConversation(activeId, cabinetPath);
+          await Promise.all(ids.map((t) => restoreConversation(t.id, t.cabinetPath)));
+          if (isBulk) clearSelection();
           await onRefresh();
           onUndoQueued({
             id: `restore:${activeId}`,
-            message: `Restored "${shorten(task.title)}"`,
+            message:
+              targets.length === 1
+                ? `Restored "${shorten(targets[0].title)}"`
+                : `Restored ${targets.length} tasks`,
             undo: async () => {
-              await archiveConversation(activeId, cabinetPath);
+              await Promise.all(ids.map((t) => archiveConversation(t.id, t.cabinetPath)));
               await onRefresh();
             },
           });
@@ -222,6 +298,11 @@ export function useDragHandler({
       }
 
       // ── Same-lane reorder (persist boardOrder) ─────────────────────
+      // Single-card only — bulk reordering of arbitrary members doesn't
+      // have a well-defined semantic, so if the user is in a multi-select
+      // we skip the reorder branch entirely (they can drop their single
+      // card to reorder only after clearing the selection).
+      if (isBulk) return;
       // @dnd-kit's SortableContext rearranges visually; we need to write
       // the new index to ConversationMeta.boardOrder so the server of
       // truth matches. Compute a fractional midpoint between neighbors
@@ -256,6 +337,6 @@ export function useDragHandler({
 
       // Other cross-lane drops with no defined action: ignore.
     },
-    [byLane, agentsBySlug, onUndoQueued, onConfirmRequested, onRefresh]
+    [byLane, agentsBySlug, selection, clearSelection, onUndoQueued, onConfirmRequested, onRefresh]
   );
 }

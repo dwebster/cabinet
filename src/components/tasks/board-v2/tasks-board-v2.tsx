@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import {
   DndContext,
@@ -64,6 +64,18 @@ export function TasksBoardV2({
     refresh,
   } = useBoardData({ cabinetPath, visibilityMode });
 
+  const [selection, setSelection] = useState<Set<string>>(new Set());
+
+  const toggleSelection = (id: string) => {
+    setSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelection(new Set());
+
   const [view, setView] = usePersistentState<BoardViewMode>(
     "cabinet.tasks.v2.view",
     "kanban",
@@ -83,6 +95,20 @@ export function TasksBoardV2({
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+
+  // Esc clears selection (the detail panel has its own Esc handler when
+  // open so that one wins — clearing selection fires when nothing else
+  // claims Escape).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && selectedId == null && selection.size > 0) {
+        clearSelection();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, selection.size]);
 
   // Client-side agent filter. Null = all. Non-null narrows tasks +
   // conversations to that agent; byLane is rebuilt from the filtered set so
@@ -120,6 +146,8 @@ export function TasksBoardV2({
   const handleDragEnd = useDragHandler({
     byLane: filteredByLane,
     agentsBySlug,
+    selection,
+    clearSelection,
     onUndoQueued: setPendingUndo,
     onConfirmRequested: setPendingConfirm,
     onRefresh: refresh,
@@ -146,7 +174,24 @@ export function TasksBoardV2({
           <ViewToggle value={view} onChange={setView} />
           <DensityToggle value={density} onChange={setDensity} />
         </div>
-        <span className="ml-auto text-[11px] text-muted-foreground">
+        {selection.size > 0 && (
+          <div className="ml-auto flex items-center gap-2 rounded-full border border-sky-500/40 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-600 dark:text-sky-300">
+            <span>
+              {selection.size} selected
+            </span>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="rounded px-1 text-[10.5px] text-sky-700 hover:bg-sky-500/20 dark:text-sky-300"
+              title="Clear selection (Esc)"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        <span
+          className={`text-[11px] text-muted-foreground ${selection.size > 0 ? "ml-2" : "ml-auto"}`}
+        >
           {agentFilter ? `${filteredTasks.length} of ${tasks.length}` : `${tasks.length}`}
           {" "}task{tasks.length === 1 ? "" : "s"}
         </span>
@@ -181,8 +226,11 @@ export function TasksBoardV2({
                 byLane={filteredByLane}
                 agentsBySlug={agentsBySlug}
                 selectedId={selectedId}
+                selection={selection}
                 now={now}
                 onSelect={setSelectedId}
+                onToggleSelection={toggleSelection}
+                onClearSelection={clearSelection}
                 density={density}
               />
             )}
@@ -228,7 +276,7 @@ export function TasksBoardV2({
 
       <DragOverlay dropAnimation={null}>
         {draggedTask && draggedLane ? (
-          <div className="rotate-[-2deg] shadow-2xl">
+          <div className="relative rotate-[-2deg] shadow-2xl">
             <TaskCard
               task={draggedTask}
               lane={draggedLane}
@@ -236,7 +284,13 @@ export function TasksBoardV2({
               isActive={false}
               now={now}
               onClick={() => undefined}
+              density={density}
             />
+            {selection.has(draggedTask.id) && selection.size > 1 && (
+              <span className="absolute -right-2 -top-2 inline-flex size-6 items-center justify-center rounded-full border border-border/60 bg-foreground text-[11px] font-semibold text-background shadow-md">
+                {selection.size}
+              </span>
+            )}
           </div>
         ) : null}
       </DragOverlay>
@@ -250,3 +304,4 @@ export function TasksBoardV2({
     </div>
   );
 }
+// touch 1776619357

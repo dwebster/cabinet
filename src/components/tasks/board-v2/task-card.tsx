@@ -33,7 +33,7 @@ export function TaskCard({
   agent: CabinetAgentSummary | undefined;
   isActive: boolean;
   now: number;
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent) => void;
   density?: "compact" | "comfortable";
 }) {
   const state = deriveCardState(task, lane);
@@ -45,7 +45,7 @@ export function TaskCard({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => onClick(e)}
       className={cn(
         "group relative w-full rounded-md border bg-card text-left transition-all",
         "hover:border-foreground/30 hover:shadow-sm",

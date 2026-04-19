@@ -23,7 +23,7 @@ import type { TaskMeta } from "@/types/tasks";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { LaneKey } from "./lane-rules";
 import { TaskCard } from "./task-card";
-import { CARD_DROP_PREFIX, LANE_DROP_PREFIX } from "./dnd-keys";
+import { CARD_DROP_PREFIX, laneDropId } from "./dnd-keys";
 
 interface LaneDef {
   key: LaneKey;
@@ -40,8 +40,6 @@ const LANES: LaneDef[] = [
   { key: "done", label: "Just Finished", hint: "Completed in the last hour", icon: CheckCircle2 },
   { key: "archive", label: "Archive", hint: "Older and acknowledged", icon: Archive },
 ];
-
-import { laneDropId } from "./dnd-keys";
 
 function LaneHeader({
   lane,
@@ -88,6 +86,7 @@ function SortableTaskCard({
   lane,
   agent,
   isActive,
+  isSelected,
   now,
   onClick,
   density,
@@ -96,8 +95,9 @@ function SortableTaskCard({
   lane: LaneKey;
   agent: CabinetAgentSummary | undefined;
   isActive: boolean;
+  isSelected: boolean;
   now: number;
-  onClick: () => void;
+  onClick: (modifiers: { shift: boolean; meta: boolean }) => void;
   density: "compact" | "comfortable";
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -115,7 +115,10 @@ function SortableTaskCard({
       style={style}
       {...attributes}
       {...listeners}
-      className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-foreground/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className={cn(
+        "rounded-md outline-none focus-visible:ring-2 focus-visible:ring-foreground/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        isSelected && "ring-2 ring-sky-500 ring-offset-2 ring-offset-background"
+      )}
     >
       <TaskCard
         task={task}
@@ -123,7 +126,12 @@ function SortableTaskCard({
         agent={agent}
         isActive={isActive}
         now={now}
-        onClick={onClick}
+        onClick={(e) =>
+          onClick({
+            shift: !!e?.shiftKey,
+            meta: !!(e?.metaKey || e?.ctrlKey),
+          })
+        }
         density={density}
       />
     </div>
@@ -160,15 +168,21 @@ export function KanbanView({
   byLane,
   agentsBySlug,
   selectedId,
+  selection,
   now,
   onSelect,
+  onToggleSelection,
+  onClearSelection,
   density = "comfortable",
 }: {
   byLane: Record<LaneKey, TaskMeta[]>;
   agentsBySlug: Map<string, CabinetAgentSummary>;
   selectedId: string | null;
+  selection: Set<string>;
   now: number;
   onSelect: (id: string) => void;
+  onToggleSelection: (id: string) => void;
+  onClearSelection: () => void;
   density?: "compact" | "comfortable";
 }) {
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -224,8 +238,16 @@ export function KanbanView({
                           lane={lane.key}
                           agent={agentsBySlug.get(task.agentSlug ?? "")}
                           isActive={selectedId === task.id}
+                          isSelected={selection.has(task.id)}
                           now={now}
-                          onClick={() => onSelect(task.id)}
+                          onClick={({ shift, meta }) => {
+                            if (shift || meta) {
+                              onToggleSelection(task.id);
+                            } else {
+                              onClearSelection();
+                              onSelect(task.id);
+                            }
+                          }}
                           density={density}
                         />
                       ))
