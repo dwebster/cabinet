@@ -70,8 +70,8 @@ function usePageMeta(paths: string[]): Map<string, PageMetaEntry> {
 }
 
 export function ArtifactsList({ turns }: { turns: Turn[] }) {
-  const setSection = useAppStore((s) => s.setSection);
-  const selectPage = useTreeStore((s) => s.selectPage);
+  const pushSection = useAppStore((s) => s.pushSection);
+  const focusPath = useTreeStore((s) => s.focusPath);
   const loadPage = useEditorStore((s) => s.loadPage);
   const paths = useMemo(() => {
     const seen = new Set<string>();
@@ -116,8 +116,9 @@ export function ArtifactsList({ turns }: { turns: Turn[] }) {
             type="button"
             onClick={() => {
               const treePath = artifactPathToTreePath(path);
-              selectPage(treePath);
-              setSection({ type: "page" });
+              const current = useAppStore.getState().section;
+              focusPath(treePath);
+              pushSection({ type: "page", cabinetPath: current.cabinetPath }, current);
               void loadPage(treePath);
             }}
             className="group flex w-full items-center gap-3 rounded-md bg-card px-3 py-2.5 text-left ring-1 ring-border/60 transition-colors hover:bg-muted/40"

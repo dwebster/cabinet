@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Archive,
   ChevronRight,
@@ -78,6 +78,7 @@ export function TreeNode({
     dragOverPath,
     dragOverZone,
     movingPaths,
+    focusTick,
     toggleExpand,
     selectPage,
     deletePage,
@@ -88,6 +89,7 @@ export function TreeNode({
   } = useTreeStore();
   const isMoving = movingPaths.has(node.path);
   const rowRef = useRef<HTMLButtonElement | null>(null);
+  const [blink, setBlink] = useState(false);
   const dragGhostRef = useRef<HTMLDivElement | null>(null);
   const loadPage = useEditorStore((s) => s.loadPage);
   const setSection = useAppStore((s) => s.setSection);
@@ -105,6 +107,16 @@ export function TreeNode({
   const hasChildren = !!(node.children && node.children.length > 0);
   const isExpanded = hasChildren && expandedPaths.has(node.path);
   const title = node.frontmatter?.title || node.name;
+
+  useEffect(() => {
+    if (!isSelected || focusTick === 0) return;
+    const el = rowRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setBlink(true);
+    const t = setTimeout(() => setBlink(false), 1400);
+    return () => clearTimeout(t);
+  }, [isSelected, focusTick]);
 
   const handleClick = () => {
     selectPage(node.path);
@@ -338,6 +350,7 @@ export function TreeNode({
               isSelected && "bg-accent text-accent-foreground font-medium",
               showInto &&
                 "bg-primary/10 ring-1 ring-primary/30 ring-inset",
+              blink && "cabinet-tree-blink",
               isMoving && "opacity-60 !cursor-progress pointer-events-none"
             )}
             style={{ paddingLeft: `${depth * 16 + 8}px` }}

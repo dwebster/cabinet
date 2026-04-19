@@ -19,9 +19,13 @@ interface TreeState {
   dragOverZone: DragZone | null;
   movingPaths: Set<string>;
   showHiddenFiles: boolean;
+  /** Bumped whenever we want the sidebar to scroll to + blink the selected row. */
+  focusTick: number;
 
   loadTree: () => Promise<void>;
   selectPage: (path: string | null) => void;
+  /** Expand all ancestor paths, select the leaf, and bump focusTick. */
+  focusPath: (path: string) => void;
   toggleExpand: (path: string) => void;
   expandPath: (path: string) => void;
   createPage: (parentPath: string, title: string) => Promise<void>;
@@ -97,6 +101,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   dragOverZone: null,
   movingPaths: new Set<string>(),
   showHiddenFiles: loadShowHiddenFiles(),
+  focusTick: 0,
 
   loadTree: async () => {
     const { showHiddenFiles, nodes: existing } = get();
@@ -121,6 +126,17 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
   selectPage: (path: string | null) => {
     set({ selectedPath: path });
+  },
+
+  focusPath: (path: string) => {
+    const { expandedPaths, focusTick } = get();
+    const next = new Set(expandedPaths);
+    const parts = path.split("/");
+    for (let i = 1; i < parts.length; i++) {
+      next.add(parts.slice(0, i).join("/"));
+    }
+    set({ selectedPath: path, expandedPaths: next, focusTick: focusTick + 1 });
+    saveExpandedPaths(next);
   },
 
   toggleExpand: (path: string) => {

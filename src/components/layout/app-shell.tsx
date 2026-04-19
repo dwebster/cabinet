@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/layout/header";
 import { KBEditor } from "@/components/editor/editor";
@@ -194,14 +195,26 @@ export function AppShell() {
   }
 
   const selectedNode = selectedPath ? findNodeByPath(nodes, selectedPath) : null;
-  // For paths not in the tree (e.g. .agents/ workspace files), infer type from extension
+  // For paths not in the tree (e.g. .agents/ workspace files, or artifact
+  // paths opened from a conversation panel), infer type from extension so
+  // we route to the right viewer instead of treating everything as markdown.
   const inferredType = !selectedNode && selectedPath
-    ? selectedPath.endsWith(".csv") ? "csv"
-    : selectedPath.endsWith(".pdf") ? "pdf"
-    : selectedPath.endsWith(".docx") ? "docx"
-    : selectedPath.endsWith(".xlsx") || selectedPath.endsWith(".xlsm") ? "xlsx"
-    : selectedPath.endsWith(".pptx") ? "pptx"
-    : null
+    ? (() => {
+        const lower = selectedPath.toLowerCase();
+        if (lower.endsWith(".csv")) return "csv";
+        if (lower.endsWith(".pdf")) return "pdf";
+        if (lower.endsWith(".docx")) return "docx";
+        if (lower.endsWith(".xlsx") || lower.endsWith(".xlsm")) return "xlsx";
+        if (lower.endsWith(".pptx")) return "pptx";
+        if (lower.endsWith(".mmd") || lower.endsWith(".mermaid")) return "mermaid";
+        if (/\.(png|jpe?g|gif|webp|svg|bmp)$/.test(lower)) return "image";
+        if (/\.(mp4|mov|webm|avi|mkv)$/.test(lower)) return "video";
+        if (/\.(mp3|wav|ogg|flac|m4a)$/.test(lower)) return "audio";
+        if (/\.(ts|tsx|js|jsx|mjs|cjs|py|rb|go|rs|java|kt|swift|c|cpp|cs|php|sh|bash|zsh|html|css|scss|less|json|yaml|yml|toml|xml|sql|lua|r|dart)$/.test(lower)) {
+          return "code";
+        }
+        return null;
+      })()
     : null;
   const nodeType = selectedNode?.type || inferredType;
   const isWebsite = nodeType === "website";
@@ -447,6 +460,7 @@ export function AppShell() {
         style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '2.25rem' : '0px' } as React.CSSProperties}
       >
         <main className="flex-1 flex flex-col overflow-hidden">
+          <ReturnToBanner />
           {renderContent()}
         </main>
         {terminalOpen && <TerminalTabs />}
@@ -484,6 +498,51 @@ export function AppShell() {
       <NotificationToasts />
       <SystemToasts />
       <BreakingChangesWarning />
+    </div>
+  );
+}
+
+function ReturnToBanner() {
+  const returnTo = useAppStore((s) => s.returnTo);
+  const popReturnTo = useAppStore((s) => s.popReturnTo);
+  if (!returnTo) return null;
+
+  const label = (() => {
+    switch (returnTo.type) {
+      case "task":
+        return "Back to task";
+      case "tasks":
+        return "Back to tasks";
+      case "agent":
+        return "Back to agent";
+      case "agents":
+        return "Back to agents";
+      case "cabinet":
+        return "Back to cabinet";
+      case "jobs":
+        return "Back to jobs";
+      case "home":
+        return "Back to home";
+      case "settings":
+        return "Back to settings";
+      case "registry":
+        return "Back to registry";
+      default:
+        return "Back";
+    }
+  })();
+
+  return (
+    <div className="flex shrink-0 items-center border-b border-border/60 bg-muted/30 px-3 py-1.5">
+      <button
+        type="button"
+        onClick={popReturnTo}
+        className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 py-1 text-[11.5px] font-medium text-foreground/80 shadow-sm transition-colors hover:border-foreground/30 hover:text-foreground"
+        title={label}
+      >
+        <ArrowLeft className="size-3.5" />
+        {label}
+      </button>
     </div>
   );
 }

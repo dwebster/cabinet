@@ -34,6 +34,7 @@ interface TerminalTab {
 
 interface AppState {
   section: SelectedSection;
+  returnTo: SelectedSection | null;
   terminalOpen: boolean;
   terminalTabs: TerminalTab[];
   activeTerminalTab: string | null;
@@ -42,6 +43,8 @@ interface AppState {
   cabinetVisibilityModes: Record<string, CabinetVisibilityMode>;
   taskPanelConversation: ConversationMeta | null;
   setSection: (section: SelectedSection) => void;
+  pushSection: (next: SelectedSection, from: SelectedSection) => void;
+  popReturnTo: () => void;
   toggleTerminal: () => void;
   closeTerminal: () => void;
   addTerminalTab: (label?: string, prompt?: string) => void;
@@ -95,6 +98,7 @@ function loadCabinetVisibilityModes(): Record<string, CabinetVisibilityMode> {
 
 export const useAppStore = create<AppState>((set, get) => ({
   section: { type: "home" },
+  returnTo: null,
   terminalOpen: false,
   terminalTabs: [],
   activeTerminalTab: null,
@@ -103,7 +107,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   cabinetVisibilityModes: loadCabinetVisibilityModes(),
   taskPanelConversation: null,
 
-  setSection: (section) => set({ section, taskPanelConversation: null }),
+  setSection: (section) =>
+    set({ section, taskPanelConversation: null, returnTo: null }),
+
+  pushSection: (next, from) =>
+    set({ section: next, taskPanelConversation: null, returnTo: from }),
+
+  popReturnTo: () => {
+    const { returnTo } = get();
+    if (!returnTo) return;
+    set({ section: returnTo, returnTo: null, taskPanelConversation: null });
+  },
 
   toggleTerminal: () => {
     const { terminalOpen, terminalTabs } = get();

@@ -200,6 +200,24 @@ html[data-custom-theme] .tiptap h4 {
   animation: cabinet-card-glow 2s ease-in-out infinite;
 }
 
+/* Sidebar tree-node blink — used when focusPath() scrolls-to a row.
+   Fades a violet wash in/out twice, then returns to the row's normal
+   (selected) background. The wash is tuned to read clearly on both
+   light and dark themes. */
+@keyframes cabinet-tree-blink {
+  0%, 100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+  }
+  25%, 70% {
+    background-color: rgba(139, 92, 246, 0.28);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.35);
+  }
+}
+.cabinet-tree-blink {
+  animation: cabinet-tree-blink 1.4s ease-in-out;
+}
+
 /* Body serif — Source Serif 4, beats theme overrides */
 html[data-custom-theme] .font-body-serif,
 .font-body-serif {
