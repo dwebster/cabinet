@@ -615,22 +615,33 @@ export function TaskConversationPage({
                   }}
                 />
               </div>
-              {!readOnly && task.meta.status === "idle" ? (
-                <div className="shrink-0 border-t border-zinc-800 bg-zinc-950/80 px-4 py-3">
-                  <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-                    <span className="text-[11px] text-zinc-500">
-                      Session ended. Continue keeps the PTY session alive for the next prompt.
-                    </span>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="h-7 gap-1.5 bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
-                      disabled
-                      title="Coming in round 2"
-                    >
-                      <Play className="size-3" />
-                      Continue
-                    </Button>
+              {!readOnly ? (
+                <div className="shrink-0 border-t border-zinc-800 bg-zinc-950">
+                  <div className="mx-auto w-full max-w-3xl">
+                    {task.meta.status === "idle" ? (
+                      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-2 text-[11px] text-zinc-400">
+                        <CheckCircle2 className="size-3 text-emerald-500" />
+                        <span>Session ended — type to continue in the same terminal.</span>
+                      </div>
+                    ) : task.meta.status === "running" ? (
+                      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-2 text-[11px] text-zinc-400">
+                        <Loader2 className="size-3 animate-spin text-emerald-500" />
+                        <span>Terminal live. Your next prompt queues after this turn finishes.</span>
+                      </div>
+                    ) : null}
+                    <div className="[&_textarea]:bg-zinc-900 [&_textarea]:text-zinc-100 [&_textarea]:placeholder:text-zinc-500 [&_textarea]:border-zinc-800 [&_*]:!text-zinc-100">
+                      <TaskComposerPanel
+                        awaitingInput={task.meta.status === "awaiting-input"}
+                        onSend={handleSend}
+                        initialRuntime={{
+                          providerId: task.meta.providerId,
+                          adapterType: task.meta.adapterType,
+                          model: readRuntimeModel(task.meta.adapterConfig),
+                          effort: readRuntimeEffort(task.meta.adapterConfig),
+                          runtimeMode: "terminal",
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : null}
