@@ -291,13 +291,13 @@ Separate track covering the "user runs task in Terminal mode" experience. Audit 
 | T14 | Task detail header: `PTY` chip next to title | ✅ Done (legacy view) | `5e8ac62` |
 | T15 | Sidebar recent tasks: trailing terminal glyph | ✅ Done | `5e8ac62` |
 | T16 | Fullscreen terminal layout (thin dark top strip + WebTerminal fills viewport) | ✅ Done | `4313979` |
-| T17 | Running-indicator "inside the terminal" — hide external status chip duplication, let CLI own activity feedback | 🟨 Not yet — current top strip still renders a `live / exited / awaiting input` chip above the terminal |
-| T18 | Pending agent-turn placeholder hygiene — runner writes a `pending: true` agent turn before PTY starts; for legacy adapters this sits forever (hidden in Chat tab but visible in Logs) | 🟨 Not yet — needs runner skip or post-exit finalize for legacy adapters |
-| T19 | Distill PTY output into a clean agent turn on exit (summary, artifact extraction, `<ask_user>` detection) | 🟨 Not yet — may be by design; confirm intent |
-| T20 | Same-process continue (keep CLI alive across turns, inject prompts via stdin) | 🟨 Not yet — same as §12 #12; providers with REPL mode (interactive Claude/Codex) could benefit |
+| T17 | Running indicator = terminal-icon chip with pulsing ring when live (replaces separate "live" + "PTY" chips) | ✅ Done | `89f5b2a` |
+| T18 | Legacy-adapter continuation — `continueConversationRun` reopens the PTY via `createDaemonSession` instead of bailing on the missing `adapter.execute` | ✅ Done | `a012478` |
+| T19 | Distill PTY output into a clean agent turn on exit (summary, artifact extraction, `<ask_user>` detection) | 🟨 Deferred — by design: terminal mode is "I'm driving the CLI", structured summary/artifacts belong to native mode |
+| T20 | Same-process continue (keep CLI alive across turns, inject prompts via stdin) | 🟨 Deferred — xterm buffer preserved client-side, but underlying CLI restarts per turn; would need interactive-REPL launch mode in `createDetachedSession` |
 | T21 | WebTerminal reconnect-after-navigate-away UX | 🟨 Unverified — daemon buffers `session.output` and replays; manual QA needed |
-| T22 | Token bar / context window for terminal tasks | 🟨 Not yet — PTY output doesn't self-report usage uniformly; cosmetic; consider hiding `TokenBar` in terminal fullscreen layout |
-| T23 | Stop-PTY button in the top strip (signal SIGTERM to running process) | 🟨 Not yet — currently users have to wait for timeout |
+| T22 | Token bar / context window hidden in terminal fullscreen layout | ✅ Done — fullscreen top strip already omits `TokenBar` (PTY output doesn't self-report usage uniformly) | `4313979` |
+| T23 | Stop-PTY button in the top strip — calls `stopConversation()` → PATCH `{ action: "stop" }` → daemon SIGTERMs the PTY | ✅ Done | `a012478` |
 | T24 | Terminal-mode "experimental" advisory vs. first-class messaging | ✅ First-class — Native/Terminal is a positive product choice, not a warning |
 
 ## 13. Operational Notes
