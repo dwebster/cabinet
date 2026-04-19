@@ -76,7 +76,7 @@ interface IntegrationConfig {
   };
 }
 
-type Tab = "providers" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
+type Tab = "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
 
 function TerminalCommand({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
@@ -222,7 +222,7 @@ export function SettingsPage() {
   const [dataDirBrowsing, setDataDirBrowsing] = useState(false);
   const [dataDirSaving, setDataDirSaving] = useState(false);
   const [dataDirRestartNeeded, setDataDirRestartNeeded] = useState(false);
-  const VALID_TABS: Tab[] = ["providers", "storage", "integrations", "notifications", "appearance", "updates", "about"];
+  const VALID_TABS: Tab[] = ["providers", "skills", "storage", "integrations", "notifications", "appearance", "updates", "about"];
   const initialTab = (() => {
     const slug = useAppStore.getState().section.slug as Tab | undefined;
     return slug && VALID_TABS.includes(slug) ? slug : "providers";
@@ -473,6 +473,7 @@ export function SettingsPage() {
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "providers", label: "Providers", icon: <Cpu className="h-3.5 w-3.5" /> },
+    { id: "skills", label: "Skills", icon: <Sparkles className="h-3.5 w-3.5" /> },
     { id: "storage", label: "Storage", icon: <HardDrive className="h-3.5 w-3.5" /> },
     { id: "integrations", label: "Integrations", icon: <Plug className="h-3.5 w-3.5" /> },
     { id: "notifications", label: "Notifications", icon: <Bell className="h-3.5 w-3.5" /> },
@@ -1188,6 +1189,9 @@ export function SettingsPage() {
             </>
           )}
 
+          {/* Skills Tab */}
+          {tab === "skills" && <SkillsSettings />}
+
           {/* Integrations Tab */}
           {tab === "integrations" && (
             <div className="relative">
@@ -1398,6 +1402,131 @@ export function SettingsPage() {
           )}
         </div>
       </ScrollArea>
+    </div>
+  );
+}
+
+interface SkillEntry {
+  slug: string;
+  name: string;
+  description?: string;
+  path: string;
+}
+
+interface SkillCatalogResponse {
+  root: string;
+  skills: SkillEntry[];
+  count: number;
+}
+
+function SkillsSettings() {
+  const [catalog, setCatalog] = useState<SkillCatalogResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/agents/skills");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as SkillCatalogResponse;
+        if (!cancelled) setCatalog(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-[14px] font-semibold">Skills</h3>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Coming soon
+        </span>
+      </div>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Skills are reusable instruction bundles Cabinet symlinks into each run so
+        agents can reach for them on demand. Drop a directory under{" "}
+        <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
+          {catalog?.root ?? "~/.cabinet/skills/"}
+        </code>{" "}
+        with a <code className="rounded bg-muted px-1 py-0.5 text-[11px]">SKILL.md</code> and
+        any scripts or reference files the skill needs. Editor + selection UI is
+        still in flight — read-only preview for now.
+      </p>
+
+      {loading ? (
+        <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center text-xs text-muted-foreground">
+          <Loader2 className="mx-auto mb-2 size-4 animate-spin" />
+          Scanning the catalog…
+        </div>
+      ) : error ? (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+          Failed to load skill catalog: {error}
+        </div>
+      ) : !catalog || catalog.count === 0 ? (
+        <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center">
+          <Sparkles className="mx-auto mb-2 size-5 text-muted-foreground/50" />
+          <p className="text-[13px] font-medium text-muted-foreground">
+            No skills detected yet
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground/70">
+            Create <code className="rounded bg-muted px-1 py-0.5">{catalog?.root ?? "~/.cabinet/skills/"}</code>{" "}
+            and drop a skill directory there to see it listed.
+          </p>
+        </div>
+      ) : (
+        <div
+          className="pointer-events-none select-none space-y-2 opacity-60"
+          aria-disabled="true"
+          title="Coming soon — selection is not editable yet"
+        >
+          {catalog.skills.map((skill) => (
+            <div
+              key={skill.slug}
+              className="rounded-lg border border-border/70 bg-card px-4 py-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="size-3 shrink-0 text-muted-foreground/60" />
+                    <p className="truncate text-[13px] font-medium text-foreground">
+                      {skill.name}
+                    </p>
+                    <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {skill.slug}
+                    </code>
+                  </div>
+                  {skill.description && (
+                    <p className="mt-1 text-[11.5px] leading-snug text-muted-foreground">
+                      {skill.description}
+                    </p>
+                  )}
+                  <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground/60">
+                    {skill.path}
+                  </p>
+                </div>
+                <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background">
+                  {/* Empty checkbox: visual-only, not interactive. */}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-4 text-[11px] text-muted-foreground/70">
+        For now, attach skills to an agent by editing that agent&apos;s markdown
+        frontmatter with{" "}
+        <code className="rounded bg-muted px-1 py-0.5">skills: [slug, slug]</code>.
+      </p>
     </div>
   );
 }
