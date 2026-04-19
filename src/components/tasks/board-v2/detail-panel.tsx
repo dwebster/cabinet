@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, BellOff, X } from "lucide-react";
 import { TaskConversationPage } from "@/components/tasks/conversation/task-conversation-page";
+import { cn } from "@/lib/utils";
 import { AgentPill } from "./agent-pill";
 import { StatusIcon, deriveCardState } from "./status-icon";
+import { setConversationMuted } from "./board-actions";
 import type { LaneKey } from "./lane-rules";
 import type { TaskMeta } from "@/types/tasks";
 import type { CabinetAgentSummary } from "@/types/cabinets";
@@ -20,11 +22,13 @@ export function DetailPanel({
   lane,
   agent,
   onClose,
+  onRefresh,
 }: {
   task: TaskMeta;
   lane: LaneKey;
   agent: CabinetAgentSummary | undefined;
   onClose: () => void;
+  onRefresh?: () => Promise<void>;
 }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -35,6 +39,21 @@ export function DetailPanel({
   }, [onClose]);
 
   const state = deriveCardState(task, lane);
+  const [muting, setMuting] = useState(false);
+  const muted = !!task.muted;
+
+  async function toggleMuted() {
+    if (muting) return;
+    setMuting(true);
+    try {
+      await setConversationMuted(task.id, !muted, task.cabinetPath);
+      if (onRefresh) await onRefresh();
+    } catch (err) {
+      console.error("[board-v2] mute toggle failed", err);
+    } finally {
+      setMuting(false);
+    }
+  }
 
   return (
     <aside className="absolute inset-y-0 right-0 z-20 flex w-[460px] flex-col border-l border-border/70 bg-background shadow-xl">
@@ -48,6 +67,18 @@ export function DetailPanel({
             {task.title}
           </h2>
         </div>
+        <button
+          type="button"
+          onClick={toggleMuted}
+          disabled={muting}
+          className={cn(
+            "rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground",
+            muted && "text-foreground"
+          )}
+          title={muted ? "Unmute — done runs resurface in Just Finished" : "Mute — done runs go straight to Archive"}
+        >
+          {muted ? <BellOff className="size-4" /> : <Bell className="size-4" />}
+        </button>
         <button
           type="button"
           onClick={onClose}

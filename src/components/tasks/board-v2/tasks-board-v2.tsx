@@ -221,6 +221,7 @@ export function TasksBoardV2({
             lane={selectedLane}
             agent={selectedAgent}
             onClose={() => setSelectedId(null)}
+            onRefresh={refresh}
           />
         )}
       </div>

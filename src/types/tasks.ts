@@ -143,6 +143,8 @@ export interface TaskMeta {
    * board's group-collapsing pass; never written to disk.
    */
   groupSize?: number;
+  /** Mirrors ConversationMeta.muted. Muted tasks bypass Just Finished. */
+  muted?: boolean;
 }
 
 export interface ArtifactsIndex {

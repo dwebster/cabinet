@@ -127,6 +127,12 @@ export interface ConversationMeta {
    *  Written by drag-to-reorder in Phase 2; read by the board in Phase 2+. */
   boardOrder?: number;
 
+  /** When true, the v2 board skips the "Just Finished" lane for this task
+   *  and sends done runs straight to Archive — useful for noisy heartbeats
+   *  the user doesn't want to re-triage every hour. Set via the DetailPanel
+   *  mute toggle. */
+  muted?: boolean;
+
   /** Classified failure kind from the last failed run. Cleared on success. */
   errorKind?: ConversationErrorKind;
   /** Human-facing remediation hint for `errorKind`. */

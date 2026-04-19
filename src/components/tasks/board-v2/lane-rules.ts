@@ -24,14 +24,17 @@ export function deriveLane(task: TaskMeta, now: number): LaneKey {
     : task.completedAt
     ? new Date(task.completedAt).getTime()
     : 0;
+  // Muted tasks bypass Just Finished entirely — done runs go straight to
+  // Archive. Running / awaiting / failed states still surface normally.
+  const freshDone = !task.muted && last && now - last < DONE_FRESH_MS;
   if (task.status === "done") {
-    return last && now - last < DONE_FRESH_MS ? "done" : "archive";
+    return freshDone ? "done" : "archive";
   }
   if (task.status === "idle") {
     // No prior activity and idle → someone handed it off or it hasn't started.
     if (!last) return "inbox";
     // Idle but previously touched → fold into done if fresh, else archive.
-    return now - last < DONE_FRESH_MS ? "done" : "archive";
+    return freshDone ? "done" : "archive";
   }
   return "archive";
 }

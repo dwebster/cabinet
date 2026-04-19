@@ -52,6 +52,7 @@ export function conversationMetaToTaskMeta(meta: ConversationMeta): TaskMeta {
     lastResumeAttempt: meta.lastResumeAttempt,
     archivedAt: meta.archivedAt,
     boardOrder: meta.boardOrder,
+    muted: meta.muted,
   };
 }
 

@@ -56,6 +56,8 @@ interface PatchBody {
   boardOrder?: number;
   // v2 board: reassign the conversation to a different agent.
   agentSlug?: string;
+  // v2 board: mute the task so done runs skip Just Finished.
+  muted?: boolean;
 }
 
 export async function PATCH(
@@ -146,6 +148,9 @@ export async function PATCH(
   }
   if (typeof body.agentSlug === "string" && body.agentSlug.trim()) {
     updates.agentSlug = body.agentSlug.trim();
+  }
+  if (typeof body.muted === "boolean") {
+    updates.muted = body.muted;
   }
 
   const nextMeta: ConversationMeta = {

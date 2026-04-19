@@ -11,6 +11,7 @@ type PatchBody = {
   archivedAt?: string | null;
   boardOrder?: number;
   agentSlug?: string;
+  muted?: boolean;
 };
 
 async function patchConversation(
@@ -60,6 +61,15 @@ export async function reassignConversation(
   cabinetPath?: string
 ): Promise<void> {
   await patchConversation(id, { agentSlug: toAgent }, cabinetPath);
+}
+
+/** Mute a task so its done runs skip Just Finished and land in Archive. */
+export async function setConversationMuted(
+  id: string,
+  muted: boolean,
+  cabinetPath?: string
+): Promise<void> {
+  await patchConversation(id, { muted }, cabinetPath);
 }
 
 /**
