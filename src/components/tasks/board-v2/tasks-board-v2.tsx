@@ -125,28 +125,25 @@ export function TasksBoardV2({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
-      {standalone && (
-        <header className="flex items-center gap-3 border-b border-border/70 px-6 py-3">
+      <header className="flex items-center gap-3 border-b border-border/70 px-6 py-3">
+        {standalone && (
           <Link
             href="/"
             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
           </Link>
-          <h1 className="text-[14px] font-semibold tracking-tight">Tasks</h1>
-          <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-sky-600 dark:text-sky-400">
-            v2
-          </span>
-          {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
-          <div className="ml-4">
-            <ViewToggle value={view} onChange={setView} />
-          </div>
-          <span className="ml-auto text-[11px] text-muted-foreground">
-            {agentFilter ? `${filteredTasks.length} of ${tasks.length}` : `${tasks.length}`}
-            {" "}task{tasks.length === 1 ? "" : "s"}
-          </span>
-        </header>
-      )}
+        )}
+        <h1 className="text-[14px] font-semibold tracking-tight">Tasks</h1>
+        {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+        <div className="ml-4">
+          <ViewToggle value={view} onChange={setView} />
+        </div>
+        <span className="ml-auto text-[11px] text-muted-foreground">
+          {agentFilter ? `${filteredTasks.length} of ${tasks.length}` : `${tasks.length}`}
+          {" "}task{tasks.length === 1 ? "" : "s"}
+        </span>
+      </header>
 
       <FilterBar
         agents={overview?.agents ?? []}
