@@ -62,6 +62,13 @@ export interface AgentProvider {
   apiKeyEnvVar?: string;
   runPrompt?(prompt: string, context: string): Promise<string>;
 
+  /**
+   * Optional dynamic model discovery. Providers that can list their available
+   * models via a CLI command (e.g. `opencode models`) implement this hook.
+   * Results are cached for 60s server-side by the models API route.
+   */
+  listModels?(): Promise<ProviderModel[]>;
+
   // Common
   isAvailable(): Promise<boolean>;
   healthCheck(): Promise<ProviderStatus>;

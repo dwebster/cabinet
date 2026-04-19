@@ -74,6 +74,32 @@ export const piProvider: AgentProvider = {
     };
   },
 
+  async listModels() {
+    try {
+      const cmd = resolveCliCommand(this);
+      const out = execSync(`${cmd} --list-models`, {
+        encoding: "utf8",
+        env: { ...process.env, PATH: RUNTIME_PATH },
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 10_000,
+      }).trim();
+      if (!out) {
+        return [...PI_FALLBACK_MODELS].map((m) => ({ ...m, effortLevels: [...PI_THINKING_LEVELS] }));
+      }
+      return out
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("#"))
+        .map((id) => ({
+          id,
+          name: id,
+          effortLevels: [...PI_THINKING_LEVELS],
+        }));
+    } catch {
+      return [...PI_FALLBACK_MODELS].map((m) => ({ ...m, effortLevels: [...PI_THINKING_LEVELS] }));
+    }
+  },
+
   async isAvailable(): Promise<boolean> {
     return checkCliProviderAvailable(this);
   },
