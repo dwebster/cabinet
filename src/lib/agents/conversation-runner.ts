@@ -10,6 +10,7 @@ import {
 } from "./adapters";
 import { agentAdapterRegistry } from "./adapters/registry";
 import type { AdapterExecutionContext } from "./adapters/types";
+import { syncSkillsToTmpdir } from "./adapters/_shared/skills-injection";
 import {
   appendAgentTurn,
   appendConversationTranscript,
@@ -289,13 +290,28 @@ export async function startConversationRun(
     scheduledAt: input.scheduledAt,
   });
 
+  // Skills injection: materialize the agent's selected skills into a managed
+  // tmpdir and pass the path through adapterConfig so the adapter can wire it
+  // into the CLI (e.g. Claude `--add-dir`). No-op when the persona has no
+  // skills or the catalog is empty.
+  const skillsPersona =
+    input.agentSlug && input.agentSlug !== "general"
+      ? await readPersona(input.agentSlug, input.cabinetPath)
+      : null;
+  const skillsSync = skillsPersona?.skills?.length
+    ? syncSkillsToTmpdir(meta.id, skillsPersona.skills)
+    : null;
+  const spawnAdapterConfig: Record<string, unknown> | undefined = skillsSync
+    ? { ...(input.adapterConfig || {}), skillsDir: skillsSync.dir }
+    : input.adapterConfig;
+
   try {
     await createDaemonSession({
       id: meta.id,
       prompt: input.prompt,
       providerId: resolvedProviderId,
       adapterType: resolvedAdapterType,
-      adapterConfig: input.adapterConfig,
+      adapterConfig: spawnAdapterConfig,
       cwd: input.cwd,
       timeoutSeconds: input.timeoutSeconds,
     });

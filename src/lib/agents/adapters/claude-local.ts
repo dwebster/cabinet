@@ -77,6 +77,16 @@ function buildClaudeArgs(
     args.push("--append-system-prompt", appendSystemPrompt);
   }
 
+  // Skills injection — the runner materializes the agent's selected skills
+  // into a managed tmpdir and sticks the path here. Claude picks them up via
+  // --add-dir so they appear in its working-directory list and get read into
+  // context. Absent when the persona has no `skills:` field or the catalog
+  // is empty; harmless to omit.
+  const skillsDir = readStringConfig(config, "skillsDir");
+  if (skillsDir) {
+    args.push("--add-dir", skillsDir);
+  }
+
   return args;
 }
 

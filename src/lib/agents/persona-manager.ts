@@ -66,6 +66,12 @@ export interface AgentPersona {
   workdir: string;
   focus: string[];
   tags: string[];
+  /**
+   * Skill slugs this agent uses. Resolved against the user's skill catalog
+   * at `~/.cabinet/skills/<slug>/` and symlinked into a managed tmpdir
+   * before every run (see `_shared/skills-injection.ts`).
+   */
+  skills?: string[];
   // New fields (all optional for backward compat)
   emoji: string;
   department: string;
@@ -176,6 +182,11 @@ export async function readPersona(slug: string, cabinetPath?: string): Promise<A
     workdir: (data.workdir as string) || "/data",
     focus: (data.focus as string[]) || [],
     tags: (data.tags as string[]) || [],
+    skills: Array.isArray(data.skills)
+      ? (data.skills as unknown[]).filter(
+          (value): value is string => typeof value === "string" && value.trim() !== ""
+        )
+      : undefined,
     // New fields with backward-compatible defaults
     emoji: (data.emoji as string) || "🤖",
     department: (data.department as string) || "general",
