@@ -25,6 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { HomeBlueprintBackground } from "@/components/onboarding/home-blueprint-background";
+import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { RuntimeSelectionBanner } from "@/components/composer/task-runtime-picker";
 import type { ProviderInfo } from "@/types/agents";
@@ -1622,7 +1623,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       if (!res.ok) throw new Error("Failed to check providers");
       const data = await res.json();
       const cliProviders: ProviderInfo[] = (data.providers ?? []).filter(
-        (p: ProviderInfo) => p.type === "cli"
+        isAgentProviderSelectable
       );
       setProviders(cliProviders);
       // Auto-select first ready provider if none selected — functional setState

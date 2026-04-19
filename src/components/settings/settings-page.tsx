@@ -48,6 +48,7 @@ import {
   RuntimeMatrixPicker,
   RuntimeSelectionBanner,
 } from "@/components/composer/task-runtime-picker";
+import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import { cn } from "@/lib/utils";
 import type { ProviderInfo } from "@/types/agents";
 
@@ -878,7 +879,7 @@ export function SettingsPage() {
                       </h4>
                       <div className="space-y-2">
                         {providers
-                          .filter((p) => p.type === "cli")
+                          .filter(isAgentProviderSelectable)
                           .map((provider) => {
                             const isReady = !!(provider.available && provider.authenticated);
                             const isInstalled = !!provider.available;
@@ -958,7 +959,7 @@ export function SettingsPage() {
                                               .filter((entry) => !entry.enabled && entry.id !== provider.id)
                                               .map((entry) => entry.id);
                                         const enabledAfterToggle = providers.filter(
-                                          (entry) => !nextDisabled.includes(entry.id) && entry.type === "cli"
+                                          (entry) => !nextDisabled.includes(entry.id) && isAgentProviderSelectable(entry)
                                         );
                                         const nextDefault =
                                           provider.id === defaultProvider && nextDisabled.includes(provider.id)
@@ -978,7 +979,7 @@ export function SettingsPage() {
 
                                         await saveProviderSettings(nextDefault, nextDisabled, migrations);
                                       }}
-                                      disabled={savingProviders || (provider.id === defaultProvider && providers.filter((entry) => entry.type === "cli" && entry.enabled).length <= 1)}
+                                      disabled={savingProviders || (provider.id === defaultProvider && providers.filter((entry) => isAgentProviderSelectable(entry) && entry.enabled).length <= 1)}
                                       className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                                     >
                                       {provider.enabled ? "Disable" : "Enable"}

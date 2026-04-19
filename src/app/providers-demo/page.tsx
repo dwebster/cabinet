@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
+import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import type { ProviderInfo } from "@/types/agents";
 import { Loader2, Play, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 
@@ -153,7 +154,7 @@ export default function ProvidersDemoPage() {
       defaultEffort: string | null;
     }>({ method: "GET", url: "/api/agents/providers" });
     if (res.ok && res.data) {
-      const cli = (res.data.providers || []).filter((p) => p.type === "cli");
+      const cli = (res.data.providers || []).filter(isAgentProviderSelectable);
       setProviders(cli);
       setDefaultProvider(res.data.defaultProvider ?? null);
       setDefaultModel(res.data.defaultModel ?? null);

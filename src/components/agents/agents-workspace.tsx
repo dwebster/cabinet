@@ -44,6 +44,7 @@ import { useAppStore } from "@/stores/app-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
 import { createConversation } from "@/lib/agents/conversation-client";
+import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import type { JobLibraryTemplate } from "@/lib/jobs/job-library";
 import type { CabinetVisibilityMode } from "@/types/cabinets";
 import type { ConversationDetail, ConversationMeta } from "@/types/conversations";
@@ -530,9 +531,9 @@ export function AgentsWorkspace({
   });
 
   const enabledCliProviders = providers.filter(
-    (provider) => provider.type === "cli" && provider.enabled
+    (provider) => isAgentProviderSelectable(provider) && provider.enabled
   );
-  const cliProviders = providers.filter((provider) => provider.type === "cli");
+  const cliProviders = providers.filter(isAgentProviderSelectable);
   const selectableCliProviders = enabledCliProviders.length > 0
     ? enabledCliProviders
     : cliProviders.length > 0
