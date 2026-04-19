@@ -1,3 +1,4 @@
+import "dotenv/config";
 import fs from "fs";
 import net from "net";
 import path from "path";

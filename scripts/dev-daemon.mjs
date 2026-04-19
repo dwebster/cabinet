@@ -1,3 +1,4 @@
+import "dotenv/config";
 import fs from "fs";
 import net from "net";
 import path from "path";
@@ -142,8 +143,8 @@ async function main() {
         CABINET_TELEMETRY_DISABLED: "1",
         ...process.env,
         CABINET_DAEMON_PORT: String(port),
-        CABINET_DAEMON_URL: origin,
-        CABINET_PUBLIC_DAEMON_ORIGIN: origin,
+        CABINET_DAEMON_URL: process.env.CABINET_DAEMON_URL || origin,
+        CABINET_PUBLIC_DAEMON_ORIGIN: process.env.CABINET_PUBLIC_DAEMON_ORIGIN || origin,
       },
     }
   );

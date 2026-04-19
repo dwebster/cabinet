@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
       exclude: ["error", "warn"],
     },
   },
+  images: {
+    remotePatterns: [
+      { hostname: "upload.wikimedia.org" },
+    ],
+  },
   output: "standalone",
   // Audit #219 / #220: the floating Next.js dev indicator sat on top of the
   // sidebar "New Page" button and was visible in the product chrome even in
