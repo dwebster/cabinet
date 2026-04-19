@@ -10,6 +10,7 @@ import {
   reassignConversation,
   restartConversation,
   restoreConversation,
+  setConversationBoardOrder,
   stopConversation,
 } from "./board-actions";
 import type { PendingUndo } from "./undo-toast";
@@ -27,6 +28,32 @@ interface Args {
   onUndoQueued: (undo: PendingUndo) => void;
   onConfirmRequested: (confirm: PendingConfirm) => void;
   onRefresh: () => Promise<void>;
+}
+
+/**
+ * Fallback boardOrder derivation when a neighbor has no explicit order.
+ * Uses its current position in the lane * 1000 so fresh tasks get
+ * reasonable spacing without renumbering everyone.
+ */
+function indexFloor(lane: TaskMeta[], taskId: string): number | undefined {
+  const i = lane.findIndex((t) => t.id === taskId);
+  return i < 0 ? undefined : (i + 1) * 1000;
+}
+
+/**
+ * Compute a boardOrder value for a card dropped between `prev` and `next`.
+ * Fractional indexing: pick the midpoint. If both neighbors are missing,
+ * fall back to the card's visual index * 1000 so stable ordering still works.
+ */
+function computeBoardOrder(
+  prevOrder: number | undefined,
+  nextOrder: number | undefined,
+  fallbackIdx: number
+): number {
+  if (prevOrder != null && nextOrder != null) return (prevOrder + nextOrder) / 2;
+  if (prevOrder != null) return prevOrder + 1000;
+  if (nextOrder != null) return nextOrder / 2;
+  return (fallbackIdx + 1) * 1000;
 }
 
 export function useDragHandler({
@@ -194,8 +221,40 @@ export function useDragHandler({
         return;
       }
 
-      // Reorder / other cross-lane drops: no-op. @dnd-kit's SortableContext
-      // handles the visual rearrange; persistence via boardOrder is Phase 2b.
+      // ── Same-lane reorder (persist boardOrder) ─────────────────────
+      // @dnd-kit's SortableContext rearranges visually; we need to write
+      // the new index to ConversationMeta.boardOrder so the server of
+      // truth matches. Compute a fractional midpoint between neighbors
+      // (or first/last + nudge) to avoid renumbering everyone.
+      if (sourceLane === targetLane && overId.startsWith(CARD_DROP_PREFIX)) {
+        const overTaskId = overId.slice(CARD_DROP_PREFIX.length);
+        if (overTaskId === activeId) return;
+        const lane = byLane[sourceLane];
+        const overIdx = lane.findIndex((t) => t.id === overTaskId);
+        const activeIdx = lane.findIndex((t) => t.id === activeId);
+        if (overIdx < 0 || activeIdx < 0) return;
+
+        // Build the post-move order as @dnd-kit would render it.
+        const reordered = [...lane];
+        const [moved] = reordered.splice(activeIdx, 1);
+        reordered.splice(overIdx, 0, moved);
+        const newIdx = reordered.findIndex((t) => t.id === activeId);
+        const prev = newIdx > 0 ? reordered[newIdx - 1] : null;
+        const next = newIdx < reordered.length - 1 ? reordered[newIdx + 1] : null;
+        const prevOrder = prev?.boardOrder ?? (prev ? indexFloor(reordered, prev.id) : undefined);
+        const nextOrder = next?.boardOrder ?? (next ? indexFloor(reordered, next.id) : undefined);
+        const newOrder = computeBoardOrder(prevOrder, nextOrder, newIdx);
+
+        try {
+          await setConversationBoardOrder(activeId, newOrder, cabinetPath);
+          await onRefresh();
+        } catch (err) {
+          console.error("[board-v2] reorder failed", err);
+        }
+        return;
+      }
+
+      // Other cross-lane drops with no defined action: ignore.
     },
     [byLane, agentsBySlug, onUndoQueued, onConfirmRequested, onRefresh]
   );

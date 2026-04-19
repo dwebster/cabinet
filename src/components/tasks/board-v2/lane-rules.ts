@@ -37,10 +37,28 @@ export function deriveLane(task: TaskMeta, now: number): LaneKey {
 }
 
 /**
- * Sort comparator per lane (PRD §6 "Default sort"). Newer first except
- * Inbox which sorts handed-off / unstarted tasks by recency of creation.
+ * Sort comparator per lane (PRD §6 "Default sort"). User-set `boardOrder`
+ * wins when present (lower number = earlier in the lane) — this is how
+ * drag-to-reorder persistence lands. Tasks without a `boardOrder` fall
+ * back to the lane's time-based default (newer first, except Inbox which
+ * sorts handed-off / unstarted tasks by creation time, and Needs Reply
+ * which surfaces the longest-waiting item first).
  */
 export function laneSort(lane: LaneKey): (a: TaskMeta, b: TaskMeta) => number {
+  const timeCompare = timeComparator(lane);
+  return (a, b) => {
+    const ao = a.boardOrder;
+    const bo = b.boardOrder;
+    const aHas = typeof ao === "number" && ao !== 0;
+    const bHas = typeof bo === "number" && bo !== 0;
+    if (aHas && bHas) return ao - bo;
+    if (aHas) return -1; // pinned ordering wins over time default
+    if (bHas) return 1;
+    return timeCompare(a, b);
+  };
+}
+
+function timeComparator(lane: LaneKey): (a: TaskMeta, b: TaskMeta) => number {
   switch (lane) {
     case "inbox":
       return (a, b) => tsDesc(a.createdAt, b.createdAt);
