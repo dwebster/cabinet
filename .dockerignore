@@ -7,3 +7,9 @@ data
 !CLAUDE.md
 .env
 .env.local
+.env.*.local
+docker-compose.yml
+electron
+out
+.cabinet-install.json
+*.log

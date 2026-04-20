@@ -1,0 +1,47 @@
+# All variables with ${VAR} are read from ./.env at compose time.
+# Required in .env: CABINET_DATA_DIR, CABINET_APP_PORT, CABINET_DAEMON_PORT,
+#                   GITHUB_TOKEN, GIT_AUTHOR_NAME, GIT_AUTHOR_EMAIL.
+
+services:
+  cabinet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cabinet:local
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override paths/ports for the container's view of itself.
+      CABINET_DATA_DIR: /data
+      PORT: ${CABINET_APP_PORT}
+      CABINET_APP_PORT: ${CABINET_APP_PORT}
+      CABINET_DAEMON_PORT: ${CABINET_DAEMON_PORT}
+      # Git identity for auto-commits. git(1) reads these env vars natively.
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL}
+      GIT_COMMITTER_NAME: ${GIT_AUTHOR_NAME}
+      GIT_COMMITTER_EMAIL: ${GIT_AUTHOR_EMAIL}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+    ports:
+      # Bind to loopback only — reverse proxy or OrbStack's *.orb.local handles external access.
+      - "127.0.0.1:${CABINET_APP_PORT}:${CABINET_APP_PORT}"
+      - "127.0.0.1:${CABINET_DAEMON_PORT}:${CABINET_DAEMON_PORT}"
+    volumes:
+      # Host data dir (absolute path from .env) mounted at the container's /data.
+      - ${CABINET_DATA_DIR}:/data
+      # Persistent auth for the adapter CLIs — survives container rebuilds.
+      - cabinet-claude:/home/node/.claude
+      - cabinet-codex:/home/node/.codex
+      - cabinet-gemini:/home/node/.gemini
+      - cabinet-config:/home/node/.config
+      # Linked source repositories. Add one line per repo and a matching
+      # HOST_REPO_* entry in .env. The container-side path is what you type
+      # into Cabinet's "Link Repo" dialog.
+      - ${HOST_REPO_BUSINESS_RESEARCH}:/repos/business_research
+
+volumes:
+  cabinet-claude:
+  cabinet-codex:
+  cabinet-gemini:
+  cabinet-config:
