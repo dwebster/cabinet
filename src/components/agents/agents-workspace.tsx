@@ -42,6 +42,7 @@ import {
   NewRoutineDialog,
   type NewRoutineDialogAgent,
 } from "@/components/agents/new-routine-dialog";
+import { HeartbeatDialog } from "@/components/agents/heartbeat-dialog";
 import { ScheduleView } from "@/components/tasks/board-v2/schedule-view";
 import {
   DropdownMenu,
@@ -147,12 +148,14 @@ const TRIGGER_LABELS: Record<ConversationMeta["trigger"], string> = {
   manual: "Manual",
   job: "Job",
   heartbeat: "Heartbeat",
+  agent: "Agent",
 };
 
 const TASK_CARD_TRIGGER_STYLES: Record<ConversationMeta["trigger"], string> = {
   manual: "bg-sky-500/12 text-sky-400 ring-1 ring-sky-500/20",
   job: "bg-emerald-500/12 text-emerald-400 ring-1 ring-emerald-500/20",
   heartbeat: "bg-pink-500/12 text-pink-400 ring-1 ring-pink-500/20",
+  agent: "bg-violet-500/12 text-violet-400 ring-1 ring-violet-500/20",
 };
 
 const STATUS_TAG_STYLES: Record<string, string> = {
@@ -505,6 +508,11 @@ export function AgentsWorkspace({
   const [routineDialog, setRoutineDialog] = useState<{
     agent: NewRoutineDialogAgent;
     existingJob?: JobConfig;
+  } | null>(null);
+  const [heartbeatDialog, setHeartbeatDialog] = useState<{
+    agent: NewRoutineDialogAgent;
+    initialHeartbeat?: string;
+    initialActive?: boolean;
   } | null>(null);
   const [cabinetJobs, setCabinetJobs] = useState<CabinetJobSummary[]>([]);
   const [cabinetChildren, setCabinetChildren] = useState<CabinetOverview["children"]>([]);
@@ -3295,12 +3303,15 @@ export function AgentsWorkspace({
                           });
                         }}
                         onHeartbeatClick={(agent) => {
-                          setOrgChartHeartbeatDialog({
-                            agentSlug: agent.slug,
-                            agentName: agent.name,
-                            cabinetPath: agent.cabinetPath || effectiveCabinetPath,
-                            heartbeat: agent.heartbeat || "0 9 * * 1-5",
-                            active: agent.active,
+                          setHeartbeatDialog({
+                            agent: {
+                              slug: agent.slug,
+                              name: agent.name,
+                              role: agent.role,
+                              cabinetPath: agent.cabinetPath || effectiveCabinetPath,
+                            },
+                            initialHeartbeat: agent.heartbeat || "0 9 * * 1-5",
+                            initialActive: agent.active,
                           });
                         }}
                       />
@@ -3472,13 +3483,16 @@ export function AgentsWorkspace({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  setOrgChartHeartbeatDialog({
-                                    agentSlug: agent.slug,
-                                    agentName: agent.name,
-                                    cabinetPath:
-                                      agent.cabinetPath || effectiveCabinetPath,
-                                    heartbeat: agent.heartbeat!,
-                                    active: agent.active,
+                                  setHeartbeatDialog({
+                                    agent: {
+                                      slug: agent.slug,
+                                      name: agent.name,
+                                      role: agent.role,
+                                      cabinetPath:
+                                        agent.cabinetPath || effectiveCabinetPath,
+                                    },
+                                    initialHeartbeat: agent.heartbeat!,
+                                    initialActive: agent.active,
                                   })
                                 }
                                 className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
@@ -3582,12 +3596,15 @@ export function AgentsWorkspace({
               }}
               onHeartbeatClick={(agent) => {
                 setScheduleFullscreen(false);
-                setOrgChartHeartbeatDialog({
-                  agentSlug: agent.slug,
-                  agentName: agent.name,
-                  cabinetPath: agent.cabinetPath || effectiveCabinetPath,
-                  heartbeat: agent.heartbeat || "0 9 * * 1-5",
-                  active: agent.active,
+                setHeartbeatDialog({
+                  agent: {
+                    slug: agent.slug,
+                    name: agent.name,
+                    role: agent.role,
+                    cabinetPath: agent.cabinetPath || effectiveCabinetPath,
+                  },
+                  initialHeartbeat: agent.heartbeat || "0 9 * * 1-5",
+                  initialActive: agent.active,
                 });
               }}
             />
@@ -3963,71 +3980,21 @@ export function AgentsWorkspace({
 
 
       {/* Org chart — heartbeat popup */}
-      {orgChartHeartbeatDialog ? (
-        <Dialog open onOpenChange={(open) => { if (!open) setOrgChartHeartbeatDialog(null); }}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-3 pr-10">
-                <DialogTitle className="flex items-center gap-2">
-                  <HeartPulse className="h-4 w-4 text-pink-400" />
-                  Heartbeat
-                  <span className="text-[11px] font-normal text-muted-foreground">· {orgChartHeartbeatDialog.agentName}</span>
-                </DialogTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1 text-xs"
-                  onClick={() => void runOrgChartHeartbeat()}
-                  disabled={orgChartHeartbeatRunning}
-                >
-                  {orgChartHeartbeatRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                  Run now
-                </Button>
-              </div>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
-                <SchedulePicker
-                  value={orgChartHeartbeatDialog.heartbeat}
-                  onChange={(cron) =>
-                    setOrgChartHeartbeatDialog((prev) => (prev ? { ...prev, heartbeat: cron } : prev))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-3">
-                <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={orgChartHeartbeatDialog.active}
-                    onChange={(e) =>
-                      setOrgChartHeartbeatDialog((prev) =>
-                        prev ? { ...prev, active: e.target.checked } : prev
-                      )
-                    }
-                    className="h-3.5 w-3.5 cursor-pointer appearance-none rounded-sm border border-border bg-background transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-1"
-                  />
-                  Active
-                </label>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setOrgChartHeartbeatDialog(null)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1 text-xs"
-                    onClick={() => void saveOrgChartHeartbeat()}
-                    disabled={orgChartHeartbeatSaving}
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {orgChartHeartbeatSaving ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      ) : null}
+      {/* Consolidated heartbeat editor — every heartbeat click on this page
+          opens this shared dialog. */}
+      <HeartbeatDialog
+        open={heartbeatDialog !== null}
+        onOpenChange={(next) => {
+          if (!next) setHeartbeatDialog(null);
+        }}
+        agent={heartbeatDialog?.agent ?? { slug: "", name: "" }}
+        initialHeartbeat={heartbeatDialog?.initialHeartbeat}
+        initialActive={heartbeatDialog?.initialActive}
+        onSaved={() => {
+          setHeartbeatDialog(null);
+          void refreshAgents();
+        }}
+      />
 
       {/* Quick Send popup */}
       {quickSendAgent ? (() => {

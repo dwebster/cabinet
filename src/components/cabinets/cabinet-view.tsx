@@ -2,23 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   FolderTree,
-  HeartPulse,
   Loader2,
   Network,
-  Save,
-  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { HeaderActions } from "@/components/layout/header-actions";
 import { VersionHistory } from "@/components/editor/version-history";
 import { CabinetSchedulerControls } from "@/components/cabinets/cabinet-scheduler-controls";
@@ -27,6 +16,7 @@ import {
   NewRoutineDialog,
   type NewRoutineDialogAgent,
 } from "@/components/agents/new-routine-dialog";
+import { HeartbeatDialog } from "@/components/agents/heartbeat-dialog";
 import type { JobConfig } from "@/types/jobs";
 import { ActivityFeed } from "@/components/cabinets/activity-feed";
 import { CABINET_VISIBILITY_OPTIONS } from "@/lib/cabinets/visibility";
@@ -58,15 +48,11 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
     missedRun?: { scheduledAt: string };
   } | null>(null);
   const [heartbeatDialog, setHeartbeatDialog] = useState<{
-    agentSlug: string;
-    agentName: string;
-    cabinetPath: string;
-    heartbeat: string;
-    active: boolean;
+    agent: NewRoutineDialogAgent;
+    initialHeartbeat?: string;
+    initialActive?: boolean;
     missedRun?: { scheduledAt: string };
   } | null>(null);
-  const [dialogRunning, setDialogRunning] = useState(false);
-  const [dialogSaving, setDialogSaving] = useState(false);
 
   const setSection = useAppStore((state) => state.setSection);
   const cabinetVisibilityModes = useAppStore((state) => state.cabinetVisibilityModes);
@@ -207,59 +193,15 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
       });
     } else if (event.sourceType === "heartbeat" && event.agentRef) {
       setHeartbeatDialog({
-        agentSlug: event.agentRef.slug,
-        agentName: event.agentRef.name,
-        cabinetPath: event.agentRef.cabinetPath || cabinetPath,
-        heartbeat: event.agentRef.heartbeat || "0 9 * * 1-5",
-        active: event.agentRef.active,
+        agent: {
+          slug: event.agentRef.slug,
+          name: event.agentRef.name,
+          role: event.agentRef.role,
+          cabinetPath: event.agentRef.cabinetPath || cabinetPath,
+        },
+        initialHeartbeat: event.agentRef.heartbeat || "0 9 * * 1-5",
+        initialActive: event.agentRef.active,
       });
-    }
-  }
-
-  async function runDialogHeartbeat() {
-    if (!heartbeatDialog) return;
-    setDialogRunning(true);
-    try {
-      const res = await fetch(`/api/agents/personas/${heartbeatDialog.agentSlug}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run", cabinetPath: heartbeatDialog.cabinetPath }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setHeartbeatDialog(null);
-        if (data.sessionId) {
-          setSection({
-            type: "agent",
-            slug: heartbeatDialog.agentSlug,
-            cabinetPath: heartbeatDialog.cabinetPath,
-            agentScopedId: `${heartbeatDialog.cabinetPath}::agent::${heartbeatDialog.agentSlug}`,
-            conversationId: data.sessionId,
-          });
-        }
-      }
-    } finally {
-      setDialogRunning(false);
-    }
-  }
-
-  async function saveDialogHeartbeat() {
-    if (!heartbeatDialog) return;
-    setDialogSaving(true);
-    try {
-      await fetch(`/api/agents/personas/${heartbeatDialog.agentSlug}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          heartbeat: heartbeatDialog.heartbeat,
-          active: heartbeatDialog.active,
-          cabinetPath: heartbeatDialog.cabinetPath,
-        }),
-      });
-      setHeartbeatDialog(null);
-      void loadOverview();
-    } finally {
-      setDialogSaving(false);
     }
   }
 
@@ -437,72 +379,20 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
       />
 
       {/* ── Heartbeat dialog ── */}
-      {heartbeatDialog ? (
-        <Dialog open onOpenChange={(open) => { if (!open) setHeartbeatDialog(null); }}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-3 pr-10">
-                <DialogTitle className="flex items-center gap-2">
-                  <HeartPulse className="h-4 w-4 text-pink-400" />
-                  Heartbeat
-                  <span className="text-[11px] font-normal text-muted-foreground">· {heartbeatDialog.agentName}</span>
-                </DialogTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1 text-xs"
-                  onClick={() => void runDialogHeartbeat()}
-                  disabled={dialogRunning}
-                >
-                  {dialogRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                  Run now
-                </Button>
-              </div>
-            </DialogHeader>
-            <div className="space-y-3">
-              {heartbeatDialog.missedRun && <MissedRunBanner scheduledAt={heartbeatDialog.missedRun.scheduledAt} />}
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
-                <SchedulePicker
-                  value={heartbeatDialog.heartbeat}
-                  onChange={(cron) =>
-                    setHeartbeatDialog((prev) => (prev ? { ...prev, heartbeat: cron } : prev))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-3">
-                <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={heartbeatDialog.active}
-                    onChange={(e) =>
-                      setHeartbeatDialog((prev) =>
-                        prev ? { ...prev, active: e.target.checked } : prev
-                      )
-                    }
-                    className="h-3.5 w-3.5 cursor-pointer appearance-none rounded-sm border border-border bg-background transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-1"
-                  />
-                  Active
-                </label>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setHeartbeatDialog(null)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1 text-xs"
-                    onClick={() => void saveDialogHeartbeat()}
-                    disabled={dialogSaving}
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {dialogSaving ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      ) : null}
+      <HeartbeatDialog
+        open={heartbeatDialog !== null}
+        onOpenChange={(next) => {
+          if (!next) setHeartbeatDialog(null);
+        }}
+        agent={heartbeatDialog?.agent ?? { slug: "", name: "" }}
+        initialHeartbeat={heartbeatDialog?.initialHeartbeat}
+        initialActive={heartbeatDialog?.initialActive}
+        missedRun={heartbeatDialog?.missedRun}
+        onSaved={() => {
+          setHeartbeatDialog(null);
+          void loadOverview();
+        }}
+      />
     </div>
   );
 }
@@ -516,18 +406,3 @@ function CountPill({ label, value }: { label: string; value: number }) {
   );
 }
 
-function MissedRunBanner({ scheduledAt }: { scheduledAt: string }) {
-  const when = new Date(scheduledAt);
-  const label = `${when.toLocaleDateString()} ${when.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  })}`;
-  return (
-    <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
-      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-      <div className="space-y-0.5">
-        <p className="font-medium">This run did not execute at {label}.</p>
-      </div>
-    </div>
-  );
-}
