@@ -42,7 +42,7 @@ export function AgentIdentity({
     return (
       <span
         className={cn(
-          "relative shrink-0 overflow-hidden rounded-full bg-muted",
+          "relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted",
           dims.box,
           className
         )}
