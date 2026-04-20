@@ -70,7 +70,6 @@ import type {
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { ScheduleCalendar } from "@/components/cabinets/schedule-calendar";
-import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { NewRoutineDialog } from "@/components/agents/new-routine-dialog";
 import type { JobConfig } from "@/types/jobs";
 import {

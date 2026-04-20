@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Play, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Play, Save, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -47,13 +47,20 @@ export function NewRoutineDialog({
   existingJob,
   onSaved,
   onDeleted,
+  missedRun,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agent: NewRoutineDialogAgent;
-  existingJob?: JobConfig | null;
+  /** Either a full JobConfig (edit mode) or a partial with id/name/schedule/prompt
+   *  (from a lightweight source like `CabinetJobSummary`). Missing fields are
+   *  back-filled from sensible defaults; the PUT only writes what was changed. */
+  existingJob?: Partial<JobConfig> | null;
   onSaved?: (job: JobConfig) => void;
   onDeleted?: (id: string) => void;
+  /** Optional "this run did not execute" banner (from cabinet-view's
+   *  scheduled-but-missing-conversation flow). */
+  missedRun?: { scheduledAt: string };
 }) {
   const providers = useAppStore((s) => s.providers);
   const defaultProviderId = useAppStore((s) => s.defaultProviderId);
@@ -71,12 +78,8 @@ export function NewRoutineDialog({
   // inherit the last edit's fields, and an edit always shows current values).
   useEffect(() => {
     if (!open) return;
-    if (existingJob) {
-      setDraft({ ...existingJob });
-      return;
-    }
     const now = new Date().toISOString();
-    setDraft({
+    const base: JobConfig = {
       id: "",
       name: "",
       enabled: true,
@@ -96,7 +99,12 @@ export function NewRoutineDialog({
       cabinetPath: agent.cabinetPath,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+    if (existingJob) {
+      setDraft({ ...base, ...existingJob } as JobConfig);
+      return;
+    }
+    setDraft(base);
   }, [
     open,
     existingJob,
@@ -257,6 +265,7 @@ export function NewRoutineDialog({
 
         {draft ? (
           <div className="space-y-4">
+            {missedRun ? <MissedRunBanner scheduledAt={missedRun.scheduledAt} /> : null}
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
               <div className="space-y-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -426,4 +435,25 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function MissedRunBanner({ scheduledAt }: { scheduledAt: string }) {
+  const when = new Date(scheduledAt);
+  const label = `${when.toLocaleDateString()} ${when.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <div className="space-y-0.5">
+        <p className="font-medium">This run did not execute at {label}.</p>
+        <p className="text-[11px] opacity-80">
+          Possible causes: the Cabinet daemon was not running, the schedule
+          was disabled at that time, or the run failed to start before it was
+          recorded.
+        </p>
+      </div>
+    </div>
+  );
 }

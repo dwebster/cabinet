@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  Clock3,
   FolderTree,
   HeartPulse,
   Loader2,
@@ -24,6 +23,11 @@ import { HeaderActions } from "@/components/layout/header-actions";
 import { VersionHistory } from "@/components/editor/version-history";
 import { CabinetSchedulerControls } from "@/components/cabinets/cabinet-scheduler-controls";
 import { CabinetTaskComposer } from "@/components/cabinets/cabinet-task-composer";
+import {
+  NewRoutineDialog,
+  type NewRoutineDialogAgent,
+} from "@/components/agents/new-routine-dialog";
+import type { JobConfig } from "@/types/jobs";
 import { ActivityFeed } from "@/components/cabinets/activity-feed";
 import { CABINET_VISIBILITY_OPTIONS } from "@/lib/cabinets/visibility";
 import { useAppStore } from "@/stores/app-store";
@@ -48,11 +52,9 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
   const [composerFocusRequest, setComposerFocusRequest] = useState(0);
   const [orgChartOpen, setOrgChartOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const [jobDialog, setJobDialog] = useState<{
-    agentSlug: string;
-    agentName: string;
-    cabinetPath: string;
-    draft: { id: string; name: string; schedule: string; prompt: string; enabled: boolean };
+  const [routineDialog, setRoutineDialog] = useState<{
+    agent: NewRoutineDialogAgent;
+    existingJob?: Partial<JobConfig>;
     missedRun?: { scheduledAt: string };
   } | null>(null);
   const [heartbeatDialog, setHeartbeatDialog] = useState<{
@@ -188,11 +190,14 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
 
   function handleScheduleEventClick(event: ScheduleEvent) {
     if (event.sourceType === "job" && event.jobRef && event.agentRef) {
-      setJobDialog({
-        agentSlug: event.agentRef.slug,
-        agentName: event.agentRef.name,
-        cabinetPath: event.agentRef.cabinetPath || cabinetPath,
-        draft: {
+      setRoutineDialog({
+        agent: {
+          slug: event.agentRef.slug,
+          name: event.agentRef.name,
+          role: event.agentRef.role,
+          cabinetPath: event.agentRef.cabinetPath || cabinetPath,
+        },
+        existingJob: {
           id: event.jobRef.id,
           name: event.jobRef.name,
           schedule: event.jobRef.schedule,
@@ -208,50 +213,6 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
         heartbeat: event.agentRef.heartbeat || "0 9 * * 1-5",
         active: event.agentRef.active,
       });
-    }
-  }
-
-  async function runDialogJob() {
-    if (!jobDialog) return;
-    setDialogRunning(true);
-    try {
-      const res = await fetch(`/api/agents/${jobDialog.agentSlug}/jobs/${jobDialog.draft.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run", cabinetPath: jobDialog.cabinetPath }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setJobDialog(null);
-        if (data.run?.id) {
-          setSection({
-            type: "agent",
-            slug: jobDialog.agentSlug,
-            cabinetPath: jobDialog.cabinetPath,
-            agentScopedId: `${jobDialog.cabinetPath}::agent::${jobDialog.agentSlug}`,
-            conversationId: data.run.id,
-          });
-        }
-      }
-    } finally {
-      setDialogRunning(false);
-    }
-  }
-
-  async function saveDialogJob() {
-    if (!jobDialog) return;
-    setDialogSaving(true);
-    try {
-      const query = `?cabinetPath=${encodeURIComponent(jobDialog.cabinetPath)}`;
-      await fetch(`/api/agents/${jobDialog.agentSlug}/jobs/${jobDialog.draft.id}${query}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(jobDialog.draft),
-      });
-      setJobDialog(null);
-      void loadOverview();
-    } finally {
-      setDialogSaving(false);
     }
   }
 
@@ -457,86 +418,23 @@ export function CabinetView({ cabinetPath }: { cabinetPath: string }) {
       />
 
       {/* ── Job dialog ── */}
-      {jobDialog ? (
-        <Dialog open onOpenChange={(open) => { if (!open) setJobDialog(null); }}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-3 pr-10">
-                <DialogTitle className="flex items-center gap-2">
-                  <Clock3 className="h-4 w-4 text-emerald-400" />
-                  {jobDialog.draft.name || "Job"}
-                  <span className="text-[11px] font-normal text-muted-foreground">· {jobDialog.agentName}</span>
-                </DialogTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1 text-xs"
-                  onClick={() => void runDialogJob()}
-                  disabled={dialogRunning}
-                >
-                  {dialogRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                  Run now
-                </Button>
-              </div>
-            </DialogHeader>
-            <div className="space-y-3">
-              {jobDialog.missedRun && <MissedRunBanner scheduledAt={jobDialog.missedRun.scheduledAt} />}
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
-                <SchedulePicker
-                  value={jobDialog.draft.schedule || "0 9 * * 1-5"}
-                  onChange={(cron) =>
-                    setJobDialog((prev) =>
-                      prev ? { ...prev, draft: { ...prev.draft, schedule: cron } } : prev
-                    )
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Prompt</span>
-                <textarea
-                  value={jobDialog.draft.prompt}
-                  onChange={(e) =>
-                    setJobDialog((prev) =>
-                      prev ? { ...prev, draft: { ...prev.draft, prompt: e.target.value } } : prev
-                    )
-                  }
-                  className="h-48 w-full resize-none rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-                  placeholder="What should this job do?"
-                />
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-3">
-                <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={jobDialog.draft.enabled}
-                    onChange={(e) =>
-                      setJobDialog((prev) =>
-                        prev ? { ...prev, draft: { ...prev.draft, enabled: e.target.checked } } : prev
-                      )
-                    }
-                  />
-                  Enabled
-                </label>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setJobDialog(null)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1 text-xs"
-                    onClick={() => void saveDialogJob()}
-                    disabled={dialogSaving}
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {dialogSaving ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      ) : null}
+      <NewRoutineDialog
+        open={routineDialog !== null}
+        onOpenChange={(next) => {
+          if (!next) setRoutineDialog(null);
+        }}
+        agent={routineDialog?.agent ?? { slug: "", name: "" }}
+        existingJob={routineDialog?.existingJob}
+        missedRun={routineDialog?.missedRun}
+        onSaved={() => {
+          setRoutineDialog(null);
+          void loadOverview();
+        }}
+        onDeleted={() => {
+          setRoutineDialog(null);
+          void loadOverview();
+        }}
+      />
 
       {/* ── Heartbeat dialog ── */}
       {heartbeatDialog ? (

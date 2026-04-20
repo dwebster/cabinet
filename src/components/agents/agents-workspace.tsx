@@ -38,6 +38,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ConversationSessionView } from "@/components/agents/conversation-session-view";
 import { OrgChartModal } from "@/components/cabinets/org-chart-modal";
+import {
+  NewRoutineDialog,
+  type NewRoutineDialogAgent,
+} from "@/components/agents/new-routine-dialog";
 import { ScheduleView } from "@/components/tasks/board-v2/schedule-view";
 import {
   DropdownMenu,
@@ -454,8 +458,8 @@ export function AgentsWorkspace({
   const [settingsBodyMode, setSettingsBodyMode] = useState<"write" | "preview">("preview");
   const [settingsEditorOpen, setSettingsEditorOpen] = useState(false);
   const [customAgentDialogOpen, setCustomAgentDialogOpen] = useState(false);
-  const [newJobDialogOpen, setNewJobDialogOpen] = useState(false);
-  const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
+  const [, setNewJobDialogOpen] = useState(false);
+  const [, setLibraryDialogOpen] = useState(false);
   const [conversationDetailsOpen, setConversationDetailsOpen] = useState(false);
   const [detailsCopied, setDetailsCopied] = useState(false);
   const [libraryTemplates, setLibraryTemplates] = useState<JobLibraryTemplate[]>([]);
@@ -498,6 +502,10 @@ export function AgentsWorkspace({
   const [orgChartOpen, setOrgChartOpen] = useState(false);
   const [scheduleFullscreen, setScheduleFullscreen] = useState(false);
   const [newRoutineIsNew, setNewRoutineIsNew] = useState(false);
+  const [routineDialog, setRoutineDialog] = useState<{
+    agent: NewRoutineDialogAgent;
+    existingJob?: JobConfig;
+  } | null>(null);
   const [cabinetJobs, setCabinetJobs] = useState<CabinetJobSummary[]>([]);
   const [cabinetChildren, setCabinetChildren] = useState<CabinetOverview["children"]>([]);
   const cabinetVisibilityModes = useAppStore((state) => state.cabinetVisibilityModes);
@@ -1332,30 +1340,27 @@ export function AgentsWorkspace({
     setJobDraft(null);
   }
 
-  // Open the "New Job" dialog for a specific agent from anywhere on the page
-  // (Routines header button, Routines list empty state). Uses requestAnimationFrame
-  // so the DropdownMenu/dialog that triggered us can finish closing before we
-  // open a new Dialog — otherwise base-ui focus-lock can cancel the open.
+  // Open the shared NewRoutineDialog for a specific agent. Create vs edit
+  // is controlled by whether `existingJob` is passed. rAF defers past the
+  // DropdownMenu close so base-ui focus-lock doesn't cancel the dialog open.
+  function openRoutineDialog(agent: AgentListItem, existingJob?: JobConfig) {
+    const next: { agent: NewRoutineDialogAgent; existingJob?: JobConfig } = {
+      agent: {
+        slug: agent.slug,
+        name: agent.name,
+        role: agent.role,
+        cabinetPath: agent.cabinetPath || effectiveCabinetPath,
+        provider: agent.provider,
+        adapterType: agent.adapterType,
+      },
+      existingJob,
+    };
+    requestAnimationFrame(() => setRoutineDialog(next));
+  }
+
+  // Back-compat alias used by the Add-routine / Add-scheduled-job buttons.
   function openNewRoutineFor(agent: AgentListItem) {
-    const agentCabinet = agent.cabinetPath || effectiveCabinetPath;
-    requestAnimationFrame(() => {
-      setSettingsTarget(agent.slug);
-      setSettingsAgentCabinetPath(agentCabinet);
-      setSelectedJobId("__new__");
-      setJobDraft(
-        blankJobDraft(
-          agent.slug,
-          agent.provider || defaultProvider || "claude-code",
-          resolveAdapterTypeForProvider(
-            providers,
-            agent.provider || defaultProvider || "claude-code",
-            agent.adapterType,
-            defaultProvider
-          )
-        )
-      );
-      setNewJobDialogOpen(true);
-    });
+    openRoutineDialog(agent);
   }
 
   async function saveJob() {
@@ -3279,14 +3284,14 @@ export function AgentsWorkspace({
                           const existing = (agentJobsMap[agent.slug] || []).find(
                             (j) => j.id === job.id
                           );
-                          setNewRoutineIsNew(false);
-                          setOrgChartJobDialog({
-                            agentSlug: agent.slug,
-                            agentName: agent.name,
-                            cabinetPath: agent.cabinetPath || effectiveCabinetPath,
-                            draft: existing
-                              ? { ...existing }
-                              : blankJobDraft(agent.slug, defaultProvider),
+                          setRoutineDialog({
+                            agent: {
+                              slug: agent.slug,
+                              name: agent.name,
+                              role: agent.role,
+                              cabinetPath: agent.cabinetPath || effectiveCabinetPath,
+                            },
+                            existingJob: existing || undefined,
                           });
                         }}
                         onHeartbeatClick={(agent) => {
@@ -3366,15 +3371,7 @@ export function AgentsWorkspace({
                           <li key={`${owner.slug}:${job.id}`}>
                             <button
                               type="button"
-                              onClick={() =>
-                                setOrgChartJobDialog({
-                                  agentSlug: owner.slug,
-                                  agentName: owner.name,
-                                  cabinetPath:
-                                    owner.cabinetPath || effectiveCabinetPath,
-                                  draft: { ...job },
-                                })
-                              }
+                              onClick={() => openRoutineDialog(owner, { ...job })}
                               className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
                             >
                               <Clock3 className="mt-0.5 size-3.5 shrink-0 text-emerald-400" />
@@ -3572,15 +3569,15 @@ export function AgentsWorkspace({
                 const existing = (agentJobsMap[agent.slug] || []).find(
                   (j) => j.id === job.id
                 );
-                setNewRoutineIsNew(false);
                 setScheduleFullscreen(false);
-                setOrgChartJobDialog({
-                  agentSlug: agent.slug,
-                  agentName: agent.name,
-                  cabinetPath: agent.cabinetPath || effectiveCabinetPath,
-                  draft: existing
-                    ? { ...existing }
-                    : blankJobDraft(agent.slug, defaultProvider),
+                setRoutineDialog({
+                  agent: {
+                    slug: agent.slug,
+                    name: agent.name,
+                    role: agent.role,
+                    cabinetPath: agent.cabinetPath || effectiveCabinetPath,
+                  },
+                  existingJob: existing || undefined,
                 });
               }}
               onHeartbeatClick={(agent) => {
@@ -3598,273 +3595,40 @@ export function AgentsWorkspace({
         </DialogContent>
       </Dialog>
 
-      {/* New job dialog + starter library — root-level so the Add routine
-          button can open them from anywhere on the page. */}
-      <Dialog open={newJobDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-          closeNewJobDialog();
-          return;
-        }
-        setNewJobDialogOpen(true);
-      }}>
-        <DialogContent className="sm:max-w-5xl">
-          <DialogHeader className="gap-2">
-            <div className="flex items-start justify-between gap-3 pr-8">
-              <div className="space-y-2">
-                <DialogTitle className="flex items-center gap-3 text-[22px] font-semibold leading-none tracking-tight text-foreground">
-                  {settingsAgent ? <AgentAvatar slug={settingsAgent.slug} /> : null}
-                  <span className="flex min-w-0 flex-col gap-1 leading-tight">
-                    <span>
-                      {selectedJobId && selectedJobId !== "__new__" ? "Edit routine" : "New routine"}
-                    </span>
-                    {settingsAgent ? (
-                      <span className="text-[13px] font-normal text-muted-foreground">
-                        for{" "}
-                        <span className="font-medium text-foreground">
-                          {settingsAgent.name}
-                        </span>
-                        {settingsAgent.role ? ` · ${settingsAgent.role}` : ""}
-                      </span>
-                    ) : null}
-                  </span>
-                </DialogTitle>
-                <DialogDescription className="text-[13px]">
-                  {selectedJobId && selectedJobId !== "__new__"
-                    ? "Changes take effect on the next run."
-                    : "A routine is a prompt this agent runs on a schedule. Write the prompt once, pick when it should run, and let the agent take it from there."}
-                </DialogDescription>
-              </div>
-              {selectedJobId && selectedJobId !== "__new__" ? (
-                <div className="flex shrink-0 gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 gap-1.5 text-[12px]"
-                    onClick={() => { void runJob(selectedJobId); }}
-                    disabled={runningJobId === selectedJobId}
-                  >
-                    {runningJobId === selectedJobId ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Play className="h-3.5 w-3.5" />
-                    )}
-                    Run now
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 gap-1.5 text-[12px] text-destructive hover:text-destructive"
-                    onClick={() => { void deleteJob(selectedJobId); closeNewJobDialog(); }}
-                    disabled={deletingJobId === selectedJobId}
-                  >
-                    {deletingJobId === selectedJobId ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                    Delete
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          </DialogHeader>
-          {jobDraft ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
-                <div className="space-y-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Prompt
-                  </span>
-                  <textarea
-                    value={jobDraft.prompt}
-                    onChange={(event) =>
-                      setJobDraft((current) =>
-                        current ? { ...current, prompt: event.target.value } : current
-                      )
-                    }
-                    className="h-[55vh] w-full resize-none rounded-lg bg-muted/60 px-3.5 py-3 text-[14px] leading-6 text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-                    placeholder="What should this routine do? e.g. Summarize yesterday's activity…"
-                  />
-                </div>
-                <div className="grid content-start gap-3 sm:grid-cols-2">
-                  <label className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                    <span>Job name</span>
-                    <input
-                      value={jobDraft.name}
-                      onChange={(event) =>
-                        setJobDraft((current) =>
-                          current ? { ...current, name: event.target.value } : current
-                        )
-                      }
-                      className="w-full rounded-lg bg-muted/60 px-3 py-2.5 text-[14px] font-normal normal-case tracking-normal text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-                      placeholder="Weekly strategy digest"
-                    />
-                  </label>
-                  <label className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                    <span>Job id</span>
-                    <input
-                      value={jobDraft.id}
-                      onChange={(event) =>
-                        setJobDraft((current) =>
-                          current ? { ...current, id: event.target.value } : current
-                        )
-                      }
-                      className="w-full rounded-lg bg-muted/60 px-3 py-2.5 font-mono text-[13px] normal-case tracking-normal text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-                      placeholder="weekly-strategy-digest"
-                    />
-                  </label>
-                  <div className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                    <span>Schedule</span>
-                    <SchedulePicker
-                      value={jobDraft.schedule || "0 9 * * 1-5"}
-                      onChange={(cron) =>
-                        setJobDraft((current) =>
-                          current ? { ...current, schedule: cron } : current
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:col-span-2">
-                    <span>Model</span>
-                    <TaskRuntimePicker
-                      value={{
-                        providerId: jobDraft.provider,
-                        adapterType: jobDraft.adapterType,
-                        model:
-                          typeof jobDraft.adapterConfig?.model === "string"
-                            ? (jobDraft.adapterConfig.model as string)
-                            : undefined,
-                        effort:
-                          typeof jobDraft.adapterConfig?.effort === "string"
-                            ? (jobDraft.adapterConfig.effort as string)
-                            : undefined,
-                      }}
-                      onChange={(next) =>
-                        setJobDraft((current) =>
-                          current
-                            ? {
-                                ...current,
-                                provider: next.providerId || current.provider,
-                                adapterType: next.adapterType ?? current.adapterType,
-                                adapterConfig: {
-                                  ...(current.adapterConfig || {}),
-                                  model: next.model,
-                                  effort: next.effort,
-                                },
-                              }
-                            : current
-                        )
-                      }
-                      align="start"
-                      className="h-10 w-full justify-start gap-2 rounded-lg bg-muted/60 px-3 text-[13px] normal-case tracking-normal"
-                    />
-                  </div>
-                  <label className="space-y-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    <span>Timeout (s)</span>
-                    <input
-                      type="number"
-                      value={jobDraft.timeout || 600}
-                      onChange={(event) =>
-                        setJobDraft((current) =>
-                          current
-                            ? { ...current, timeout: parseInt(event.target.value || "600", 10) }
-                            : current
-                        )
-                      }
-                      className="w-full rounded-lg bg-muted/60 px-3 py-2.5 text-[14px] normal-case tracking-normal text-foreground outline-none transition-colors focus:bg-muted"
-                    />
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground sm:col-span-2">
-                    <input
-                      type="checkbox"
-                      checked={jobDraft.enabled}
-                      onChange={(event) =>
-                        setJobDraft((current) =>
-                          current ? { ...current, enabled: event.target.checked } : current
-                        )
-                      }
-                      className="size-4"
-                    />
-                    <span>Enabled</span>
-                  </label>
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-4">
-                {!(selectedJobId && selectedJobId !== "__new__") ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 gap-1.5 text-[12px]"
-                    onClick={() => setLibraryDialogOpen(true)}
-                  >
-                    <Library className="h-3.5 w-3.5" />
-                    Starter library
-                  </Button>
-                ) : <div />}
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-9 text-[13px]" onClick={closeNewJobDialog}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-9 gap-1.5 text-[13px] font-semibold"
-                    onClick={() => void saveJob()}
-                    disabled={
-                      savingJob ||
-                      !jobDraft.name.trim() ||
-                      !jobDraft.id.trim() ||
-                      !jobDraft.prompt.trim()
-                    }
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {savingJob ? "Saving..." : selectedJobId && selectedJobId !== "__new__" ? "Save" : "Create routine"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      {/* Consolidated routine editor — used by every "Add routine" button and
+          every click-to-edit on a job across this page. */}
+      <NewRoutineDialog
+        open={routineDialog !== null}
+        onOpenChange={(next) => {
+          if (!next) setRoutineDialog(null);
+        }}
+        agent={routineDialog?.agent ?? { slug: "", name: "" }}
+        existingJob={routineDialog?.existingJob}
+        onSaved={(saved) => {
+          const ownerSlug = routineDialog?.agent.slug;
+          if (ownerSlug) {
+            setAgentJobsMap((prev) => {
+              const current = prev[ownerSlug] || [];
+              const next = current.some((j) => j.id === saved.id)
+                ? current.map((j) => (j.id === saved.id ? saved : j))
+                : [...current, saved];
+              return { ...prev, [ownerSlug]: next };
+            });
+          }
+          setRoutineDialog(null);
+        }}
+        onDeleted={(deletedId) => {
+          const ownerSlug = routineDialog?.agent.slug;
+          if (ownerSlug) {
+            setAgentJobsMap((prev) => ({
+              ...prev,
+              [ownerSlug]: (prev[ownerSlug] || []).filter((j) => j.id !== deletedId),
+            }));
+          }
+          setRoutineDialog(null);
+        }}
+      />
 
-      <Dialog open={libraryDialogOpen} onOpenChange={setLibraryDialogOpen}>
-        <DialogContent className="sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Starter Library</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[70vh]">
-            <div className="grid gap-3 pr-2 md:grid-cols-2">
-              {libraryTemplates.map((template) => (
-                <div
-                  key={template.id}
-                  className="rounded-xl border border-border bg-background px-4 py-4"
-                >
-                  <div className="flex h-full flex-col">
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-medium">{template.name}</div>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {template.description}
-                      </p>
-                      <p className="mt-3 text-[10px] text-muted-foreground">
-                        Suggested schedule: {cronToHuman(template.schedule)}
-                      </p>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => applyLibraryTemplate(template)}
-                      >
-                        Use template
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
 
       {/* Add agent dialogs (browse library + custom) — root-level so the
           header 'Add agent' button can open them from any mode. */}
@@ -4197,86 +3961,6 @@ export function AgentsWorkspace({
         </DialogContent>
       </Dialog>
 
-      {/* Org chart — job popup */}
-      {orgChartJobDialog ? (
-        <Dialog open onOpenChange={(open) => { if (!open) { setOrgChartJobDialog(null); setNewRoutineIsNew(false); } }}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-3 pr-10">
-                <DialogTitle className="flex items-center gap-2">
-                  <Clock3 className="h-4 w-4 text-emerald-400" />
-                  {orgChartJobDialog.draft.name || "Job"}
-                  <span className="text-[11px] font-normal text-muted-foreground">· {orgChartJobDialog.agentName}</span>
-                </DialogTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1 text-xs"
-                  onClick={() => void runOrgChartJob()}
-                  disabled={orgChartJobRunning}
-                >
-                  {orgChartJobRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                  Run now
-                </Button>
-              </div>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Schedule</span>
-                <SchedulePicker
-                  value={orgChartJobDialog.draft.schedule || "0 9 * * 1-5"}
-                  onChange={(cron) =>
-                    setOrgChartJobDialog((prev) =>
-                      prev ? { ...prev, draft: { ...prev.draft, schedule: cron } } : prev
-                    )
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Prompt</span>
-                <textarea
-                  value={orgChartJobDialog.draft.prompt}
-                  onChange={(e) =>
-                    setOrgChartJobDialog((prev) =>
-                      prev ? { ...prev, draft: { ...prev.draft, prompt: e.target.value } } : prev
-                    )
-                  }
-                  className="h-48 w-full resize-none rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:bg-muted"
-                  placeholder="What should this job do?"
-                />
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-3">
-                <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={orgChartJobDialog.draft.enabled}
-                    onChange={(e) =>
-                      setOrgChartJobDialog((prev) =>
-                        prev ? { ...prev, draft: { ...prev.draft, enabled: e.target.checked } } : prev
-                      )
-                    }
-                  />
-                  Enabled
-                </label>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setOrgChartJobDialog(null)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1 text-xs"
-                    onClick={() => void saveOrgChartJob()}
-                    disabled={orgChartJobSaving}
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {orgChartJobSaving ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      ) : null}
 
       {/* Org chart — heartbeat popup */}
       {orgChartHeartbeatDialog ? (
