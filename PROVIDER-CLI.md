@@ -367,6 +367,8 @@ Current UX: users edit `skills: [slug, slug]` directly in the agent's markdown f
 | UX-2 | Terminal mode: replace the Tabs + matrix with a dedicated `TerminalProviderPanel` (dark card, header "Pick a CLI to spawn in a PTY:", 2-3 col grid of CLI cards with glyph + name + ready/log-in/not-installed status, footer noting model/effort defaults + resume-capable providers). Click a ready card = select it with an emerald highlight. | ✅ Done | `2981581` |
 | UX-3 | Composer collapsed trigger button indicates terminal mode — `>_` terminal glyph in an emerald-bordered dark zinc container, trailing "Terminal" label in emerald uppercase (replacing the effort label since PTY uses CLI defaults). Whole button: dark zinc bg + emerald/40 border. | ✅ Done | `09c87a2` |
 | UX-4 | Native-mode provider tabs collapse to icon-only when inactive. Active tab widens to icon + name (+ "Not ready" chip when unready); inactive tabs render just the ProviderGlyph with tooltip. Fits all 8 providers without horizontal scroll. | ✅ Done | `09c87a2` |
+| UX-5 | Bigger Native/Terminal tabs — 2-col `h-9` tab layout with icons + labels + ring-border selected state (replaces the small pill segmented control). Terminal tab carries a permanent red `EXPERIMENTAL` badge; whole tab darkens to zinc-900 with emerald ring when selected. | ✅ Done | `542de01` |
+| UX-6 | Terminal panel footer — three-paragraph notice: EXPERIMENTAL warning (no artifact extraction, no live summaries, no structured task-board panels), existing model/effort + resume wiring note, Discord CTA linking to `https://discord.gg/hJa5TRTbTH` for users who want native integration for their CLI. | ✅ Done | `542de01` |
 
 ## 13. Operational Notes
 
