@@ -784,12 +784,12 @@ export function RuntimeMatrixPicker({
   const isTerminal = runtimeMode === "terminal";
 
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div className={cn("flex flex-col", className)}>
       {showRuntimeModeToggle && (
         <div
           role="tablist"
           aria-label="Runtime mode"
-          className="grid grid-cols-2 gap-1.5 rounded-lg border border-border/70 bg-muted/40 p-1 text-[12px] font-medium"
+          className="relative z-10 grid grid-cols-2 gap-1 -mb-px px-2 pt-2 text-[12px] font-medium"
         >
           <button
             type="button"
@@ -797,10 +797,10 @@ export function RuntimeMatrixPicker({
             aria-selected={!isTerminal}
             onClick={() => setRuntimeMode("native")}
             className={cn(
-              "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 transition-all",
+              "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
               !isTerminal
-                ? "bg-background text-foreground shadow-sm ring-1 ring-border/70"
-                : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                ? "border-border/70 bg-background text-foreground shadow-[0_-1px_0_0_var(--border)]"
+                : "border-transparent bg-muted/50 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
             )}
             title="Cabinet's native transcript — structured JSON stream, artifacts, summary, the full UX"
           >
@@ -813,25 +813,15 @@ export function RuntimeMatrixPicker({
             aria-selected={isTerminal}
             onClick={() => setRuntimeMode("terminal")}
             className={cn(
-              "relative inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 transition-all",
+              "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
               isTerminal
-                ? "bg-zinc-900 text-zinc-100 shadow-sm ring-1 ring-emerald-500/40 dark:ring-emerald-400/40"
-                : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                ? "border-emerald-500/50 bg-zinc-950 text-zinc-100 shadow-[0_-1px_0_0_rgba(16,185,129,0.5)] dark:border-emerald-400/50"
+                : "border-transparent bg-muted/50 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
             )}
-            title="Run the CLI in a live PTY terminal session (experimental)"
+            title="Run the CLI in a live PTY terminal session (experimental hacker mode)"
           >
             <Terminal className="h-4 w-4" />
             <span>Terminal</span>
-            <span
-              className={cn(
-                "rounded-sm px-1 py-px text-[8.5px] font-bold uppercase tracking-wider",
-                isTerminal
-                  ? "bg-red-500 text-white"
-                  : "bg-red-500/15 text-red-600 dark:bg-red-500/20 dark:text-red-400"
-              )}
-            >
-              Experimental
-            </span>
           </button>
         </div>
       )}
@@ -851,7 +841,7 @@ export function RuntimeMatrixPicker({
           onValueChange={setActiveProviderId}
           className="gap-0"
         >
-          <div className="overflow-hidden rounded-lg border border-border/70">
+          <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
             <div className="flex px-1.5 pt-1.5 overflow-x-auto scrollbar-none">
               <TabsList
                 variant="line"
@@ -1026,10 +1016,15 @@ function TerminalProviderPanel({
           <span className="rounded-sm bg-red-500 px-1 py-px text-[8.5px] font-bold uppercase tracking-wider text-white">
             Experimental
           </span>
+          <span className="rounded-sm bg-emerald-500/20 px-1 py-px font-mono text-[8.5px] font-bold uppercase tracking-wider text-emerald-300">
+            Hacker mode
+          </span>
           <span className="text-zinc-300">
             Streaming a CLI through Cabinet&apos;s UI isn&apos;t as rich as the
             native transcript view — you lose artifact extraction, live
             summaries, and the structured task board &quot;what happened&quot; panels.
+            Great if you want to watch the CLI talk to itself; less great if
+            you want Cabinet to organize the output.
           </span>
         </p>
         <p>
