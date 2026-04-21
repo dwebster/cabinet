@@ -104,6 +104,7 @@ export function artifactPathToTreePath(path: string): string {
   next = next.replace(/^\/+/, "");
   if (next.startsWith("data/")) next = next.slice(5);
   next = next.replace(/\/index\.md$/, "");
+  next = next.replace(/\/index\.html$/, "");
   next = next.replace(/\.md$/, "");
   return next;
 }

@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, FileText, Files, PackageOpen, Sparkles, CheckCircle, XCircle, Clock } from "lucide-react";
 import type { ConversationDetail } from "@/types/conversations";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { appendConversationCabinetPath } from "@/lib/agents/conversation-identity";
+import {
+  artifactPathToTreePath,
+  inferPageTypeFromPath,
+  pageTypeColor,
+  pageTypeIcon,
+} from "@/lib/ui/page-type-icons";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { cn } from "@/lib/utils";
 import { PendingActionsPanel } from "./pending-actions-panel";
 
 function StatusBadge({ status }: { status: string }) {
@@ -41,6 +49,11 @@ export function ConversationResultView({
   );
   const promptText = detail.request || detail.meta.title;
   const [promptHtml, setPromptHtml] = useState("");
+  const artifactTreePaths = useMemo(
+    () => detail.artifacts.map((a) => artifactPathToTreePath(a.path)),
+    [detail.artifacts]
+  );
+  const artifactMeta = usePageMeta(artifactTreePaths);
 
   useEffect(() => {
     if (!promptText) return;
@@ -182,21 +195,27 @@ export function ConversationResultView({
 
           {detail.artifacts.length > 0 ? (
             <div className="space-y-2">
-              {detail.artifacts.map((artifact) => (
-                <button
-                  key={artifact.path}
-                  onClick={() => onOpenArtifact(artifact.path)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition-colors hover:border-primary/30 hover:bg-muted/40"
-                >
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-medium text-foreground">
-                      {artifact.label || artifact.path.split("/").pop()}
+              {detail.artifacts.map((artifact) => {
+                const treePath = artifactPathToTreePath(artifact.path);
+                const kind = artifactMeta.get(treePath)?.type ?? inferPageTypeFromPath(artifact.path);
+                const Icon = pageTypeIcon(kind);
+                const color = pageTypeColor(kind);
+                return (
+                  <button
+                    key={artifact.path}
+                    onClick={() => onOpenArtifact(artifact.path)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition-colors hover:border-primary/30 hover:bg-muted/40"
+                  >
+                    <Icon className={cn("h-4 w-4 shrink-0", color)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-medium text-foreground">
+                        {artifact.label || artifact.path.split("/").pop()}
+                      </div>
+                      <div className="truncate text-[11px] text-muted-foreground">{artifact.path}</div>
                     </div>
-                    <div className="truncate text-[11px] text-muted-foreground">{artifact.path}</div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           ) : detail.meta.status === "running" ? (
             <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-[12px] leading-relaxed text-emerald-300">

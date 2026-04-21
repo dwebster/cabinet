@@ -4,6 +4,7 @@ import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
+import { AgentAvatar, hasAgentAvatarImage } from "@/components/agents/agent-avatar";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import type { ConversationMeta } from "@/types/conversations";
 
@@ -82,6 +83,7 @@ export function FilterBar({
         </button>
         {agents.map((agent) => {
           const active = agentFilter === agent.slug;
+          const hasImage = hasAgentAvatarImage(agent);
           const tint = agent.color ? tintFromHex(agent.color) : getAgentColor(agent.slug);
           const Icon = resolveAgentIcon(agent.slug, agent.iconKey ?? null);
           return (
@@ -90,13 +92,19 @@ export function FilterBar({
               type="button"
               onClick={() => onAgentChange(active ? null : agent.slug)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-medium transition-colors",
-                active ? "border-foreground" : "border-transparent hover:border-border/60"
+                "inline-flex shrink-0 items-center gap-1 rounded-full border py-0.5 font-medium transition-colors",
+                hasImage ? "pl-0.5 pr-2" : "px-2",
+                active ? "border-foreground" : "border-transparent hover:border-border/60",
+                hasImage && (active
+                  ? "bg-muted text-foreground"
+                  : "bg-muted/60 text-muted-foreground hover:text-foreground")
               )}
               style={
-                active
-                  ? { backgroundColor: tint.bg, color: tint.text }
-                  : { backgroundColor: tint.bg, color: tint.text, opacity: 0.65 }
+                hasImage
+                  ? undefined
+                  : active
+                    ? { backgroundColor: tint.bg, color: tint.text }
+                    : { backgroundColor: tint.bg, color: tint.text, opacity: 0.65 }
               }
               title={
                 agent.active
@@ -104,7 +112,11 @@ export function FilterBar({
                   : `${agent.displayName ?? agent.name} (paused)`
               }
             >
-              <Icon className="size-3" />
+              {hasImage ? (
+                <AgentAvatar agent={agent} shape="circle" size="xs" />
+              ) : (
+                <Icon className="size-3" />
+              )}
               {agent.displayName ?? agent.name}
             </button>
           );

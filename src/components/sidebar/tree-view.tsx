@@ -45,7 +45,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AgentIdentity, getAgentDisplayName } from "@/components/agents/agent-identity";
+import { AgentAvatar, getAgentDisplayName } from "@/components/agents/agent-avatar";
 import { EditAgentIdentityDialog } from "@/components/agents/edit-agent-identity-dialog";
 import {
   findNodeByPath,
@@ -295,7 +295,7 @@ export function TreeView() {
         )}
         style={pad(1)}
       >
-        <AgentIdentity
+        <AgentAvatar
           agent={{
             slug: agent.slug,
             cabinetPath: agent.cabinetPath,
@@ -306,6 +306,7 @@ export function TreeView() {
             avatarExt: agent.avatarExt,
           }}
           size="sm"
+          shape="square"
         />
         <span className="min-w-0 flex-1 truncate text-[12px] text-foreground/75">
           {getAgentDisplayName(agent)}

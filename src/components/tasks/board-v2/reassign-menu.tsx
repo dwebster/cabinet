@@ -2,8 +2,7 @@
 
 import { Check, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
-import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
+import { AgentAvatar } from "@/components/agents/agent-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,10 +51,6 @@ export function ReassignMenu({
         ) : (
           agents.map((agent) => {
             const isCurrent = agent.slug === currentSlug;
-            const tint = agent.color
-              ? tintFromHex(agent.color)
-              : getAgentColor(agent.slug);
-            const Icon = resolveAgentIcon(agent.slug, agent.iconKey ?? null);
             const paused = !agent.active;
             return (
               <DropdownMenuItem
@@ -72,12 +67,7 @@ export function ReassignMenu({
                   isCurrent && "opacity-60"
                 )}
               >
-                <span
-                  className="inline-flex size-5 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: tint.bg, color: tint.text }}
-                >
-                  <Icon className="size-3" />
-                </span>
+                <AgentAvatar agent={agent} shape="circle" size="sm" />
                 <span className="flex-1 truncate text-[12.5px] text-foreground">
                   {agent.displayName ?? agent.name}
                 </span>

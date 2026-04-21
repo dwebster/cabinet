@@ -55,9 +55,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import {
-  AgentIdentity,
+  AgentAvatar,
   getAgentDisplayName,
-} from "@/components/agents/agent-identity";
+} from "@/components/agents/agent-avatar";
 import { ICON_CATALOG, ICON_PICKER_KEYS } from "@/lib/agents/icon-catalog";
 import { AVATAR_PRESETS } from "@/lib/agents/avatar-catalog";
 import type { AgentPersona } from "@/lib/agents/persona-manager";
@@ -798,7 +798,7 @@ function Hero({
             className="group relative focus:outline-none"
             title="Edit icon, color, or avatar"
           >
-            <AgentIdentity
+            <AgentAvatar
               agent={{
                 slug: persona.slug,
                 cabinetPath: persona.cabinetPath,
@@ -809,7 +809,8 @@ function Hero({
                 avatarExt: persona.avatarExt,
               }}
               size="lg"
-              className="!h-16 !w-16 rounded-2xl [&>svg]:!h-7 [&>svg]:!w-7 transition-opacity group-hover:opacity-80"
+              shape="square"
+              className="!h-16 !w-16 !rounded-2xl [&>svg]:!h-7 [&>svg]:!w-7 transition-opacity group-hover:opacity-80"
             />
             <span className="absolute inset-0 flex items-center justify-center rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
               <Pencil className="h-5 w-5 text-white drop-shadow" />

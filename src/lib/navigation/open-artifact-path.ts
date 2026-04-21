@@ -1,6 +1,8 @@
 import { useAppStore, type SelectedSection } from "@/stores/app-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
+import { findNodeByPath } from "@/lib/cabinets/tree";
+import { artifactPathToTreePath } from "@/lib/ui/page-type-icons";
 
 const NON_TEXT_ARTIFACT_EXTENSIONS = [
   ".pdf",
@@ -24,17 +26,16 @@ const NON_TEXT_ARTIFACT_EXTENSIONS = [
   ".flac",
 ];
 
-function expandArtifactParents(path: string): void {
-  const { expandPath } = useTreeStore.getState();
-  const parts = path.split("/").filter(Boolean);
-  for (let index = 1; index < parts.length; index += 1) {
-    expandPath(parts.slice(0, index).join("/"));
-  }
-}
+const VIEWER_ONLY_NODE_TYPES = new Set(["app", "website"]);
 
-function shouldLoadArtifactContent(path: string): boolean {
-  const normalized = path.toLowerCase();
-  return !NON_TEXT_ARTIFACT_EXTENSIONS.some((extension) => normalized.endsWith(extension));
+function shouldLoadArtifactContent(treePath: string): boolean {
+  const normalized = treePath.toLowerCase();
+  if (NON_TEXT_ARTIFACT_EXTENSIONS.some((ext) => normalized.endsWith(ext))) {
+    return false;
+  }
+  const node = findNodeByPath(useTreeStore.getState().nodes, treePath);
+  if (node && VIEWER_ONLY_NODE_TYPES.has(node.type)) return false;
+  return true;
 }
 
 export async function openArtifactPath(
@@ -42,24 +43,24 @@ export async function openArtifactPath(
   section: SelectedSection
 ): Promise<void> {
   const { setSection } = useAppStore.getState();
-  const { selectPage, loadTree } = useTreeStore.getState();
+  const { focusPath, loadTree } = useTreeStore.getState();
   const { loadPage } = useEditorStore.getState();
 
+  const treePath = artifactPathToTreePath(path);
+
   setSection(section);
-  expandArtifactParents(path);
-  selectPage(path);
+  focusPath(treePath);
 
   const work: Promise<unknown>[] = [
     loadTree()
       .then(() => {
-        expandArtifactParents(path);
-        selectPage(path);
+        useTreeStore.getState().focusPath(treePath);
       })
       .catch(() => {}),
   ];
 
-  if (shouldLoadArtifactContent(path)) {
-    work.push(loadPage(path).catch(() => {}));
+  if (shouldLoadArtifactContent(treePath)) {
+    work.push(loadPage(treePath).catch(() => {}));
   }
 
   await Promise.allSettled(work);

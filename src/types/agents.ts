@@ -83,6 +83,12 @@ export interface AgentListItem {
   status?: "active" | "running" | "idle";
   cabinetPath?: string;
   cabinetName?: string;
+  // Identity customization (optional; surfaces render from these when set)
+  displayName?: string;
+  iconKey?: string;
+  color?: string;
+  avatar?: string;
+  avatarExt?: string;
 }
 export interface ProviderModel {
   id: string;

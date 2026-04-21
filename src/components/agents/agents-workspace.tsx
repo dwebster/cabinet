@@ -50,8 +50,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
-import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
+import { AgentAvatar } from "@/components/agents/agent-avatar";
 import {
   appendConversationCabinetPath,
   buildConversationInstanceKey,
@@ -3077,7 +3076,7 @@ export function AgentsWorkspace({
                             className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 text-left transition-colors hover:bg-muted/30"
                           >
                             <div className="flex items-start gap-3">
-                              <AgentAvatar slug={agent.slug} />
+                              <AgentAvatar agent={agent} shape="circle" size="lg" />
                               <div className="min-w-0 flex-1">
                                 <h3 className="truncate text-[13px] font-semibold text-foreground">
                                   {agent.name}
@@ -3174,7 +3173,7 @@ export function AgentsWorkspace({
                             onClick={() => openNewRoutineFor(agent)}
                             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px]"
                           >
-                            <AgentAvatar slug={agent.slug} />
+                            <AgentAvatar agent={agent} shape="circle" size="md" />
                             <span className="flex min-w-0 flex-col leading-tight">
                               <span className="truncate text-[12px] font-medium text-foreground">
                                 {agent.name}
@@ -3292,7 +3291,7 @@ export function AgentsWorkspace({
                               onClick={() => openNewRoutineFor(agent)}
                               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px]"
                             >
-                              <AgentAvatar slug={agent.slug} />
+                              <AgentAvatar agent={agent} shape="circle" size="md" />
                               <span className="flex min-w-0 flex-col leading-tight">
                                 <span className="truncate text-[12px] font-medium text-foreground">
                                   {agent.name}
@@ -3388,7 +3387,7 @@ export function AgentsWorkspace({
                               onClick={() => openAgentSettings(agent.slug)}
                               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px]"
                             >
-                              <AgentAvatar slug={agent.slug} />
+                              <AgentAvatar agent={agent} shape="circle" size="md" />
                               <span className="flex min-w-0 flex-col leading-tight">
                                 <span className="truncate text-[12px] font-medium text-foreground">
                                   {agent.name}
@@ -3995,20 +3994,3 @@ export function AgentsWorkspace({
   );
 }
 
-function AgentAvatar({ slug }: { slug: string }) {
-  const tint = getAgentColor(slug);
-  const Icon = resolveAgentIcon(slug, null);
-  return (
-    <span
-      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full"
-      style={{ backgroundColor: tint.bg, color: tint.text }}
-    >
-      <Icon className="size-4" />
-    </span>
-  );
-}
-
-// `tintFromHex` is imported for parity with other surfaces; not used yet here
-// because `AgentListItem` doesn't carry a custom color. Once the overview
-// response grows to include it we can switch.
-void tintFromHex;

@@ -17,8 +17,7 @@ import { useComposer, type MentionableItem } from "@/hooks/use-composer";
 import { createConversation } from "@/lib/agents/conversation-client";
 import { flattenTree } from "@/lib/tree-utils";
 import { useTreeStore } from "@/stores/tree-store";
-import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
-import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
+import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { cn } from "@/lib/utils";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 import { getGreeting } from "./cabinet-utils";
@@ -193,7 +192,7 @@ function AgentPickerCompact({
       >
         {selected ? (
           <>
-            <AgentAvatar agent={selected} />
+            <AgentAvatar agent={selected} shape="circle" size="md" />
             <span className="text-[11px] font-medium text-foreground">
               {selected.displayName ?? selected.name}
             </span>
@@ -215,7 +214,7 @@ function AgentPickerCompact({
                 isSelected && "bg-accent text-accent-foreground"
               )}
             >
-              <AgentAvatar agent={agent} />
+              <AgentAvatar agent={agent} shape="circle" size="md" />
               <span className="flex min-w-0 flex-col leading-tight">
                 <span className="truncate text-[12px] font-medium text-foreground">
                   {agent.displayName ?? agent.name}
@@ -233,15 +232,3 @@ function AgentPickerCompact({
   );
 }
 
-function AgentAvatar({ agent }: { agent: CabinetAgentSummary }) {
-  const tint = agent.color ? tintFromHex(agent.color) : getAgentColor(agent.slug);
-  const Icon = resolveAgentIcon(agent.slug, agent.iconKey ?? null);
-  return (
-    <span
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full"
-      style={{ backgroundColor: tint.bg, color: tint.text }}
-    >
-      <Icon className="size-3.5" />
-    </span>
-  );
-}

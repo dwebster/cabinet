@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Download, Code2, Eye, Copy, Check, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { HeaderActions } from "@/components/layout/header-actions";
+import { ViewerToolbar } from "@/components/layout/viewer-toolbar";
 
 interface MermaidViewerProps {
   path: string;
@@ -120,67 +120,55 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div
-        className="flex items-center justify-between border-b border-border px-4 py-2 bg-background/80 backdrop-blur-sm transition-[padding] duration-200"
-        style={{ paddingLeft: `calc(1rem + var(--sidebar-toggle-offset, 0px))` }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] font-medium">{title}</span>
-          <span className="text-xs text-muted-foreground/50 bg-muted px-1.5 py-0.5 rounded">
-            MERMAID
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-7 gap-1.5 text-xs ${showSource ? "bg-muted" : ""}`}
-            onClick={() => setShowSource((v) => !v)}
-          >
-            {showSource ? <Eye className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}
-            {showSource ? "Diagram" : "Source"}
-          </Button>
+      <ViewerToolbar path={path} badge="MERMAID">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`h-7 gap-1.5 text-xs ${showSource ? "bg-muted" : ""}`}
+          onClick={() => setShowSource((v) => !v)}
+        >
+          {showSource ? <Eye className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}
+          {showSource ? "Diagram" : "Source"}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1.5 text-xs"
+          onClick={copySource}
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied" : "Copy"}
+        </Button>
+        {svg && !showSource && (
+          <>
+            <div className="h-4 w-px bg-border mx-0.5" />
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={zoomOut} title="Zoom out">
+              <ZoomOut className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-[11px] text-muted-foreground tabular-nums w-10 text-center select-none">
+              {Math.round(zoom * 100)}%
+            </span>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={zoomIn} title="Zoom in">
+              <ZoomIn className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={resetView} title="Reset view">
+              <Maximize className="h-3.5 w-3.5" />
+            </Button>
+            <div className="h-4 w-px bg-border mx-0.5" />
+          </>
+        )}
+        {svg && (
           <Button
             variant="ghost"
             size="sm"
             className="h-7 gap-1.5 text-xs"
-            onClick={copySource}
+            onClick={downloadSvg}
           >
-            {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copied" : "Copy"}
+            <Download className="h-3.5 w-3.5" />
+            SVG
           </Button>
-          {svg && !showSource && (
-            <>
-              <div className="h-4 w-px bg-border mx-0.5" />
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={zoomOut} title="Zoom out">
-                <ZoomOut className="h-3.5 w-3.5" />
-              </Button>
-              <span className="text-[11px] text-muted-foreground tabular-nums w-10 text-center select-none">
-                {Math.round(zoom * 100)}%
-              </span>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={zoomIn} title="Zoom in">
-                <ZoomIn className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={resetView} title="Reset view">
-                <Maximize className="h-3.5 w-3.5" />
-              </Button>
-              <div className="h-4 w-px bg-border mx-0.5" />
-            </>
-          )}
-          {svg && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-xs"
-              onClick={downloadSvg}
-            >
-              <Download className="h-3.5 w-3.5" />
-              SVG
-            </Button>
-          )}
-          <HeaderActions />
-        </div>
-      </div>
+        )}
+      </ViewerToolbar>
       <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">

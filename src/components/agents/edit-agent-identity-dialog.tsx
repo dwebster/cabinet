@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { ICON_PICKER_KEYS, getIconByKey } from "@/lib/agents/icon-catalog";
 import { AGENT_PALETTE } from "@/lib/themes";
 import { AVATAR_PRESETS } from "@/lib/agents/avatar-catalog";
-import { AgentIdentity } from "./agent-identity";
+import { AgentAvatar } from "./agent-avatar";
 import { cn } from "@/lib/utils";
 import { Upload, Trash2 } from "lucide-react";
 
@@ -214,7 +214,7 @@ export function EditAgentIdentityDialog({
           <div className="space-y-5">
             {/* Preview + role */}
             <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
-              {previewAgent && <AgentIdentity agent={previewAgent} size="lg" />}
+              {previewAgent && <AgentAvatar agent={previewAgent} size="lg" shape="square" />}
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-medium">
                   {state.displayName || state.role || target?.slug}

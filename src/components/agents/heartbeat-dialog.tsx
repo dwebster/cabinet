@@ -11,8 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
-import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
-import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
+import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { useAppStore } from "@/stores/app-store";
 import type { NewRoutineDialogAgent } from "@/components/agents/new-routine-dialog";
 
@@ -105,9 +104,6 @@ export function HeartbeatDialog({
     onOpenChange(false);
   }
 
-  const tint = agent.color ? tintFromHex(agent.color) : getAgentColor(agent.slug);
-  const Icon = resolveAgentIcon(agent.slug, agent.iconKey ?? null);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -115,12 +111,11 @@ export function HeartbeatDialog({
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="space-y-2">
               <DialogTitle className="flex items-center gap-3 text-[22px] font-semibold leading-none tracking-tight text-foreground">
-                <span
-                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: tint.bg, color: tint.text }}
-                >
-                  <Icon className="size-4" />
-                </span>
+                <AgentAvatar
+                  agent={agent}
+                  shape="circle"
+                  size="lg"
+                />
                 <span className="flex min-w-0 flex-col gap-1 leading-tight">
                   <span className="inline-flex items-center gap-2">
                     <HeartPulse className="size-5 text-pink-400" />

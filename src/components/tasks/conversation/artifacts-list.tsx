@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import { useAppStore, type SelectedSection } from "@/stores/app-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -10,16 +10,10 @@ import {
   inferPageTypeFromPath,
   pageTypeColor,
   pageTypeIcon,
-  type PageTypeKind,
 } from "@/lib/ui/page-type-icons";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { cn } from "@/lib/utils";
 import type { Turn } from "@/types/tasks";
-
-interface PageMetaEntry {
-  path: string;
-  title: string;
-  type: PageTypeKind;
-}
 
 function basename(p: string): string {
   const cleaned = p.replace(/\/index\.md$/, "").replace(/\.md$/, "");
@@ -31,42 +25,6 @@ function directory(p: string): string {
   const cleaned = p.replace(/\/index\.md$/, "").replace(/\.md$/, "");
   const parts = cleaned.split("/").filter(Boolean);
   return parts.slice(0, -1).join(" / ");
-}
-
-function usePageMeta(paths: string[]): Map<string, PageMetaEntry> {
-  const [meta, setMeta] = useState<Map<string, PageMetaEntry>>(new Map());
-  const key = paths.slice().sort().join("|");
-
-  useEffect(() => {
-    if (paths.length === 0) {
-      setMeta(new Map());
-      return;
-    }
-    let cancelled = false;
-    fetch("/api/kb/pages/meta", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ paths }),
-    })
-      .then((r) => r.json())
-      .then((data: { entries?: PageMetaEntry[] }) => {
-        if (cancelled) return;
-        const next = new Map<string, PageMetaEntry>();
-        for (const entry of data.entries ?? []) {
-          next.set(entry.path, entry);
-        }
-        setMeta(next);
-      })
-      .catch(() => {
-        if (!cancelled) setMeta(new Map());
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-
-  return meta;
 }
 
 export function ArtifactsList({

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
-import { ArrowLeft } from "lucide-react";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/layout/header";
 import { KBEditor } from "@/components/editor/editor";
@@ -472,7 +471,6 @@ export function AppShell() {
         style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '2.25rem' : '0px' } as React.CSSProperties}
       >
         <main className="flex-1 flex flex-col overflow-hidden">
-          <ReturnToBanner />
           {renderContent()}
         </main>
         {terminalOpen && <TerminalTabs />}
@@ -514,47 +512,3 @@ export function AppShell() {
   );
 }
 
-function ReturnToBanner() {
-  const returnTo = useAppStore((s) => s.returnTo);
-  const popReturnTo = useAppStore((s) => s.popReturnTo);
-  if (!returnTo) return null;
-
-  const label = (() => {
-    switch (returnTo.type) {
-      case "task":
-        return "Back to task";
-      case "tasks":
-        return "Back to tasks";
-      case "agent":
-        return "Back to agent";
-      case "agents":
-        return "Back to agents";
-      case "cabinet":
-        return "Back to cabinet";
-      case "jobs":
-        return "Back to jobs";
-      case "home":
-        return "Back to home";
-      case "settings":
-        return "Back to settings";
-      case "registry":
-        return "Back to registry";
-      default:
-        return "Back";
-    }
-  })();
-
-  return (
-    <div className="flex shrink-0 items-center border-b border-border/60 bg-muted/30 px-3 py-1.5">
-      <button
-        type="button"
-        onClick={popReturnTo}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 py-1 text-[11.5px] font-medium text-foreground/80 shadow-sm transition-colors hover:border-foreground/30 hover:text-foreground"
-        title={label}
-      >
-        <ArrowLeft className="size-3.5" />
-        {label}
-      </button>
-    </div>
-  );
-}

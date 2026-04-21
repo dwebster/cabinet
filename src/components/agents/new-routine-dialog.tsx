@@ -12,8 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SchedulePicker } from "@/components/mission-control/schedule-picker";
 import { TaskRuntimePicker } from "@/components/composer/task-runtime-picker";
-import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
-import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
+import { AgentAvatar } from "@/components/agents/agent-avatar";
 import { useAppStore } from "@/stores/app-store";
 import { resolveAdapterTypeForProvider } from "@/lib/agents/adapter-options";
 import type { JobConfig } from "@/types/jobs";
@@ -29,8 +28,11 @@ export interface NewRoutineDialogAgent {
   cabinetPath?: string;
   provider?: string;
   adapterType?: string;
+  displayName?: string;
   iconKey?: string | null;
   color?: string | null;
+  avatar?: string | null;
+  avatarExt?: string | null;
 }
 
 /**
@@ -187,9 +189,6 @@ export function NewRoutineDialog({
     }
   }
 
-  const tint = agent.color ? tintFromHex(agent.color) : getAgentColor(agent.slug);
-  const Icon = resolveAgentIcon(agent.slug, agent.iconKey ?? null);
-
   return (
     <Dialog
       open={open}
@@ -205,12 +204,11 @@ export function NewRoutineDialog({
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="space-y-2">
               <DialogTitle className="flex items-center gap-3 text-[22px] font-semibold leading-none tracking-tight text-foreground">
-                <span
-                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: tint.bg, color: tint.text }}
-                >
-                  <Icon className="size-4" />
-                </span>
+                <AgentAvatar
+                  agent={agent}
+                  shape="circle"
+                  size="lg"
+                />
                 <span className="flex min-w-0 flex-col gap-1 leading-tight">
                   <span>{isEdit ? "Edit routine" : "New routine"}</span>
                   <span className="text-[13px] font-normal text-muted-foreground">

@@ -3,11 +3,12 @@
 import { cn } from "@/lib/utils";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { resolveAgentIcon } from "@/lib/agents/icon-catalog";
+import { AgentAvatar, hasAgentAvatarImage } from "@/components/agents/agent-avatar";
 import type { CabinetAgentSummary } from "@/types/cabinets";
 
 type AgentRef = Pick<
   CabinetAgentSummary,
-  "slug" | "displayName" | "name" | "iconKey" | "color"
+  "slug" | "displayName" | "name" | "iconKey" | "color" | "avatar" | "avatarExt" | "cabinetPath"
 >;
 
 function resolveTint(agent: AgentRef | undefined, fallbackSlug: string) {
@@ -26,9 +27,26 @@ export function AgentPill({
   size?: "md" | "sm";
   className?: string;
 }) {
+  const label = agent?.displayName ?? agent?.name ?? slug;
+  const hasImage = !!agent && hasAgentAvatarImage(agent);
+
+  if (hasImage && agent) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full bg-muted font-medium text-foreground",
+          size === "md" ? "py-0.5 pl-0.5 pr-2 text-[11px]" : "py-0.5 pl-0.5 pr-1.5 text-[10px]",
+          className
+        )}
+      >
+        <AgentAvatar agent={agent} shape="circle" size="xs" />
+        {label}
+      </span>
+    );
+  }
+
   const tint = resolveTint(agent, slug);
   const Icon = resolveAgentIcon(agent?.slug ?? slug, agent?.iconKey ?? null);
-  const label = agent?.displayName ?? agent?.name ?? slug;
   return (
     <span
       className={cn(
