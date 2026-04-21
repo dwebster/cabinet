@@ -537,7 +537,9 @@ function TopBar({
                   <div className="text-muted-foreground">
                     Try:{" "}
                     <span className="italic">
-                      &ldquo;Ask the editor to draft our launch post.&rdquo;
+                      &ldquo;Have the editor draft our launch post, the
+                      researcher benchmark 3 competitors, and growth schedule
+                      a Monday digest.&rdquo;
                     </span>
                   </div>
                   {canDispatch && (

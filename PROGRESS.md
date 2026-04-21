@@ -1,6 +1,6 @@
 # Progress
 
-[2026-04-21] Simpler tooltip on the **Can dispatch** / **No dispatch** pill in the agent detail header. Plain-English phrasing ("Can hand off work to teammates. You approve each handoff before it runs.") plus an example prompt line ("Try: 'Ask the editor to draft our launch post.'"), and a trailing "Click to turn off" line in the on-state. No jargon like LAUNCH_TASK / SCHEDULE_*.
+[2026-04-21] Simpler tooltip on the **Can dispatch** / **No dispatch** pill in the agent detail header. Plain-English phrasing ("Can hand off work to teammates. You approve each handoff before it runs.") plus a multi-task example ("Try: 'Have the editor draft our launch post, the researcher benchmark 3 competitors, and growth schedule a Monday digest.'"), and a trailing "Click to turn off" line in the on-state. The three-task example showcases fan-out across LAUNCH_TASK × 2 + SCHEDULE_JOB, which reads more appealing than a single-task example. No jargon.
 
 [2026-04-21] Tasks board agents filter now honors the cabinet-visibility toggle. `use-board-data.ts` was sending `visibilityMode=` to `/api/cabinets/overview`, but the route reads `visibility=` — so the toggle was a silent no-op and the board was pinned to the active cabinet's own agents no matter what. Changed the overview call's query param to `visibility`. Left the conversations call alone: `/api/agents/conversations` actually does read `visibilityMode`, so the two endpoints remain inconsistent with each other but both are now correctly addressed.
 
