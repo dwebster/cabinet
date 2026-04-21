@@ -79,7 +79,7 @@ export function useBoardData({ cabinetPath, visibilityMode = "own" }: Options): 
 
   const refreshOverview = useCallback(async () => {
     const params = new URLSearchParams({ path: cabinetPath });
-    if (visibilityMode !== "own") params.set("visibilityMode", visibilityMode);
+    if (visibilityMode !== "own") params.set("visibility", visibilityMode);
     const res = await fetch(`/api/cabinets/overview?${params.toString()}`, { cache: "no-store" });
     if (!res.ok) throw new Error("overview fetch failed");
     const data = (await res.json()) as CabinetOverview;
