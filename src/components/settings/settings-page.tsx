@@ -30,6 +30,9 @@ import {
   HardDrive,
   FolderOpen,
   RotateCw,
+  CircleUser,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +54,16 @@ import {
 import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import { cn } from "@/lib/utils";
 import type { ProviderInfo } from "@/types/agents";
+import { UserAvatar } from "@/components/layout/user-avatar";
+import {
+  refreshUserProfile,
+  setUserProfileOptimistic,
+  useUserProfile,
+} from "@/hooks/use-user-profile";
+import { ICON_PICKER_KEYS, getIconByKey } from "@/lib/agents/icon-catalog";
+import { AGENT_PALETTE } from "@/lib/themes";
+import { AVATAR_PRESETS } from "@/lib/agents/avatar-catalog";
+import Image from "next/image";
 
 interface McpServer {
   name: string;
@@ -76,7 +89,7 @@ interface IntegrationConfig {
   };
 }
 
-type Tab = "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
+type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
 
 function TerminalCommand({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
@@ -222,10 +235,10 @@ export function SettingsPage() {
   const [dataDirBrowsing, setDataDirBrowsing] = useState(false);
   const [dataDirSaving, setDataDirSaving] = useState(false);
   const [dataDirRestartNeeded, setDataDirRestartNeeded] = useState(false);
-  const VALID_TABS: Tab[] = ["providers", "skills", "storage", "integrations", "notifications", "appearance", "updates", "about"];
+  const VALID_TABS: Tab[] = ["profile", "providers", "skills", "storage", "integrations", "notifications", "appearance", "updates", "about"];
   const initialTab = (() => {
     const slug = useAppStore.getState().section.slug as Tab | undefined;
-    return slug && VALID_TABS.includes(slug) ? slug : "providers";
+    return slug && VALID_TABS.includes(slug) ? slug : "profile";
   })();
   const [tab, setTabState] = useState<Tab>(initialTab);
   const initializedRef = useRef(false);
@@ -472,6 +485,7 @@ export function SettingsPage() {
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "profile", label: "Profile", icon: <CircleUser className="h-3.5 w-3.5" /> },
     { id: "providers", label: "Providers", icon: <Cpu className="h-3.5 w-3.5" /> },
     { id: "skills", label: "Skills", icon: <Sparkles className="h-3.5 w-3.5" /> },
     { id: "storage", label: "Storage", icon: <HardDrive className="h-3.5 w-3.5" /> },
@@ -528,6 +542,9 @@ export function SettingsPage() {
 
       <ScrollArea className="flex-1 min-h-0 overflow-hidden">
         <div className="p-4 space-y-6 max-w-2xl">
+          {/* Profile Tab */}
+          {tab === "profile" && <ProfileTab />}
+
           {/* Appearance Tab */}
           {tab === "appearance" && (
             <div className="space-y-6">
@@ -1528,5 +1545,373 @@ function SkillsSettings() {
         <code className="rounded bg-muted px-1 py-0.5">skills: [slug, slug]</code>.
       </p>
     </div>
+  );
+}
+
+function hexFromPalette(i: number): string {
+  const text = AGENT_PALETTE[i].text;
+  const m = text.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (!m) return "";
+  const [, r, g, b] = m;
+  return (
+    "#" +
+    [r, g, b]
+      .map((n) => Number(n).toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+
+function ProfileTab() {
+  const state = useUserProfile();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  if (state.status === "idle" || state.status === "loading") {
+    return (
+      <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Loading profile…
+      </div>
+    );
+  }
+  if (state.status === "error") {
+    return (
+      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+        Failed to load profile: {state.error}
+      </div>
+    );
+  }
+
+  const { profile, workspace } = state.data;
+
+  const update = (
+    next: {
+      profile?: Partial<typeof profile>;
+      workspace?: Partial<typeof workspace>;
+    }
+  ) => {
+    setUserProfileOptimistic(next);
+    setSaved(false);
+  };
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, workspace }),
+      });
+      if (res.ok) {
+        await refreshUserProfile();
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function uploadAvatar(file: File) {
+    if (file.size > 1024 * 1024) {
+      alert("Avatar must be 1 MB or smaller.");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/user/avatar", { method: "POST", body: fd });
+    if (!res.ok) {
+      alert("Upload failed.");
+      return;
+    }
+    await refreshUserProfile();
+  }
+
+  async function removeAvatar() {
+    if (profile.avatar === "custom") {
+      await fetch("/api/user/avatar", { method: "DELETE" });
+    } else {
+      update({ profile: { avatar: "", avatarExt: "" } });
+    }
+    await refreshUserProfile();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="mb-1 text-[13px] font-semibold">Profile</h3>
+        <p className="mb-4 text-[12px] text-muted-foreground">
+          How you appear in conversations and across the app.
+        </p>
+
+        <div className="mb-4 flex items-center gap-3 rounded-md border bg-muted/30 p-3">
+          <UserAvatar profile={profile} size="lg" shape="circle" />
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium">
+              {profile.displayName?.trim() || profile.name || "You"}
+            </span>
+            {profile.role ? (
+              <span className="truncate text-xs text-muted-foreground">
+                {profile.role}
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Field label="Name">
+            <Input
+              value={profile.name}
+              onChange={(e) => update({ profile: { name: e.target.value } })}
+              placeholder="Hila"
+              maxLength={60}
+            />
+          </Field>
+          <Field label="Display name" hint="Shown in conversations. Defaults to Name.">
+            <Input
+              value={profile.displayName || ""}
+              onChange={(e) =>
+                update({ profile: { displayName: e.target.value } })
+              }
+              placeholder={profile.name}
+              maxLength={60}
+            />
+          </Field>
+          <Field label="Role">
+            <Input
+              value={profile.role || ""}
+              onChange={(e) => update({ profile: { role: e.target.value } })}
+              placeholder="Builder"
+              maxLength={80}
+            />
+          </Field>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="mb-2 text-[12px] font-semibold">Avatar</h4>
+        <div className="grid max-h-64 grid-cols-8 gap-2 overflow-y-auto pr-1">
+          <button
+            type="button"
+            onClick={() => void removeAvatar()}
+            className={cn(
+              "flex h-12 w-12 items-center justify-center rounded-full border-2 bg-muted text-[10px] text-muted-foreground",
+              !profile.avatar ? "border-foreground" : "border-transparent"
+            )}
+            title="Use icon instead"
+          >
+            None
+          </button>
+          {AVATAR_PRESETS.map((preset) => {
+            const selected = profile.avatar === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() =>
+                  update({
+                    profile: { avatar: preset.id, avatarExt: "" },
+                  })
+                }
+                className={cn(
+                  "h-12 w-12 overflow-hidden rounded-full border-2 transition-all",
+                  selected ? "border-foreground" : "border-transparent"
+                )}
+                title={preset.label}
+              >
+                <Image
+                  src={preset.file}
+                  alt={preset.label}
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover"
+                  unoptimized
+                />
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void uploadAvatar(f);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="mr-1.5 h-3.5 w-3.5" />
+            Upload custom
+          </Button>
+          {profile.avatar === "custom" ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => void removeAvatar()}
+            >
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Remove
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <div>
+        <h4 className="mb-2 text-[12px] font-semibold">Accent color</h4>
+        <div className="flex flex-wrap items-center gap-2">
+          {AGENT_PALETTE.map((_, i) => {
+            const hex = hexFromPalette(i);
+            const selected =
+              (profile.color || "").toLowerCase() === hex.toLowerCase();
+            return (
+              <button
+                key={hex}
+                type="button"
+                onClick={() =>
+                  update({
+                    profile: { color: selected ? "" : hex },
+                  })
+                }
+                className={cn(
+                  "h-6 w-6 rounded-full border-2 transition-all",
+                  selected
+                    ? "border-foreground scale-110"
+                    : "border-transparent"
+                )}
+                style={{ backgroundColor: hex }}
+                title={hex}
+              />
+            );
+          })}
+          <Input
+            type="text"
+            placeholder="#hex"
+            value={profile.color || ""}
+            onChange={(e) => update({ profile: { color: e.target.value } })}
+            className="ml-2 h-8 w-24 text-xs"
+          />
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Tints the fallback avatar when no image is set.
+        </p>
+      </div>
+
+      <div>
+        <h4 className="mb-2 text-[12px] font-semibold">Fallback icon</h4>
+        <div className="grid max-h-40 grid-cols-10 gap-1 overflow-auto rounded-md border bg-background p-2">
+          {ICON_PICKER_KEYS.map((key) => {
+            const Icon = getIconByKey(key);
+            if (!Icon) return null;
+            const selected = profile.iconKey === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() =>
+                  update({
+                    profile: { iconKey: selected ? "" : key },
+                  })
+                }
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-muted",
+                  selected && "bg-accent text-accent-foreground"
+                )}
+                title={key}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Used when no avatar image is set. Click again to clear.
+        </p>
+      </div>
+
+      <div className="border-t border-border pt-5">
+        <h3 className="mb-1 text-[13px] font-semibold">Workspace</h3>
+        <p className="mb-4 text-[12px] text-muted-foreground">
+          Captured during onboarding. Agents read these when planning work.
+        </p>
+        <div className="space-y-3">
+          <Field label="Workspace name">
+            <Input
+              value={workspace.workspaceName || ""}
+              onChange={(e) =>
+                update({ workspace: { workspaceName: e.target.value } })
+              }
+              placeholder="My Cabinet"
+            />
+          </Field>
+          <Field label="Description">
+            <textarea
+              value={workspace.description || ""}
+              onChange={(e) =>
+                update({ workspace: { description: e.target.value } })
+              }
+              className="min-h-[72px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              placeholder="What do you do?"
+            />
+          </Field>
+          <Field label="Team size">
+            <Input
+              value={workspace.teamSize || ""}
+              onChange={(e) =>
+                update({ workspace: { teamSize: e.target.value } })
+              }
+              placeholder="Solo / 2–5 / 6–20 / 20+"
+            />
+          </Field>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 border-t border-border pt-4">
+        <Button onClick={() => void save()} disabled={saving} size="sm">
+          {saving ? (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Save className="mr-1.5 h-3.5 w-3.5" />
+          )}
+          {saving ? "Saving…" : "Save"}
+        </Button>
+        {saved ? (
+          <span className="inline-flex items-center gap-1 text-[12px] text-emerald-600 dark:text-emerald-400">
+            <Check className="h-3.5 w-3.5" />
+            Saved
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs font-medium text-foreground/80">{label}</span>
+      {children}
+      {hint ? (
+        <span className="block text-[11px] text-muted-foreground">{hint}</span>
+      ) : null}
+    </label>
   );
 }

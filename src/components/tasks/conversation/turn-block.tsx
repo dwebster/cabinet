@@ -20,8 +20,15 @@ import {
   getAgentDisplayName,
   type AgentAvatarInput,
 } from "@/components/agents/agent-avatar";
+import { UserAvatar } from "@/components/layout/user-avatar";
+import { EditUserAvatarDialog } from "@/components/settings/edit-user-avatar-dialog";
+import type { UserProfile } from "@/lib/user/profile-io";
 
 export type TurnBlockAgent = AgentAvatarInput & { name?: string };
+export type TurnBlockUser = Pick<
+  UserProfile,
+  "name" | "displayName" | "avatar" | "avatarExt" | "color"
+>;
 
 function computeRelative(iso: string): string {
   const delta = Date.now() - new Date(iso).getTime();
@@ -184,10 +191,12 @@ function collectArtifactPaths(turn: Turn): string[] {
 export function TurnBlock({
   turn,
   agent,
+  user,
   returnContext,
 }: {
   turn: Turn;
   agent?: TurnBlockAgent | null;
+  user?: TurnBlockUser | null;
   returnContext?: SelectedSection;
 }) {
   const isUser = turn.role === "user";
@@ -196,13 +205,27 @@ export function TurnBlock({
     : null;
   const artifactPaths = collectArtifactPaths(turn);
   const agentLabel = agent ? getAgentDisplayName(agent) || "Agent" : "Agent";
+  const userLabel =
+    user?.displayName?.trim() || user?.name?.trim() || "You";
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
 
   return (
     <div className={cn("group/turn flex gap-3 px-6 py-5", !isUser && "bg-muted/20")}>
       {isUser ? (
-        <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground">
-          <User className="size-3.5" />
-        </div>
+        <button
+          type="button"
+          onClick={() => setAvatarEditorOpen(true)}
+          title="Edit your avatar"
+          className="mt-0.5 shrink-0 rounded-full transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {user ? (
+            <UserAvatar profile={user} size="md" shape="circle" />
+          ) : (
+            <span className="flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground">
+              <User className="size-3.5" />
+            </span>
+          )}
+        </button>
       ) : agent ? (
         <AgentAvatar agent={agent} size="md" shape="circle" className="mt-0.5" />
       ) : (
@@ -211,9 +234,16 @@ export function TurnBlock({
         </div>
       )}
 
+      {isUser ? (
+        <EditUserAvatarDialog
+          open={avatarEditorOpen}
+          onOpenChange={setAvatarEditorOpen}
+        />
+      ) : null}
+
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span className="font-medium text-foreground/80">{isUser ? "You" : agentLabel}</span>
+          <span className="font-medium text-foreground/80">{isUser ? userLabel : agentLabel}</span>
           <span>·</span>
           <RelativeTime iso={turn.ts} />
           {totalTokens ? (

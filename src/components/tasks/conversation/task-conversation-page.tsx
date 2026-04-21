@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TurnBlock, type TurnBlockAgent } from "./turn-block";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { PendingActionsPanel } from "@/components/agents/pending-actions-panel";
 import { ArtifactsList } from "./artifacts-list";
 import { DiffPanel } from "./diff-panel";
@@ -330,6 +331,9 @@ export function TaskConversationPage({
   const isCompact = variant === "compact";
   const [task, setTask] = useState<Task | null>(isDemo ? MOCK_TASK : null);
   const [turnAgent, setTurnAgent] = useState<TurnBlockAgent | null>(null);
+  const userState = useUserProfile();
+  const turnUser =
+    userState.status === "ready" ? userState.data.profile : null;
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
@@ -1361,6 +1365,7 @@ export function TaskConversationPage({
                   key={turn.id}
                   turn={turn}
                   agent={turnAgent}
+                  user={turnUser}
                   returnContext={returnContext}
                 />
               ))}
