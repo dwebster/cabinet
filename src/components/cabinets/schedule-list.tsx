@@ -118,7 +118,7 @@ export function ScheduleList({
           enabled: convo.status !== "cancelled" && convo.status !== "failed",
           agentEmoji: owner?.emoji || "💬",
           agentName: owner?.name || convo.agentSlug || "Manual",
-          agentSlug: owner?.slug || convo.agentSlug || "general",
+          agentSlug: owner?.slug || convo.agentSlug || "editor",
           agentRef: owner,
           conversationRef: convo,
           sortKey: startedAt ? startedAt.getTime() : 0,

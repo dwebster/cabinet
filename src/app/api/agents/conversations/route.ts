@@ -6,7 +6,7 @@ import {
 } from "@/lib/agents/conversation-runner";
 import { buildConversationInstanceKey } from "@/lib/agents/conversation-identity";
 import { listConversationMetas } from "@/lib/agents/conversation-store";
-import { readMemory, writeMemory } from "@/lib/agents/persona-manager";
+import { normalizeAgentSlug, readMemory, writeMemory } from "@/lib/agents/persona-manager";
 import { normalizeRuntimeOverride } from "@/lib/agents/runtime-overrides";
 import { readCabinetOverview } from "@/lib/cabinets/overview";
 import { findOwningCabinetPathForPage } from "@/lib/cabinets/server-paths";
@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const source = body.source === "editor" ? "editor" : "manual";
-    const agentSlug = source === "editor" ? "editor" : body.agentSlug || "general";
+    const agentSlug =
+      source === "editor" ? "editor" : normalizeAgentSlug(body.agentSlug);
     const userMessage = (body.userMessage || "").trim();
     const mentionedPaths = Array.isArray(body.mentionedPaths)
       ? body.mentionedPaths.filter((value: unknown): value is string => typeof value === "string")
@@ -163,7 +164,7 @@ export async function POST(req: NextRequest) {
       cwd: conversationInput.cwd,
       cabinetPath: conversationCabinetPath,
       onComplete: async (completion) => {
-        if (agentSlug === "general" || !completion.meta.contextSummary) return;
+        if (!completion.meta.contextSummary) return;
         const timestamp = new Date().toISOString();
         const completionCabinetPath = completion.meta.cabinetPath || conversationCabinetPath;
         const existingContext = await readMemory(

@@ -40,6 +40,15 @@ function resolveHistoryDir(cabinetPath?: string): string {
 }
 
 /**
+ * Legacy alias: older conversations and external callers pass `agentSlug:
+ * "general"` — there is no General persona anymore, Editor fills that role.
+ */
+export function normalizeAgentSlug(slug: string | null | undefined): string {
+  if (!slug) return "editor";
+  return slug === "general" ? "editor" : slug;
+}
+
+/**
  * Walks all cabinets looking for `.agents/<slug>/persona.md`. Slugs are
  * globally unique, so at most one cabinet contains a match. Returns the
  * cabinetPath (or undefined when found at the root / not found at all).

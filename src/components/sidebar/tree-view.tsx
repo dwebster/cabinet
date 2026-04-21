@@ -508,20 +508,6 @@ export function TreeView() {
 
             {agentsExpanded && (
               <>
-                {renderAgentRow(
-                  "general",
-                  { slug: "general", displayName: "General" },
-                  {
-                    selected:
-                      section.type === "agent" && section.slug === "general",
-                    onClick: () =>
-                      setSection({
-                        type: "agent",
-                        slug: "general",
-                        cabinetPath: activeCabinet?.path || ROOT_CABINET_PATH,
-                      }),
-                  }
-                )}
                 {[
                   ...agents.filter((a) => a.slug === "editor"),
                   ...agents.filter((a) => a.slug !== "editor"),

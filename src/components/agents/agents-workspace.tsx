@@ -131,19 +131,6 @@ interface NewAgentDraft {
   active: boolean;
 }
 
-const GENERAL_AGENT: AgentListItem = {
-  name: "General",
-  slug: "general",
-  emoji: "🤖",
-  role: "Manual Cabinet assistant",
-  active: true,
-  runningCount: 0,
-  department: "general",
-  type: "specialist",
-  workspace: "/",
-  body: "",
-};
-
 const TRIGGER_LABELS: Record<ConversationMeta["trigger"], string> = {
   manual: "Manual",
   job: "Job",
@@ -529,15 +516,13 @@ export function AgentsWorkspace({
 
   // Build mentionable items for composer
   const mentionItems: MentionableItem[] = [
-    ...agents
-      .filter((a) => a.slug !== "general")
-      .map((a) => ({
-        type: "agent" as const,
-        id: a.slug,
-        label: a.name,
-        sublabel: a.role || "",
-        icon: a.emoji,
-      })),
+    ...agents.map((a) => ({
+      type: "agent" as const,
+      id: a.slug,
+      label: a.name,
+      sublabel: a.role || "",
+      icon: a.emoji,
+    })),
     ...allPages.map((p) => ({
       type: "page" as const,
       id: p.path,
@@ -547,7 +532,7 @@ export function AgentsWorkspace({
   ];
 
   // Shared composer hook for agent workspace panel and quick-send popup
-  const submitTargetRef = useRef<string>("general");
+  const submitTargetRef = useRef<string>("editor");
   const composer = useComposer({
     items: mentionItems,
     onSubmit: async ({ message, mentionedPaths: paths }) => {
@@ -681,20 +666,12 @@ export function AgentsWorkspace({
       if (!response.ok) return;
       const data = await response.json();
       const personas = (data.personas || []) as AgentListItem[];
-      const generalRunning =
-        conversations.filter(
-          (conversation) =>
-            conversation.agentSlug === "general" && conversation.status === "running"
-        ).length || 0;
 
-      const sorted = [
-        { ...GENERAL_AGENT, runningCount: generalRunning },
-        ...personas.sort((a, b) => {
-          if (a.slug === "editor") return -1;
-          if (b.slug === "editor") return 1;
-          return a.name.localeCompare(b.name);
-        }),
-      ];
+      const sorted = personas.sort((a, b) => {
+        if (a.slug === "editor") return -1;
+        if (b.slug === "editor") return 1;
+        return a.name.localeCompare(b.name);
+      });
       setAgents(sorted);
     } catch {
       // Ignore transient startup/network failures.
@@ -785,31 +762,6 @@ export function AgentsWorkspace({
   ) {
     const resetJobEditor = options?.resetJobEditor ?? true;
 
-    if (agentSlug === "general") {
-      setSettingsPersona(GENERAL_AGENT);
-      setSettingsBody("");
-      setSettingsJobs([]);
-      if (resetJobEditor) {
-        setSelectedJobId(null);
-        setJobDraft(null);
-        setNewJobDialogOpen(false);
-        setLibraryDialogOpen(false);
-      }
-      lastSavedSettingsRef.current = JSON.stringify({
-        name: GENERAL_AGENT.name || "",
-        emoji: GENERAL_AGENT.emoji || "",
-        role: GENERAL_AGENT.role || "",
-        department: GENERAL_AGENT.department || "",
-        type: GENERAL_AGENT.type || "",
-        heartbeat: GENERAL_AGENT.heartbeat || "",
-        provider: GENERAL_AGENT.provider || "",
-        adapterType: GENERAL_AGENT.adapterType || "",
-        workspace: GENERAL_AGENT.workspace || "",
-        body: "",
-      });
-      return;
-    }
-
     const resolvedCabinetPath = cabinetPathOverride ?? effectiveCabinetPath;
     const cabinetQuery = resolvedCabinetPath
       ? `?cabinetPath=${encodeURIComponent(resolvedCabinetPath)}`
@@ -836,7 +788,7 @@ export function AgentsWorkspace({
         body: data.persona.body || "",
       });
       // Auto-open edit dialog for agents that haven't completed initial setup
-      if (!data.persona.setupComplete && agentSlug !== "general") {
+      if (!data.persona.setupComplete) {
         handleSettingsEditorOpenChange(true);
       }
     }
@@ -884,7 +836,7 @@ export function AgentsWorkspace({
 
   // Fetch jobs for all agents in parallel for the org chart display
   useEffect(() => {
-    const slugs = agents.filter((a) => a.slug !== "general");
+    const slugs = agents;
     if (slugs.length === 0) return;
     void Promise.all(
       slugs.map((a) => {
@@ -1012,7 +964,7 @@ export function AgentsWorkspace({
   }, [settingsAgentSlug, settingsJobs, selectedJobId]);
 
   useEffect(() => {
-    if (mode !== "settings" || !settingsAgentSlug || settingsAgentSlug === "general") {
+    if (mode !== "settings" || !settingsAgentSlug) {
       return;
     }
 
@@ -1035,7 +987,7 @@ export function AgentsWorkspace({
   }, [mode, settingsAgentSlug, settingsBody]);
 
   useEffect(() => {
-    if (!settingsEditorOpen || !settingsPersona || settingsAgentSlug === "general") {
+    if (!settingsEditorOpen || !settingsPersona) {
       return;
     }
 
@@ -1046,7 +998,7 @@ export function AgentsWorkspace({
   }, [settingsAgentSlug, settingsBody, settingsBodyHtml, settingsEditorOpen, settingsPersona]);
 
   useEffect(() => {
-    if (!settingsEditorOpen || settingsAgentSlug === "general") {
+    if (!settingsEditorOpen) {
       return;
     }
 
@@ -1095,7 +1047,7 @@ export function AgentsWorkspace({
     }
     if (!open) {
       // Mark setupComplete on close so the dialog doesn't auto-open again
-      if (settingsAgentSlug && settingsAgentSlug !== "general" && settingsPersona && !settingsPersona.setupComplete) {
+      if (settingsAgentSlug && settingsPersona && !settingsPersona.setupComplete) {
         setSettingsPersona({ ...settingsPersona, setupComplete: true });
         fetch(`/api/agents/personas/${settingsAgentSlug}`, {
           method: "PUT",
@@ -1209,7 +1161,7 @@ export function AgentsWorkspace({
   }
 
   async function saveAgentSettings() {
-    if (!settingsAgentSlug || settingsAgentSlug === "general" || !settingsEditorDraft) {
+    if (!settingsAgentSlug || !settingsEditorDraft) {
       handleSettingsEditorOpenChange(false);
       return;
     }
@@ -1265,7 +1217,7 @@ export function AgentsWorkspace({
   }
 
   async function toggleAgentActive() {
-    if (!settingsAgentSlug || settingsAgentSlug === "general") return;
+    if (!settingsAgentSlug) return;
     await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -1276,7 +1228,7 @@ export function AgentsWorkspace({
   }
 
   async function runHeartbeatNow() {
-    if (!settingsAgentSlug || settingsAgentSlug === "general") return;
+    if (!settingsAgentSlug) return;
     const response = await fetch(`/api/agents/personas/${settingsAgentSlug}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -1635,7 +1587,7 @@ export function AgentsWorkspace({
   }
 
   async function deleteAgent() {
-    if (!settingsAgentSlug || settingsAgentSlug === "general") return;
+    if (!settingsAgentSlug) return;
     setDeletingAgent(true);
     try {
       const params = new URLSearchParams();
@@ -2965,20 +2917,6 @@ export function AgentsWorkspace({
               <div className="space-y-6 p-5">
                 {settingsTarget === "directory" || !settingsTarget ? (
                   renderOrganizationChart()
-                ) : settingsAgentSlug === "general" ? (
-                  <div className="max-w-3xl space-y-4">
-                    <div className="rounded-xl border border-border bg-card p-4 text-[13px] text-muted-foreground">
-                      General is manual-only in this MVP. Use it as the default place for ad-hoc conversations, and manage the rest of the team from the agent directory.
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={() => openAgentWorkspace("general")}
-                    >
-                      Open General conversations
-                    </Button>
-                  </div>
                 ) : (
                   <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />

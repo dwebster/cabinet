@@ -61,7 +61,7 @@ export function DetailPanel({
         <StatusIcon state={state} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <AgentPill agent={agent} slug={task.agentSlug ?? "general"} />
+            <AgentPill agent={agent} slug={task.agentSlug ?? "editor"} />
           </div>
           <h2 className="mt-1 truncate text-[13.5px] font-semibold leading-snug text-foreground">
             {task.title}

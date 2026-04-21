@@ -146,8 +146,8 @@ function buildDiagramOutputInstructions(): string[] {
 function buildAgentContextHeader(persona: AgentPersona | null, agentSlug: string): string {
   if (!persona) {
     return [
-      "You are Cabinet's General agent.",
-      "Handle the request directly and use the knowledge base as your working area.",
+      `You are working as Cabinet agent \`${agentSlug || "unknown"}\` but its persona file was not found.`,
+      "Handle the request directly using the knowledge base as your working area, and keep answers scoped to what you can verify on disk.",
     ].join("\n");
   }
 
@@ -197,9 +197,7 @@ export async function buildManualConversationPrompt(input: {
   providerId: string;
   cabinetPath?: string;
 }> {
-  const persona = input.agentSlug === "general"
-    ? null
-    : await readPersona(input.agentSlug, input.cabinetPath);
+  const persona = await readPersona(input.agentSlug, input.cabinetPath);
   const mentionContext = await buildMentionContext(input.mentionedPaths || []);
   const baseCwd = input.cabinetPath ? path.join(DATA_DIR, input.cabinetPath) : DATA_DIR;
   const cwd =
@@ -323,10 +321,9 @@ export async function startConversationRun(
   // Claude `--add-dir`), and (b) the task viewer can display which skills
   // were attached to this run. No-op when the persona has no skills or the
   // catalog is empty.
-  const skillsPersona =
-    input.agentSlug && input.agentSlug !== "general"
-      ? await readPersona(input.agentSlug, input.cabinetPath)
-      : null;
+  const skillsPersona = input.agentSlug
+    ? await readPersona(input.agentSlug, input.cabinetPath)
+    : null;
   // We defer the actual symlink materialization until we know the meta.id.
   // For now, capture the slug list we'll attach.
   const requestedSkillSlugs = skillsPersona?.skills?.length
@@ -1003,10 +1000,9 @@ export async function continueConversationRun(
   // in-memory CLI state. If the PTY has already exited, fall back to spawning
   // a fresh session under the same session id.
   if (adapter && adapter.executionEngine === "legacy_pty_cli") {
-    const legacyPersona =
-      meta.agentSlug && meta.agentSlug !== "general"
-        ? await readPersona(meta.agentSlug, cp)
-        : null;
+    const legacyPersona = meta.agentSlug
+      ? await readPersona(meta.agentSlug, cp)
+      : null;
     const legacyBaseCwd = cp ? path.join(DATA_DIR, cp) : DATA_DIR;
     const legacyCwd =
       legacyPersona?.workdir && legacyPersona.workdir !== "/data"
@@ -1124,10 +1120,9 @@ export async function continueConversationRun(
     (!!session?.resumeId || !!rehydratedSessionParams);
 
   // 4. Rebuild persona context for replay mode
-  const persona =
-    meta.agentSlug && meta.agentSlug !== "general"
-      ? await readPersona(meta.agentSlug, cp)
-      : null;
+  const persona = meta.agentSlug
+    ? await readPersona(meta.agentSlug, cp)
+    : null;
   const baseCwd = cp ? path.join(DATA_DIR, cp) : DATA_DIR;
   const cwd =
     persona?.workdir && persona.workdir !== "/data"

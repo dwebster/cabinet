@@ -165,7 +165,7 @@ export function RecentTasks({
       {tasks.map((task) => {
         const isActive = activeTaskId === task.id;
         const fresh = isRecentlyDone(task, now);
-        const slugForColor = task.agentSlug || "general";
+        const slugForColor = task.agentSlug || "editor";
         const agentTint =
           agentColorMap.get(slugForColor) || resolveAgentColor(slugForColor, agents);
 

@@ -82,7 +82,7 @@ export function TaskCard({
     >
       <div className="flex items-center gap-2">
         <StatusIcon state={state} />
-        <AgentPill agent={agent} slug={task.agentSlug ?? "general"} />
+        <AgentPill agent={agent} slug={task.agentSlug ?? "editor"} />
         {groupSize > 0 && (
           <span
             title={`${groupSize} heartbeat runs collapsed — showing the latest`}

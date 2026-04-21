@@ -228,7 +228,7 @@ export function getManualScheduleEvents(
       label,
       agentEmoji: owner?.emoji || "💬",
       agentName: owner?.name || convo.agentSlug || "Manual",
-      agentSlug: owner?.slug || convo.agentSlug || "general",
+      agentSlug: owner?.slug || convo.agentSlug || "editor",
       enabled: convo.status !== "cancelled",
       cronExpr: "",
       time: when,

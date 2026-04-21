@@ -153,7 +153,7 @@ export async function createTaskRequest(input: {
     body: JSON.stringify({
       source: "manual",
       userMessage: input.initialPrompt,
-      agentSlug: input.agentSlug ?? "general",
+      agentSlug: input.agentSlug ?? "editor",
       cabinetPath: input.cabinetPath,
       providerId: runtime.providerId,
       adapterType: runtime.adapterType,

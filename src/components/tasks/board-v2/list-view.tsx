@@ -136,7 +136,7 @@ export function ListView({
                     />
                   ) : null}
                   <StatusIcon state={state} />
-                  <AgentPill agent={agent} slug={task.agentSlug ?? "general"} size="sm" />
+                  <AgentPill agent={agent} slug={task.agentSlug ?? "editor"} size="sm" />
                   <span className="flex-1 truncate text-[13px] font-medium text-foreground">
                     {task.title}
                   </span>

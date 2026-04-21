@@ -318,7 +318,7 @@ export function HomeScreen() {
 
   const mentionItems: MentionableItem[] = [
     ...agents
-      .filter((a) => a.slug !== "general" && a.slug !== "editor")
+      .filter((a) => a.slug !== "editor")
       .map((a) => ({
         type: "agent" as const,
         id: a.slug,
@@ -338,7 +338,7 @@ export function HomeScreen() {
     items: mentionItems,
     onSubmit: async ({ message, mentionedPaths, mentionedAgents }) => {
       const targetAgent =
-        mentionedAgents.length > 0 ? mentionedAgents[0] : "general";
+        mentionedAgents.length > 0 ? mentionedAgents[0] : "editor";
 
       const data = await createConversation({
         agentSlug: targetAgent,

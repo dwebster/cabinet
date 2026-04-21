@@ -1,5 +1,49 @@
 # Progress
 
+[2026-04-21] Consolidated the stacked chrome above every viewer into a single unified toolbar row. Built a shared `ViewerToolbar` component (`src/components/layout/viewer-toolbar.tsx`) that embeds the new `ReturnToChip` (pops the app-store `returnTo` stack), inline `ViewerBreadcrumb`, optional badge/sublabel, a children slot for viewer-specific actions, and the global `HeaderActions`. Refactored every file viewer to use it — SourceViewer, PdfViewer, CsvViewer, ImageViewer, MediaViewer, MermaidViewer, WebsiteViewer (with a special `leading` slot for the Exit-app button in fullscreen mode where the breadcrumb is hidden), FileFallbackViewer, OfficeChrome (docx/xlsx/pptx), and the markdown editor Header. Deleted the separate `ReturnToBanner` row and the app-shell-level `ViewerBreadcrumb` injection. Screenshot case: JSON file viewer collapsed from 3 stacked rows (Back-to-task + breadcrumb + SourceViewer title/actions) to a single row containing all of them, and the fullscreen app viewer from 2 rows to 1.
+
+[2026-04-21] Added satirical CV for Griselda Marchbanks to have-fun/ (cv-griselda-marchbanks.md, order 33), extending the Harry Potter CV series with the retired Chief Examiner's exacting, long-view voice — sixty-three years of OWL/NEWT examining (including Dumbledore's papers), the 1995 Wizengamot resignation, and a standing defence of the examination as a fairness instrument. Index updated.
+
+[2026-04-21] Added satirical CV for Amelia Susan Bones to have-fun/ (cv-amelia-bones.md, order 34), extending the Harry Potter CV series with the Head of Magical Law Enforcement's crisp, procedurally-rigorous voice — monocle, Wizengamot procedure, Auror pedigree, and a standing memorandum on the independence of law enforcement from the Minister's office.
+
+[2026-04-21] Added satirical CV for Rolanda Hooch to have-fun/ (cv-rolanda-hooch.md, order 32), extending the Harry Potter CV series with the Flying Instructor's brisk, rulebook-held-in-the-head voice — including her Holyhead Harriers reserve-Beater years, IQA Grade I refereeing certification, and her standing view that school fixtures warrant a higher standard than the senior game. Index updated to list Hooch alongside Pomfrey, Ollivander, and the rest.
+
+[2026-04-21] Added satirical CV for Poppy Pomfrey to have-fun/ (cv-poppy-pomfrey.md, order 31), extending the Harry Potter CV series with the Hogwarts Matron's clipped, patient-first, discretion-bound voice — including her St Mungo's training, the Petrified-patient case series, and her non-negotiable line on surrendering case notes to the Ministry.
+
+[2026-04-21] Added satirical CV for Garrick Ollivander to have-fun/ (cv-garrick-ollivander.md, order 30), extending the Harry Potter CV series with the wandmaker's measured, craft-proud voice — including a restrained note on the 1996–1998 off-premises consultation and the Elder Wand question he would prefer not to be asked again.
+
+[2026-04-21] Conversation-panel artifact buttons now render type-aware icons and colors (AppWindow/emerald for `.app`, Table/green for CSV, FileType/red for PDF, Globe/blue for websites, Code/violet for source, Image/Video/Audio, docx/xlsx/pptx, etc.) by looking up each path via `/api/kb/pages/meta` with a path-inferred fallback — reusing the same `pageTypeIcon`/`pageTypeColor` helpers the sidebar uses. Extracted `usePageMeta` into `src/hooks/use-page-meta.ts` and deduped it out of `artifacts-list.tsx`, upgraded both `conversation-result-view.tsx` and `conversation-live-view.tsx`. Extended `artifactPathToTreePath` to also strip `/index.html`, so an artifact pointing at an app's entry HTML resolves to the app directory's tree node and `app-shell` renders the full-screen `<WebsiteViewer>`. Reworked `openArtifactPath` to normalize the path and call `focusPath` (which expands ancestors, selects, and bumps `focusTick`) so the sidebar now scrolls the target row into view and blinks it on click, and skips redundant `loadPage` for app/website node types. Added a new `ViewerBreadcrumb` component rendered in `app-shell.tsx` above `renderContent()` whenever a KB page is open — clickable Home + path segments that each call `focusPath` + `loadPage`; hidden in full-screen `.app` mode to preserve the immersive experience.
+
+[2026-04-21] Removed the `General` pseudo-agent and made Editor the default agent everywhere. Deleted the hardcoded `GENERAL_AGENT` constant and `general-agent-view.tsx`, dropped the four `=== "general"` branches in `conversation-runner.ts` so every slug flows through `readPersona(...)` uniformly, added a `normalizeAgentSlug` helper (aliases legacy `"general"` → `"editor"`), defaulted composer submit targets and task/schedule/tree fallbacks to `"editor"`, removed the "General is manual-only" settings panel, and broadened Editor's persona with `canDispatch: true` plus Q&A / repo / dispatch framing so it can fill General's role.
+
+[2026-04-21] Added satirical CV for Pomona Sprout to have-fun/ (cv-pomona-sprout.md, order 29), extending the Harry Potter CV series with the Herbology Mistress and Hufflepuff Head's earthy, practical, unsentimentally-proud voice — including the Mandrake programme of 1992–93 and her disposition of the greenhouses at the Battle of Hogwarts.
+
+[2026-04-21] Added `data/have-fun/cv-arthur-weasley.md` — a satirical in-character CV for Arthur Weasley (founder of the Misuse of Muggle Artefacts Office 1981–1998, Head of the post-war Office for the Detection and Confiscation of Counterfeit Defensive Spells and Protective Objects, Order of the Phoenix member in both intakes, Order of Merlin First Class 1998), extending the Harry Potter CV collection.
+
+[2026-04-21] Added `data/have-fun/cv-bill-weasley.md` — a satirical in-character CV for William "Bill" Weasley (Senior Curse-Breaker at Gringotts, Cairo posting 1989–1995, Order of the Phoenix member, survivor of the Greyback encounter at the Battle of the Astronomy Tower), extending the Harry Potter CV collection.
+
+[2026-04-21] Added `data/have-fun/cv-nymphadora-tonks.md` — a satirical in-character CV for Nymphadora "Tonks" Tonks (Hufflepuff Auror, Metamorphmagus, Order of the Phoenix member), written in her own voice and extending the Harry Potter CV collection.
+
+[2026-04-21] Added `data/have-fun/cv-kingsley-shacklebolt.md` — a satirical in-character CV for Kingsley Shacklebolt (Auror → close-protection for the Muggle Prime Minister → acting Head of the Auror Office → Minister for Magic after the Battle of Hogwarts), extending the Harry Potter CV collection.
+
+[2026-04-21] Added `data/have-fun/cv-cornelius-fudge.md` — a satirical in-character CV for Cornelius Oswald Fudge (junior Ministry clerk → Minister for Magic 1990–1996 → elder statesman and "senior policy consultant" after a mutually agreed handover to Scrimgeour), extending the Harry Potter CV collection.
+
+[2026-04-21] Added `data/have-fun/cv-ludo-bagman.md` — a satirical in-character CV for Ludovic "Ludo" Bagman (Wimbourne Wasps Beater → Head of Magical Games and Sports → Triwizard adjudicator → independent gentleman of leisure dodging goblin creditors), extending the Harry Potter CV collection.
+
+[2026-04-20] Added `data/have-fun/cv-rita-skeeter.md` — a satirical in-character CV for Rita Skeeter (Daily Prophet special correspondent, bestselling unauthorised biographer, unregistered Animagus), extending the Harry Potter CV collection.
+
+[2026-04-20] Added `data/have-fun/cv-peter-pettigrew.md` — a satirical in-character CV for Peter "Wormtail" Pettigrew (Marauder → Order member → double-agent → rat-form family pet → servant of Voldemort), extending the Harry Potter CV collection.
+
+[2026-04-20] Extended `have-fun/still-alive/` from 17s excerpt to 35s. `generate_midi.py` now appends a composed EXTENSION (beats 34-70) to the canonical SCORE: reprise variation with A5 peak, ascending build to another A5, return to the opening G5-F#5-E5 theme, and a four-beat D-major cadence chord (D3-A3-D4-F#4-A4-D5). Melody/bass threshold bumped to G#4 so F#4 and G4 stay in the arpeggio voice. Output: 183 notes (75 melody / 108 bass), 35.0s duration.
+
+[2026-04-20] Rewired `data/have-fun/still-alive/` to use the canonical SCORE from `career-ops/tools/portal_still_alive.py` (the intro piano excerpt the user actually wanted — earlier transcription was the vocal line). `generate_midi.py` now imports SCORE directly so both renderers stay in sync; emits polyphonic MIDI (120 BPM, 87 notes across 22 chord onsets) splitting melody ≥F4 onto channel 0 and bass below onto channel 1. Web app updated to show the highest-pitched active note in the huge display (melody vs. bass is auto-detected) and colors the piano-roll lanes by role — orange for melody, blue for bass.
+
+[2026-04-20] Added `data/have-fun/still-alive/` — Portal "Still Alive" (Jonathan Coulton) as a generated MIDI file plus a fullscreen web app (`.app` marker). Python script (`generate_midi.py`, pure stdlib) emits `still-alive.mid` (3 tracks: tempo/melody/bass, 112 BPM, D major) and `still-alive.json` (117-note timeline). `index.html` renders each active note in 28vw letters with sharp/octave styling, a scrolling piano-roll canvas with playhead, Web Audio sine+triangle synth, play/pause/restart, and Space/R keyboard shortcuts.
+
+[2026-04-20] Added satirical CV for Severus Snape to `data/have-fun/cv-severus-snape.md`, extending the Harry Potter CV collection (adds Potions Master / Head of Slytherin / double-agent angle; follows the Moody-style in-character format).
+
+[2026-04-20] Added satirical CV for Alastor "Mad-Eye" Moody to `data/have-fun/cv-alastor-moody.md`, extending the Harry Potter CV collection (now also covers Auror/Order-of-the-Phoenix angle alongside the Hogwarts-staff majority).
+
 [2026-04-20] Added satirical CV for Xenophilius Lovegood to `data/have-fun/cv-xenophilius-lovegood.md`, extending the Harry Potter CV collection (previously covered Lockhart, Umbridge, Trelawney, Filch, Hagrid, Lupin, Slughorn, Fletcher).
 
 [2026-04-20] **PendingActionsPanel: one-click Approve all / Reject all / Deselect all.** Previously fan-outs of 500+ tasks required two clicks (Select all → Approve). The header now surfaces always-visible bulk buttons: **Approve all (N)** dispatches every approvable row in one click (skips hard-blocked), **Reject all (N)** clears every pending row without dispatching, and the select-all toggle flips between **Select all** and **Deselect all**. Previous Approve / Reject buttons now render as **Approve selected (N) / Reject selected** only when rows are checked — supporting partial-approval flows without cluttering the default case.
@@ -732,3 +776,13 @@
 [2026-04-20] AgentIdentity avatar branch now uses `flex` + `rounded-md` to match the icon branch. Previously the span rendered as `display: inline` which made `overflow-hidden` a no-op — the SVG avatar's square corners bled past the rounded-2xl override on the hero, so picking an avatar looked visibly different from picking an icon. With `flex` the rounded corners actually clip, and both branches now pick up the caller's shape/size override identically.
 
 [2026-04-20] Added satirical CV for Mundungus Fletcher to have-fun/ (cv-mundungus-fletcher.md, order 17), extending the Harry Potter CV series with the Order of the Phoenix's favourite unregistered goods dealer.
+
+[2026-04-21] Added satirical CV for Minerva McGonagall to have-fun/ (cv-minerva-mcgonagall.md, order 22), extending the Harry Potter CV series with the Deputy/Headmistress's clipped, unyielding, and — at interview — distinctly unimpressed voice.
+
+[2026-04-21] Added satirical CV for Percy Ignatius Weasley to have-fun/ (cv-percy-weasley.md), extending the Harry Potter CV series with the Ministry-bound elder brother whose formal, procedurally-precise voice includes a frank note on his 1995–1998 family estrangement.
+
+[2026-04-21] Added satirical CV for Aberforth Dumbledore to have-fun/ (cv-aberforth-dumbledore.md, order 26), extending the Harry Potter CV series with the Hog's Head publican's gruff, reluctant, quietly-heroic voice.
+
+[2026-04-21] Added satirical CV for Filius Flitwick to have-fun/ (cv-filius-flitwick.md, order 28), extending the Harry Potter CV series with the Charms Master's precise, courteous, quietly-proud voice — including the duelling championship he will not, by preference, discuss.
+
+[2026-04-21] Added satirical CV for Augusta Longbottom to have-fun/ (cv-augusta-longbottom.md, order 33), extending the Harry Potter CV series with the formidable grandmother of Neville — vulture-hatted, red-handbag-wielding, decades-long steward of the Longbottom estate and of the Janus Thickey Ward visiting rota.
