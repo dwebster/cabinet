@@ -85,13 +85,16 @@ function parseJsonBlock(body: string): AgentAction[] {
   return out;
 }
 
-// Recognize trailing `model=...` / `effort=...` segments so agents can append
-// runtime hints to inline LAUNCH_TASK / SCHEDULE_* lines without derailing
-// the existing pipe-separated shape. Unknown key=value segments are ignored
-// and kept inside the prompt body.
-const RUNTIME_KV_RE = /^(model|effort)\s*=\s*(.+)$/i;
+// Recognize trailing `model=...` / `effort=...` / `provider=...` / `adapter=...`
+// segments so agents can append runtime hints to inline LAUNCH_TASK /
+// SCHEDULE_* lines without derailing the existing pipe-separated shape.
+// Unknown key=value segments are ignored and kept inside the prompt body.
+const RUNTIME_KV_RE =
+  /^(model|effort|provider|providerId|adapter|adapterType)\s*=\s*(.+)$/i;
 
 interface RuntimeHints {
+  providerId?: string;
+  adapterType?: string;
   model?: string;
   effort?: string;
 }
@@ -105,8 +108,14 @@ function extractRuntimeHints(rest: string[]): {
   for (const part of rest) {
     const kv = RUNTIME_KV_RE.exec(part);
     if (kv) {
-      const key = kv[1].toLowerCase() as "model" | "effort";
+      const rawKey = kv[1].toLowerCase();
       const value = kv[2].trim();
+      const key =
+        rawKey === "provider" || rawKey === "providerid"
+          ? "providerId"
+          : rawKey === "adapter" || rawKey === "adaptertype"
+            ? "adapterType"
+            : (rawKey as "model" | "effort");
       if (value && !hints[key]) {
         hints[key] = value;
         continue;
@@ -123,6 +132,8 @@ function withRuntime<T extends { prompt: string }>(
 ): T & RuntimeHints {
   return {
     ...action,
+    ...(hints.providerId ? { providerId: hints.providerId } : {}),
+    ...(hints.adapterType ? { adapterType: hints.adapterType } : {}),
     ...(hints.model ? { model: hints.model } : {}),
     ...(hints.effort ? { effort: hints.effort } : {}),
   };
@@ -166,9 +177,13 @@ function coerceJsonAction(raw: unknown): AgentAction | null {
   const agent = pickString(raw, ["agent", "agentSlug", "to", "target"]);
   if (!agent) return null;
 
+  const providerId = pickString(raw, ["providerId", "provider"]);
+  const adapterType = pickString(raw, ["adapterType", "adapter"]);
   const model = pickString(raw, ["model"]);
   const effort = pickString(raw, ["effort", "reasoning", "reasoningEffort"]);
   const hints: RuntimeHints = {};
+  if (providerId) hints.providerId = providerId;
+  if (adapterType) hints.adapterType = adapterType;
   if (model) hints.model = model;
   if (effort) hints.effort = effort;
 
@@ -215,7 +230,7 @@ function splitPipe(value: string): string[] {
 }
 
 export function fingerprint(action: AgentAction): string {
-  const runtime = `${action.model ?? ""}:${action.effort ?? ""}`;
+  const runtime = `${action.providerId ?? ""}:${action.adapterType ?? ""}:${action.model ?? ""}:${action.effort ?? ""}`;
   switch (action.type) {
     case "LAUNCH_TASK":
       return `LAUNCH_TASK:${action.agent}:${action.title}:${action.prompt}:${runtime}`;

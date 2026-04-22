@@ -2,6 +2,7 @@ import cron from "node-cron";
 import type { AgentAction, ActionWarning } from "@/types/actions";
 import type { AgentPersona } from "./persona-manager";
 import type { ConversationMeta } from "@/types/conversations";
+import { providerRegistry } from "./provider-registry";
 
 export type PersonaLookup = Map<string, AgentPersona>;
 
@@ -97,6 +98,46 @@ export function computeWarnings(
         code: "invalid_when",
         severity: "hard",
         message: `"${action.when}" is not a valid ISO datetime.`,
+      });
+    }
+  }
+
+  // Action-authored providerId override: reject if the provider isn't
+  // registered. The install/auth state of a provider is async to compute,
+  // so we only gate on registry presence here — the CLI itself will fail
+  // loudly via the adapter's error-classifier if unauthenticated (and
+  // `codex-local` now surfaces the real reason after the Gap-3 fix).
+  if (action.providerId) {
+    const provider = providerRegistry.get(action.providerId);
+    if (!provider) {
+      warnings.push({
+        code: "provider_unavailable",
+        severity: "hard",
+        message: `Provider "${action.providerId}" is not registered.`,
+      });
+    }
+  }
+
+  // Soft info: when the parent ran on a different provider than the target
+  // persona's declared default, the new resolver pushes the parent's
+  // runtime down. Flag this so humans reviewing the action can spot the
+  // shift (e.g. "copywriter is declared codex-cli but will run on claude").
+  if (target) {
+    const parentProvider = meta.providerId?.trim();
+    const resolvedProvider =
+      action.providerId?.trim() || parentProvider || target.provider;
+    if (
+      resolvedProvider &&
+      target.provider &&
+      resolvedProvider !== target.provider
+    ) {
+      warnings.push({
+        code: "cross_provider_push",
+        severity: "soft",
+        message:
+          `${target.name} normally runs on ${target.provider}, but this ` +
+          `sub-task will run on ${resolvedProvider} (inherited from the ` +
+          `parent conversation).`,
       });
     }
   }

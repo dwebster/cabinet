@@ -23,6 +23,15 @@ interface CodexItemPayload {
   thread_id?: string;
 }
 
+interface CodexErrorPayload {
+  type?: string;
+  message?: string;
+  error?: {
+    message?: string;
+    type?: string;
+  };
+}
+
 export interface CodexStreamAccumulator {
   buffer: string;
   display: string;
@@ -30,6 +39,14 @@ export interface CodexStreamAccumulator {
   usage?: AdapterUsageSummary;
   lastAgentMessage?: string | null;
   startedCommands: Set<string>;
+  /**
+   * Human-readable error text captured from an in-stream `{"type":"error"}`
+   * or `{"type":"turn.failed"}` event. Codex emits plan-gating and model-
+   * availability failures this way (on stdout, not stderr), so `codex-local`
+   * prefers this over filtered stderr when surfacing `errorMessage` to the
+   * runner. Null until an error event is seen.
+   */
+  errorMessage?: string | null;
 }
 
 function appendDisplay(
@@ -78,6 +95,28 @@ function parseUsage(
   };
 }
 
+function extractErrorMessage(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Codex often wraps the upstream HTTP error as a JSON-stringified payload:
+  //   `{"type":"error","status":400,"error":{"message":"...","type":"invalid_request_error"}}`
+  // Try to unwrap to the innermost human-readable `message`; if parsing
+  // fails we just fall back to the raw string.
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === "object") {
+      const inner = (parsed as { error?: { message?: string } }).error?.message;
+      if (typeof inner === "string" && inner.trim()) return inner.trim();
+      const outer = (parsed as { message?: string }).message;
+      if (typeof outer === "string" && outer.trim()) return outer.trim();
+    }
+  } catch {
+    // not JSON — fall through
+  }
+  return trimmed;
+}
+
 function consumeCodexEvent(
   accumulator: CodexStreamAccumulator,
   line: string
@@ -86,7 +125,9 @@ function consumeCodexEvent(
   if (!trimmed) return "";
 
   try {
-    const payload = JSON.parse(trimmed) as CodexItemPayload & CodexTurnCompletedPayload;
+    const payload = JSON.parse(trimmed) as CodexItemPayload &
+      CodexTurnCompletedPayload &
+      CodexErrorPayload;
 
     if (payload.type === "thread.started" && typeof payload.thread_id === "string") {
       accumulator.threadId = payload.thread_id;
@@ -97,6 +138,23 @@ function consumeCodexEvent(
       const usage = parseUsage(payload.usage);
       if (usage) {
         accumulator.usage = usage;
+      }
+      return "";
+    }
+
+    // In-stream error (e.g. model not supported by the user's Codex plan).
+    // Prefer the first `"error"` event's message; only fall back to
+    // `turn.failed` when nothing has been captured yet — the two typically
+    // arrive in quick succession and carry identical text.
+    if (payload.type === "error") {
+      if (!accumulator.errorMessage) {
+        accumulator.errorMessage = extractErrorMessage(payload.message);
+      }
+      return "";
+    }
+    if (payload.type === "turn.failed") {
+      if (!accumulator.errorMessage) {
+        accumulator.errorMessage = extractErrorMessage(payload.error?.message);
       }
       return "";
     }
@@ -150,6 +208,7 @@ export function createCodexStreamAccumulator(): CodexStreamAccumulator {
     usage: undefined,
     lastAgentMessage: null,
     startedCommands: new Set<string>(),
+    errorMessage: null,
   };
 }
 

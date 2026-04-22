@@ -60,3 +60,53 @@ printf '%s\n' \
     { stream: "stderr", chunk: "Meaningful stderr line\n" },
   ]);
 });
+
+test("codexLocalAdapter surfaces in-stream {type:error} events as errorMessage and classifies model_unavailable", async () => {
+  // Mirror the real-world shape codex emits when the backend rejects a
+  // plan-gated model: the outer event carries a JSON-stringified wrapper in
+  // .message with the human-readable text nested under .error.message.
+  const innerJson = JSON.stringify({
+    type: "error",
+    status: 400,
+    error: {
+      type: "invalid_request_error",
+      message: "The 'gpt-5.2-codex' model is not supported when using Codex with a ChatGPT account.",
+    },
+  });
+  // Escape for embedding inside an /bin/sh single-quoted string: wrap the
+  // JSON with double quotes and rely on the shell heredoc below, which is
+  // simpler than escaping.
+  const scriptPath = await createExecutableScript(`#!/bin/sh
+cat >/dev/null
+cat <<'JSONLOG'
+{"type":"thread.started","thread_id":"thread-err"}
+{"type":"turn.started"}
+{"type":"error","message":${JSON.stringify(innerJson)}}
+{"type":"turn.failed","error":{"message":${JSON.stringify(innerJson)}}}
+JSONLOG
+exit 1
+`);
+
+  const result = await codexLocalAdapter.execute?.({
+    runId: "run-2",
+    adapterType: "codex_local",
+    config: { command: scriptPath, model: "gpt-5.2-codex" },
+    prompt: "hi",
+    cwd: process.cwd(),
+    onLog: async () => {},
+  });
+
+  assert.ok(result);
+  assert.equal(result.exitCode, 1);
+  assert.equal(
+    result.errorMessage,
+    "The 'gpt-5.2-codex' model is not supported when using Codex with a ChatGPT account."
+  );
+
+  // Classifier should now short-circuit to model_unavailable when the
+  // stream-captured message is threaded in (mirrors what the runner does
+  // when stderr is empty).
+  const classified = codexLocalAdapter.classifyError?.(result.errorMessage ?? "", result.exitCode);
+  assert.equal(classified?.kind, "model_unavailable");
+  assert.match(classified?.hint ?? "", /available on this account's plan/i);
+});

@@ -90,11 +90,19 @@ export interface AgentListItem {
   avatar?: string;
   avatarExt?: string;
 }
+export type ProviderModelRequires = "any" | "chatgpt_plan" | "api_key";
+
 export interface ProviderModel {
   id: string;
   name: string;
   description?: string;
   effortLevels?: ProviderEffortLevel[];
+  /**
+   * Auth/plan gate advertised by the provider. UIs should badge models
+   * that `requires === "api_key"` so users don't pick an unsupported
+   * model on a ChatGPT-plan Codex account.
+   */
+  requires?: ProviderModelRequires;
 }
 
 export interface ProviderEffortLevel {

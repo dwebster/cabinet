@@ -8,6 +8,8 @@ export interface LaunchTaskAction {
   agent: string;
   title: string;
   prompt: string;
+  providerId?: string;
+  adapterType?: string;
   model?: string;
   effort?: string;
 }
@@ -18,6 +20,8 @@ export interface ScheduleJobAction {
   name: string;
   schedule: string;
   prompt: string;
+  providerId?: string;
+  adapterType?: string;
   model?: string;
   effort?: string;
 }
@@ -28,6 +32,8 @@ export interface ScheduleTaskAction {
   when: string;
   title: string;
   prompt: string;
+  providerId?: string;
+  adapterType?: string;
   model?: string;
   effort?: string;
 }
@@ -46,7 +52,9 @@ export type ActionWarningCode =
   | "inactive_target"
   | "budget_low"
   | "invalid_schedule"
-  | "invalid_when";
+  | "invalid_when"
+  | "provider_unavailable"
+  | "cross_provider_push";
 
 export interface ActionWarning {
   code: ActionWarningCode;
@@ -83,6 +91,7 @@ export const HARD_WARNINGS: ReadonlySet<ActionWarningCode> = new Set([
   "persona_cannot_dispatch",
   "invalid_schedule",
   "invalid_when",
+  "provider_unavailable",
 ]);
 
 export const MAX_ACTIONS_PER_TURN = 5000;

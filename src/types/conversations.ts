@@ -24,6 +24,7 @@ export type ConversationErrorKind =
   | "context_exceeded"
   | "transport"
   | "timeout"
+  | "model_unavailable"
   | "unknown";
 
 export interface ConversationErrorClassification {

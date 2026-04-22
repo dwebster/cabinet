@@ -199,6 +199,7 @@ interface StructuredSession extends BaseSession {
     | "context_exceeded"
     | "transport"
     | "timeout"
+    | "model_unavailable"
     | "unknown"
     | null;
   adapterErrorHint?: string | null;
@@ -335,12 +336,17 @@ function submitInitialPrompt(session: PtySession): void {
   }
 
   session.pty.write(session.initialPrompt);
-  // Small delay so the terminal processes the pasted text before Enter
+  // Claude Code's TUI groups rapidly-arriving input into a `[Pasted text
+  // #N +X lines]` block; while paste mode is active a trailing `\r`
+  // becomes part of the paste instead of a submit keystroke, and the
+  // prompt sits in the input waiting for the user to hit Enter. The
+  // paste window is ~100-200ms of quiet, so wait comfortably past it
+  // before sending Enter.
   setTimeout(() => {
     if (!session.exited) {
       session.pty.write("\r");
     }
-  }, 150);
+  }, 600);
 }
 
 async function syncConversationChunk(sessionId: string, chunk: string): Promise<void> {
@@ -1121,10 +1127,20 @@ function createStructuredSession(input: {
       session.adapterUsage = result.usage ?? null;
 
       // Classify failures so the UI can surface an actionable hint.
+      // Prefer stderrBuffer, but fall back to the adapter-reported
+      // `errorMessage` (used by structured CLIs like codex that emit error
+      // events on STDOUT, e.g. plan-gated model rejections). Without the
+      // fallback, model_unavailable and other stdout-reported failures
+      // would classify as unknown despite the adapter having the real
+      // reason ready to hand off.
       if (session.resolvedStatus === "failed" && adapter.classifyError) {
         try {
+          const classifierInput =
+            (session.stderrBuffer && session.stderrBuffer.trim())
+              ? session.stderrBuffer
+              : result.errorMessage ?? "";
           const classified = adapter.classifyError(
-            session.stderrBuffer ?? "",
+            classifierInput,
             result.exitCode
           );
           session.adapterErrorKind = classified.kind;
@@ -1788,9 +1804,12 @@ const server = http.createServer(async (req, res) => {
         }
         session.pty.write(rawInput);
         if (appendEnter !== false) {
+          // Same paste-window guard as submitInitialPrompt — Claude's TUI
+          // groups rapid input as a paste, and an Enter inside that
+          // window becomes part of the paste instead of submitting.
           setTimeout(() => {
             if (!session.exited) session.pty.write("\r");
-          }, 150);
+          }, 600);
         }
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, sessionId }));

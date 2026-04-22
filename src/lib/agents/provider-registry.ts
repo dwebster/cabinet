@@ -54,3 +54,22 @@ providerRegistry.register(copilotCliProvider);
 
 // Future providers will be registered here:
 // providerRegistry.register(anthropicApiProvider);
+
+/**
+ * Does `providerId` advertise support for the given effort id?
+ *
+ * Used by the dispatcher to decide whether the parent's `effort` can travel
+ * across providers when a child's resolved provider differs. Unknown provider
+ * or missing effort list → `false` (safe drop rather than pass through junk).
+ */
+export function providerSupportsEffort(
+  providerId: string | undefined,
+  effort: string | undefined
+): boolean {
+  if (!providerId || !effort) return false;
+  const provider = providerRegistry.get(providerId);
+  if (!provider) return false;
+  const levels = provider.effortLevels;
+  if (!levels || levels.length === 0) return false;
+  return levels.some((level) => level.id === effort);
+}

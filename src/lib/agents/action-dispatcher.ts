@@ -13,6 +13,7 @@ import { saveAgentJob } from "@/lib/jobs/job-manager";
 import { reloadDaemonSchedules } from "./daemon-client";
 import { readConversationMeta, writeConversationMeta } from "./conversation-store";
 import { normalizeRuntimeOverride } from "./runtime-overrides";
+import { providerSupportsEffort } from "./provider-registry";
 
 function pickString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -22,54 +23,92 @@ function pickString(value: unknown): string | undefined {
  * Resolve the runtime a dispatched sub-task should run with.
  *
  * Precedence (highest → lowest):
- *   1. Action-authored override (agent set model/effort on LAUNCH_TASK etc.).
- *   2. Parent conversation's model/effort — inherited only when the parent
- *      used the same provider as the target. Crossing providers would leak
- *      an incompatible model/effort (e.g. `claude-opus-*` onto Codex), so
- *      `normalizeRuntimeOverride` drops the inherited base when providers
- *      differ.
- *   3. Target persona defaults.
+ *   1. Action-authored override (agent set providerId/adapterType/model/effort
+ *      on a LAUNCH_TASK — used when the user asked for this sub-task to run
+ *      on a specific model).
+ *   2. Parent conversation's runtime (providerId + adapterType + model +
+ *      effort). Pushed down by default so "I picked Opus" propagates to all
+ *      children instead of silently falling back to each teammate's persona
+ *      default.
+ *   3. Target persona defaults — used only when the parent has no runtime
+ *      recorded.
  *
- * Provider + adapterType always come from the target persona — each teammate
- * keeps its own identity; only the reasoning level travels with the task.
+ * Model is inherited only when the resolved provider matches the parent's
+ * (an Opus model id on Codex would 400). Effort is portable across providers
+ * as long as the resolved provider advertises the level.
  */
-function resolveDispatchRuntime(
+export function resolveDispatchRuntime(
   parent: ConversationMeta,
   target: AgentPersona,
-  action: { model?: string; effort?: string }
+  action: {
+    providerId?: string;
+    adapterType?: string;
+    model?: string;
+    effort?: string;
+  }
 ): {
   providerId: string;
   adapterType?: string;
   adapterConfig?: Record<string, unknown>;
 } {
   const parentConfig = (parent.adapterConfig ?? {}) as Record<string, unknown>;
-  const actionModel = pickString(action.model);
-  const actionEffort = pickString(action.effort);
+  const parentProvider = pickString(parent.providerId);
+  const parentAdapter = pickString(parent.adapterType);
   const parentModel = pickString(parentConfig.model);
   const parentEffort = pickString(parentConfig.effort);
 
-  const parentProvider = pickString(parent.providerId);
-  const sameProvider = parentProvider === target.provider;
+  const actionProvider = pickString(action.providerId);
+  const actionAdapter = pickString(action.adapterType);
+  const actionModel = pickString(action.model);
+  const actionEffort = pickString(action.effort);
 
-  const requestedModel = actionModel ?? (sameProvider ? parentModel : undefined);
-  const requestedEffort = actionEffort ?? (sameProvider ? parentEffort : undefined);
+  // Provider + adapter: action > parent > target persona.
+  const resolvedProvider = actionProvider ?? parentProvider ?? target.provider;
+  const resolvedAdapter =
+    actionAdapter ?? (resolvedProvider === parentProvider ? parentAdapter : undefined);
 
+  // Model: only inherit when the resolved provider matches the source's
+  // provider. A Claude model id would 400 against Codex and vice-versa.
+  let inheritedModel: string | undefined;
+  if (actionModel) {
+    inheritedModel = actionModel;
+  } else if (!actionProvider && resolvedProvider === parentProvider) {
+    // Parent-inheritance path: same provider means the model string is valid.
+    inheritedModel = parentModel;
+  }
+
+  // Effort: portable if the resolved provider declares the level. Falls back
+  // to target persona default when neither action nor parent supplied one.
+  let inheritedEffort: string | undefined;
+  if (actionEffort) {
+    inheritedEffort = actionEffort;
+  } else if (parentEffort && providerSupportsEffort(resolvedProvider, parentEffort)) {
+    inheritedEffort = parentEffort;
+  }
+
+  // Target-persona adapterConfig is the fallback only when nothing else
+  // resolved (same provider-switch rule as normalizeRuntimeOverride). Feed
+  // the shared normalizer with the already-resolved provider/adapter so it
+  // applies the same cross-provider rules the POST-create path uses.
   const normalized = normalizeRuntimeOverride(
     {
-      providerId: target.provider,
-      adapterType: target.adapterType,
-      model: requestedModel,
-      effort: requestedEffort,
+      providerId: resolvedProvider,
+      adapterType: resolvedAdapter,
+      model: inheritedModel,
+      effort: inheritedEffort,
     },
     {
-      providerId: target.provider,
-      adapterType: target.adapterType,
-      adapterConfig: target.adapterConfig,
+      providerId:
+        resolvedProvider === target.provider ? target.provider : undefined,
+      adapterType:
+        resolvedProvider === target.provider ? target.adapterType : undefined,
+      adapterConfig:
+        resolvedProvider === target.provider ? target.adapterConfig : undefined,
     }
   );
 
   return {
-    providerId: normalized.providerId ?? target.provider,
+    providerId: normalized.providerId ?? resolvedProvider,
     adapterType: normalized.adapterType,
     adapterConfig: normalized.adapterConfig,
   };

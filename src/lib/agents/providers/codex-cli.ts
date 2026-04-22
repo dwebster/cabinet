@@ -41,47 +41,67 @@ export const codexCliProvider: AgentProvider = {
     { title: "Verify setup", detail: "Confirm headless mode works:", command: "codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox 'Reply with exactly OK'" },
   ],
   detachedPromptLaunchMode: "one-shot",
+  // Models are annotated with `requires` so UI pickers can badge entries the
+  // user's current auth mode can't hit. Codex backend behavior (verified
+  // live 2026-04-21): ChatGPT-plan accounts currently only accept
+  // `gpt-5.4`; every "gpt-5.x-codex" / `o*` / `gpt-4.1*` id documented here
+  // 400s with `model not supported when using Codex with a ChatGPT
+  // account`. API-key auth (`OPENAI_API_KEY`) accepts the rest.
   models: [
+    {
+      id: "gpt-5.4",
+      name: "GPT-5.4",
+      description: "Default model on ChatGPT-plan Codex accounts",
+      requires: "any",
+      effortLevels: [...CODEX_EXTENDED_REASONING_LEVELS],
+    },
     {
       id: "gpt-5.2-codex",
       name: "GPT-5.2 Codex",
-      description: "Current flagship Codex model for agentic coding",
+      description: "Flagship Codex model for agentic coding (API-key only)",
+      requires: "api_key",
       effortLevels: [...CODEX_EXTENDED_REASONING_LEVELS],
     },
     {
       id: "gpt-5.1-codex-max",
       name: "GPT-5.1 Codex Max",
-      description: "High-depth Codex model with extended reasoning",
+      description: "High-depth Codex model with extended reasoning (API-key only)",
+      requires: "api_key",
       effortLevels: [...CODEX_MAX_REASONING_LEVELS],
     },
     {
       id: "o3",
       name: "o3",
-      description: "Most capable legacy reasoning model",
+      description: "Most capable legacy reasoning model (API-key only)",
+      requires: "api_key",
       effortLevels: [...CODEX_REASONING_LEVELS],
     },
     {
       id: "o4-mini",
       name: "o4-mini",
-      description: "Fast legacy reasoning model",
+      description: "Fast legacy reasoning model (API-key only)",
+      requires: "api_key",
       effortLevels: [...CODEX_REASONING_LEVELS],
     },
     {
       id: "gpt-4.1",
       name: "GPT-4.1",
-      description: "Flagship GPT model",
+      description: "Flagship GPT model (API-key only)",
+      requires: "api_key",
       effortLevels: [],
     },
     {
       id: "gpt-4.1-mini",
       name: "GPT-4.1 Mini",
-      description: "Fast and affordable",
+      description: "Fast and affordable (API-key only)",
+      requires: "api_key",
       effortLevels: [],
     },
     {
       id: "gpt-4.1-nano",
       name: "GPT-4.1 Nano",
-      description: "Fastest, lowest cost",
+      description: "Fastest, lowest cost (API-key only)",
+      requires: "api_key",
       effortLevels: [],
     },
   ],

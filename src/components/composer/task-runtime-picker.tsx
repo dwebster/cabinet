@@ -445,8 +445,16 @@ function ProviderRuntimeMatrix({
                   >
                     <td className="px-2.5 py-1.5 align-top">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-[11.5px] font-medium text-foreground">
+                        <span className="flex items-center gap-1 text-[11.5px] font-medium text-foreground">
                           {model.name}
+                          {model.requires === "api_key" ? (
+                            <span
+                              title="Requires an OpenAI API key. Not available on ChatGPT-plan Codex accounts — picking this model will fail with 'model not supported when using Codex with a ChatGPT account'."
+                              className="inline-flex items-center rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[8.5px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400"
+                            >
+                              API key
+                            </span>
+                          ) : null}
                         </span>
                         {model.description ? (
                           <span className="max-w-[11rem] text-[9px] leading-3.5 text-muted-foreground">

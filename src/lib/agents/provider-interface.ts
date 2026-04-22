@@ -33,11 +33,21 @@ export interface SessionInvocationOptions {
   resumeId?: string;
 }
 
+export type ProviderModelRequires = "any" | "chatgpt_plan" | "api_key";
+
 export interface ProviderModel {
   id: string;
   name: string;
   description?: string;
   effortLevels?: ProviderEffortLevel[];
+  /**
+   * Auth/plan gate for this model. `"api_key"` means the provider's backend
+   * only accepts the model when the user is authenticated with a direct API
+   * key (not a consumer subscription like ChatGPT Codex). UIs should badge
+   * these models and the user should know up-front why a pick might fail.
+   * Defaults to `"any"` (no gating) when omitted.
+   */
+  requires?: ProviderModelRequires;
 }
 
 export interface ProviderEffortLevel {
