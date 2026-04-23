@@ -136,32 +136,3 @@ export async function compactTask(
   await jsonOrThrow(res);
 }
 
-export async function createTaskRequest(input: {
-  title: string;
-  initialPrompt: string;
-  cabinetPath?: string;
-  agentSlug?: string;
-  runtime?: ConversationRuntimeOverride;
-}): Promise<Task> {
-  // /api/agents/conversations expects { userMessage, agentSlug?, source,
-  // cabinetPath?, providerId?, adapterType?, model?, effort? }. The existing
-  // endpoint builds the full Cabinet persona + epilogue prompt for us.
-  const runtime = input.runtime ?? {};
-  const res = await fetch("/api/agents/conversations", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      source: "manual",
-      userMessage: input.initialPrompt,
-      agentSlug: input.agentSlug ?? "editor",
-      cabinetPath: input.cabinetPath,
-      providerId: runtime.providerId,
-      adapterType: runtime.adapterType,
-      model: runtime.model,
-      effort: runtime.effort,
-      runtimeMode: runtime.runtimeMode,
-    }),
-  });
-  const data = await jsonOrThrow<{ ok: boolean; conversation: ConversationMeta }>(res);
-  return fetchTask(data.conversation.id, data.conversation.cabinetPath);
-}

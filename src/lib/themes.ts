@@ -1,11 +1,10 @@
 // Theme definitions for the multi-theme system
 // Each theme defines CSS custom properties using OKLCh color space
 
-// Vivid agent colors — matches the Tailwind-500 family used in the
-// original /tasks-v2 demo. Each entry is an 18%-alpha tint for the pill
-// background and the full-saturation rgb for the text / glyph color.
-// Order matters: `getAgentColor(slug)` hashes into this list, so shuffling
-// will change every unset agent's default color.
+// Vivid agent colors — Tailwind-500 family. Each entry is an 18%-alpha tint
+// for the pill background and the full-saturation rgb for the text / glyph
+// color. Order matters: `getAgentColor(slug)` hashes into this list, so
+// shuffling will change every unset agent's default color.
 export const AGENT_PALETTE: Array<{ bg: string; text: string }> = [
   { bg: "rgba(99, 102, 241, 0.18)", text: "rgb(99, 102, 241)" }, // indigo-500
   { bg: "rgba(16, 185, 129, 0.18)", text: "rgb(16, 185, 129)" }, // emerald-500
