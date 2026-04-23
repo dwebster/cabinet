@@ -13,7 +13,13 @@ import {
   TaskRuntimePicker,
   type TaskRuntimeSelection,
 } from "@/components/composer/task-runtime-picker";
+import {
+  StartWorkDialog,
+  WhenChip,
+  type StartWorkMode,
+} from "@/components/composer/start-work-dialog";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
+import type { CabinetAgentSummary } from "@/types/cabinets";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { AgentListItem } from "@/types/agents";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
 
 const QUICK_ACTIONS = [
@@ -272,7 +277,9 @@ export function HomeScreen() {
   const setSection = useAppStore((s) => s.setSection);
   const treeNodes = useTreeStore((s) => s.nodes);
   const [userName, setUserName] = useState<string | null>(null);
-  const [agents, setAgents] = useState<AgentListItem[]>([]);
+  const [agents, setAgents] = useState<CabinetAgentSummary[]>([]);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffMode, setHandoffMode] = useState<StartWorkMode>("recurring");
   const [registryTemplates, setRegistryTemplates] = useState<
     RegistryTemplate[]
   >([]);
@@ -295,16 +302,7 @@ export function HomeScreen() {
     fetch("/api/cabinets/overview?path=.&visibility=all")
       .then((r) => r.json())
       .then((data) => {
-        const overview = (data.agents || []).map(
-          (a: Record<string, unknown>) => ({
-            name: a.name as string,
-            slug: a.slug as string,
-            emoji: (a.emoji as string) || "",
-            role: (a.role as string) || "",
-            active: a.active as boolean,
-          })
-        ) as AgentListItem[];
-        setAgents(overview);
+        setAgents((data.agents || []) as CabinetAgentSummary[]);
       })
       .catch(() => {});
 
@@ -376,10 +374,20 @@ export function HomeScreen() {
           minHeight="44px"
           maxHeight="160px"
           actionsStart={
-            <TaskRuntimePicker
-              value={taskRuntime}
-              onChange={setTaskRuntime}
-            />
+            <>
+              <WhenChip
+                mode="now"
+                onChange={(next) => {
+                  if (next === "now") return;
+                  setHandoffMode(next);
+                  setHandoffOpen(true);
+                }}
+              />
+              <TaskRuntimePicker
+                value={taskRuntime}
+                onChange={setTaskRuntime}
+              />
+            </>
           }
         />
 
@@ -433,6 +441,24 @@ export function HomeScreen() {
         }}
         onImportStart={() => setImporting(true)}
         onImportEnd={() => setImporting(false)}
+      />
+
+      <StartWorkDialog
+        open={handoffOpen}
+        onOpenChange={setHandoffOpen}
+        cabinetPath={ROOT_CABINET_PATH}
+        agents={agents}
+        initialMode={handoffMode}
+        initialPrompt={composer.input}
+        onStarted={(conversationId) => {
+          composer.reset();
+          setSection({
+            type: "agent",
+            slug: "editor",
+            cabinetPath: ROOT_CABINET_PATH,
+            conversationId,
+          });
+        }}
       />
 
       {importing && (

@@ -57,6 +57,8 @@ export function StartWorkDialog({
   cabinetPath,
   agents,
   initialMode = "now",
+  initialPrompt,
+  initialAgentSlug,
   onStarted,
 }: {
   open: boolean;
@@ -64,6 +66,11 @@ export function StartWorkDialog({
   cabinetPath: string;
   agents: CabinetAgentSummary[];
   initialMode?: StartWorkMode;
+  /** Seed the prompt (used when the inline composers hand off to the dialog
+   *  after the user picks a non-"now" mode — preserves what they already typed). */
+  initialPrompt?: string;
+  /** Seed the selected agent. Falls back to the first active agent. */
+  initialAgentSlug?: string;
   onStarted?: (conversationId: string, conversationCabinetPath?: string) => void;
 }) {
   const treeNodes = useTreeStore((s) => s.nodes);
@@ -83,6 +90,7 @@ export function StartWorkDialog({
     setSubmitting(false);
   }, [open, initialMode]);
 
+
   const placeholder = useMemo(
     () => PLACEHOLDERS[Math.floor(Math.random() * PLACEHOLDERS.length)],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,13 +98,24 @@ export function StartWorkDialog({
   );
 
   const defaultAgent = useMemo(() => {
+    if (initialAgentSlug) {
+      const seeded = agents.find((a) => a.slug === initialAgentSlug);
+      if (seeded) return seeded;
+    }
     const active = agents.find((a) => a.active) ?? agents[0];
     return active ?? null;
-  }, [agents]);
+  }, [agents, initialAgentSlug]);
 
   const [selectedAgentSlug, setSelectedAgentSlug] = useState<string>(
     () => defaultAgent?.slug ?? ""
   );
+
+  // Re-seed the selected agent each time the dialog opens with a new
+  // initialAgentSlug (inline composers pass the currently-selected agent).
+  useEffect(() => {
+    if (!open || !initialAgentSlug) return;
+    setSelectedAgentSlug(initialAgentSlug);
+  }, [open, initialAgentSlug]);
 
   // Keep the selected agent in sync if the parent's agent list changes while
   // the dialog is open (e.g. persona sync in the background).
@@ -257,6 +276,17 @@ export function StartWorkDialog({
     },
   });
 
+  // Seed the composer textarea from inline-composer handoffs (HomeScreen /
+  // CabinetTaskComposer pass whatever the user already typed as
+  // initialPrompt when they pick a non-"now" mode from the When chip).
+  useEffect(() => {
+    if (!open) return;
+    if (typeof initialPrompt === "string") {
+      composer.setInput(initialPrompt);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialPrompt]);
+
   const handleModeChange = (next: StartWorkMode) => {
     if (next === mode) return;
     if (next === "heartbeat") {
@@ -399,7 +429,7 @@ export function StartWorkDialog({
   );
 }
 
-function WhenChip({
+export function WhenChip({
   mode,
   onChange,
 }: {

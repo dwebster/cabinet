@@ -8,6 +8,11 @@ import {
   type TaskRuntimeSelection,
 } from "@/components/composer/task-runtime-picker";
 import {
+  StartWorkDialog,
+  WhenChip,
+  type StartWorkMode,
+} from "@/components/composer/start-work-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -43,6 +48,8 @@ export function CabinetTaskComposer({
 }) {
   const [selectedAgent, setSelectedAgent] = useState<CabinetAgentSummary | null>(null);
   const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffMode, setHandoffMode] = useState<StartWorkMode>("recurring");
   const rootRef = useRef<HTMLDivElement>(null);
   const treeNodes = useTreeStore((state) => state.nodes);
   const pages = useMemo(() => flattenTree(treeNodes), [treeNodes]);
@@ -155,6 +162,14 @@ export function CabinetTaskComposer({
         mentionDropdownPlacement="below"
         actionsStart={
           <>
+            <WhenChip
+              mode="now"
+              onChange={(next) => {
+                if (next === "now") return;
+                setHandoffMode(next);
+                setHandoffOpen(true);
+              }}
+            />
             <AgentPickerCompact
               agents={assignableAgents}
               selected={selectedAgent}
@@ -166,6 +181,26 @@ export function CabinetTaskComposer({
             />
           </>
         }
+      />
+
+      <StartWorkDialog
+        open={handoffOpen}
+        onOpenChange={setHandoffOpen}
+        cabinetPath={cabinetPath}
+        agents={assignableAgents}
+        initialMode={handoffMode}
+        initialPrompt={composer.input}
+        initialAgentSlug={selectedAgent?.slug}
+        onStarted={(conversationId, conversationCabinetPath) => {
+          composer.reset();
+          if (selectedAgent) {
+            onNavigate(
+              selectedAgent.slug,
+              conversationCabinetPath || selectedAgent.cabinetPath || cabinetPath,
+              conversationId
+            );
+          }
+        }}
       />
     </div>
   );
