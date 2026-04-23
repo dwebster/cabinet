@@ -63,7 +63,18 @@ interface TreeNodeProps {
   contextCabinetPath?: string | null;
   siblings?: TreeNodeType[];
   onMoveToRequest?: (node: TreeNodeType) => void;
+  /**
+   * Optional stagger delay (ms) applied as a fade-in animation when the row
+   * mounts. Set by the parent so the whole tree cascades in like a drawer
+   * being pulled out. Propagates to children with an extra bump so nested
+   * rows appear after their parent.
+   */
+  animationDelayMs?: number;
 }
+
+const ANIMATION_MAX_DELAY_MS = 360;
+const ANIMATION_CHILD_BASE_BUMP_MS = 30;
+const ANIMATION_CHILD_SIBLING_MS = 14;
 
 export function TreeNode({
   node,
@@ -71,6 +82,7 @@ export function TreeNode({
   contextCabinetPath = null,
   siblings,
   onMoveToRequest,
+  animationDelayMs,
 }: TreeNodeProps) {
   const {
     selectedPath,
@@ -317,9 +329,24 @@ export function TreeNode({
   const showInsertAfter = isDragOver && dragOverZone === "after";
   const showInto = isDragOver && dragOverZone === "into";
 
+  const hasAnimation = typeof animationDelayMs === "number";
+  const animationStyle: React.CSSProperties | undefined = hasAnimation
+    ? {
+        animationDelay: `${Math.min(animationDelayMs!, ANIMATION_MAX_DELAY_MS)}ms`,
+        animationFillMode: "backwards",
+      }
+    : undefined;
+
   return (
     <>
-      <div className="relative">
+      <div
+        className={cn(
+          "relative",
+          hasAnimation &&
+            "animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
+        )}
+        style={animationStyle}
+      >
       {showInsertBefore && (
         <div
           className="pointer-events-none absolute -top-px right-1.5 z-10 h-0.5 rounded-full bg-primary"
@@ -480,7 +507,7 @@ export function TreeNode({
 
       {hasChildren && isExpanded && (
         <div>
-          {node.children!.map((child) => (
+          {node.children!.map((child, childIndex) => (
             <TreeNode
               key={child.path}
               node={child}
@@ -488,6 +515,16 @@ export function TreeNode({
               contextCabinetPath={contextCabinetPath}
               siblings={node.children!}
               onMoveToRequest={onMoveToRequest}
+              animationDelayMs={
+                hasAnimation
+                  ? Math.min(
+                      animationDelayMs! +
+                        ANIMATION_CHILD_BASE_BUMP_MS +
+                        childIndex * ANIMATION_CHILD_SIBLING_MS,
+                      ANIMATION_MAX_DELAY_MS
+                    )
+                  : undefined
+              }
             />
           ))}
         </div>

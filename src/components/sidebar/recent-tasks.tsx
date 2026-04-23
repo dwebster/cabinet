@@ -162,7 +162,7 @@ export function RecentTasks({
 
   return (
     <>
-      {tasks.map((task) => {
+      {tasks.map((task, index) => {
         const isActive = activeTaskId === task.id;
         const fresh = isRecentlyDone(task, now);
         const slugForColor = task.agentSlug || "editor";
@@ -205,8 +205,15 @@ export function RecentTasks({
                 cabinetPath: task.cabinetPath,
               })
             }
-            className={itemClass(isActive)}
-            style={padStyle}
+            className={cn(
+              itemClass(isActive),
+              "animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
+            )}
+            style={{
+              ...padStyle,
+              animationDelay: `${Math.min(index, 12) * 22}ms`,
+              animationFillMode: "backwards",
+            }}
             title={tooltip}
           >
             <span className="relative mt-[1px] inline-flex size-1.5 shrink-0">

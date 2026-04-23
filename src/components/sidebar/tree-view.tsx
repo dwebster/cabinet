@@ -496,7 +496,7 @@ export function TreeView() {
           <>
 
             {/* ── Cabinet drawers ───────────────────────────────
-                Three horizontal tabs (Agents · Tasks · Data) that act like
+                Three horizontal tabs (Data · Agents · Tasks) that act like
                 physical drawer pulls. Exactly one is open; clicking a closed
                 tab routes to that section and slides its content in below. */}
             <div className="px-2 pt-2 pb-1">
@@ -506,6 +506,34 @@ export function TreeView() {
                 className="grid grid-cols-3 gap-1 rounded-lg bg-muted/40 p-1 ring-1 ring-border/60"
               >
                 {([
+                  {
+                    id: "data" as DrawerId,
+                    label: "Data",
+                    icon: BookOpen,
+                    onOpen: () => {
+                      if (activeCabinet) {
+                        openCabinetDataPage(activeCabinet.path);
+                        return;
+                      }
+                      if (
+                        section.type !== "home" &&
+                        section.type !== "page" &&
+                        section.type !== "cabinet"
+                      ) {
+                        setSection({ type: "home" });
+                      }
+                    },
+                    onAdd: () => {
+                      if (activeCabinet) {
+                        setKbSubPageOpen(true);
+                      } else {
+                        const btn = document.querySelector<HTMLButtonElement>(
+                          "[data-new-page-trigger]"
+                        );
+                        btn?.click();
+                      }
+                    },
+                  },
                   {
                     id: "agents" as DrawerId,
                     label: "Agents",
@@ -546,34 +574,6 @@ export function TreeView() {
                           new CustomEvent("cabinet:open-create-task")
                         );
                       }, 100);
-                    },
-                  },
-                  {
-                    id: "data" as DrawerId,
-                    label: "Data",
-                    icon: BookOpen,
-                    onOpen: () => {
-                      if (activeCabinet) {
-                        openCabinetDataPage(activeCabinet.path);
-                        return;
-                      }
-                      if (
-                        section.type !== "home" &&
-                        section.type !== "page" &&
-                        section.type !== "cabinet"
-                      ) {
-                        setSection({ type: "home" });
-                      }
-                    },
-                    onAdd: () => {
-                      if (activeCabinet) {
-                        setKbSubPageOpen(true);
-                      } else {
-                        const btn = document.querySelector<HTMLButtonElement>(
-                          "[data-new-page-trigger]"
-                        );
-                        btn?.click();
-                      }
                     },
                   },
                 ] as const).map((drawer) => {
@@ -714,7 +714,7 @@ export function TreeView() {
                     {activeCabinet ? "Add cabinet data" : "Add your first page"}
                   </button>
                 ) : (
-                  visibleTreeNodes.map((node) => (
+                  visibleTreeNodes.map((node, index) => (
                     <TreeNode
                       key={node.path}
                       node={node}
@@ -722,6 +722,7 @@ export function TreeView() {
                       contextCabinetPath={activeCabinet?.path || null}
                       siblings={visibleTreeNodes}
                       onMoveToRequest={requestMoveTo}
+                      animationDelayMs={index * 22}
                     />
                   ))
                 )}
