@@ -1,0 +1,7 @@
+schemaVersion: 1
+id: asdf-root
+name: asdf
+kind: root
+version: 0.1.0
+description: dev
+entry: index.md
