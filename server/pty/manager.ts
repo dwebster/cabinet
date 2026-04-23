@@ -65,6 +65,13 @@ export interface SpawnPtyInput {
    * starting fresh. Absent on first turns.
    */
   adapterResumeId?: string | null;
+  /**
+   * Trigger from the originating ConversationMeta. Only `"manual"` opts
+   * out of the claude auto-exit grace; other triggers keep the existing
+   * 1.2s idle-then-close behavior so scheduled jobs/heartbeats don't
+   * accumulate live PTY processes.
+   */
+  trigger?: import("../../src/types/tasks").TaskTrigger;
 }
 
 export interface PtyManager {
@@ -152,6 +159,7 @@ export function createPtyManager(deps: PtyManagerDeps): PtyManager {
       kind: "pty",
       providerId: resolvedProviderId,
       adapterType: input.adapterType,
+      trigger: input.trigger,
       pty: term,
       ws: null,
       createdAt: new Date(),
@@ -218,6 +226,15 @@ export function createPtyManager(deps: PtyManagerDeps): PtyManager {
         clearTimeout(session.streamExtractionTimer);
         delete session.streamExtractionTimer;
       }
+      if (session.awaitingInputIdleTimer) {
+        clearTimeout(session.awaitingInputIdleTimer);
+        delete session.awaitingInputIdleTimer;
+      }
+      if (session.awaitingInputBusyTimer) {
+        clearTimeout(session.awaitingInputBusyTimer);
+        delete session.awaitingInputBusyTimer;
+      }
+      session.awaitingInput = false;
       clearClaudeCompletionTimer(session);
 
       const trailingDisplay = flushStructuredOutput(session);

@@ -153,6 +153,22 @@ export async function stopDaemonSession(id: string): Promise<boolean> {
 }
 
 /**
+ * Graceful close: daemon writes `/exit` into the PTY's stdin and waits
+ * for the CLI to shut itself down (with a 2s SIGTERM fallback). Distinct
+ * from `stopDaemonSession` which SIGTERMs immediately — the PTY's
+ * natural exit (code 0) then runs `finalizeConversation` with
+ * `status: "completed"` instead of `"failed"`.
+ */
+export async function closeDaemonSession(id: string): Promise<boolean> {
+  try {
+    const response = await daemonFetch(`/session/${id}/close`, { method: "POST" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Write stdin into a live PTY session. Returns `true` on 200, `false` on any
  * error including 404 (session already exited). Callers that want to reuse the
  * CLI's REPL for same-process continues should try this first, then fall back

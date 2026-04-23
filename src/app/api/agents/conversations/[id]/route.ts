@@ -6,7 +6,7 @@ import {
   readConversationMeta,
   writeConversationMeta,
 } from "@/lib/agents/conversation-store";
-import { stopDaemonSession } from "@/lib/agents/daemon-client";
+import { closeDaemonSession, stopDaemonSession } from "@/lib/agents/daemon-client";
 import { startConversationRun } from "@/lib/agents/conversation-runner";
 import { publishConversationEvent } from "@/lib/agents/conversation-events";
 import type { ConversationMeta } from "@/types/conversations";
@@ -86,6 +86,23 @@ export async function PATCH(
       payload: { action: "stop" },
     });
     return NextResponse.json({ ok: true });
+  }
+
+  // Graceful close for manual terminal-mode sessions. Writes `/exit` into
+  // the PTY's stdin; the CLI shuts down cleanly, the PTY exits code 0,
+  // and the daemon's `onExit` handler runs `finalizeConversation` with
+  // `status: "completed"`. We intentionally do NOT call finalize here —
+  // doing so would race the natural path and could flip the task to
+  // failed before the PTY's exit handler lands.
+  if (action === "close") {
+    const ok = await closeDaemonSession(id);
+    publishConversationEvent({
+      type: "task.updated",
+      taskId: id,
+      cabinetPath,
+      payload: { action: "close", ok },
+    });
+    return NextResponse.json({ ok });
   }
 
   if (action === "restart") {

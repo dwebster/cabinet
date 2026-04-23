@@ -518,25 +518,42 @@ function handlePtyConnection(ws: WebSocket, req: http.IncomingMessage): void {
     return;
   }
 
-  // New session — spawn PTY or structured adapter execution
-  try {
-    createSession({
-      sessionId,
-      providerId,
-      adapterType,
-      prompt: prompt || undefined,
-    });
-  } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`Failed to spawn PTY for session ${sessionId}:`, errMsg);
-    ws.send(`\r\n\x1b[31mError: Failed to start agent CLI\x1b[0m\r\n`);
-    ws.send(`\x1b[90m${errMsg}\x1b[0m\r\n`);
-    ws.close();
-    return;
-  }
-  const session = sessions.get(sessionId)!;
-  console.log(`Session ${sessionId} started (${prompt ? "agent" : "interactive"} mode)`);
-  attachSessionSocket(session, ws);
+  // New session — spawn PTY or structured adapter execution. Read the
+  // conversation meta first so we can pick up `trigger`; the composer
+  // always writes meta before the client opens the WS, so this is a
+  // reliable signal (and falls back to undefined on miss, which keeps
+  // the legacy auto-exit behavior — a safe default for unknown spawns).
+  void (async () => {
+    let trigger: import("../src/types/tasks").TaskTrigger | undefined;
+    try {
+      const meta = await readConversationMeta(sessionId);
+      trigger = meta?.trigger;
+    } catch {
+      trigger = undefined;
+    }
+    try {
+      createSession({
+        sessionId,
+        providerId,
+        adapterType,
+        prompt: prompt || undefined,
+        trigger,
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to spawn PTY for session ${sessionId}:`, errMsg);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(`\r\n\x1b[31mError: Failed to start agent CLI\x1b[0m\r\n`);
+        ws.send(`\x1b[90m${errMsg}\x1b[0m\r\n`);
+        ws.close();
+      }
+      return;
+    }
+    const session = sessions.get(sessionId);
+    if (!session) return;
+    console.log(`Session ${sessionId} started (${prompt ? "agent" : "interactive"} mode, trigger=${trigger ?? "unknown"})`);
+    attachSessionSocket(session, ws);
+  })();
 }
 
 
@@ -770,6 +787,12 @@ function createSession(input: {
   launchMode?: "session" | "one-shot";
   adapterSessionId?: string | null;
   adapterSessionParams?: Record<string, unknown> | null;
+  /**
+   * Meta trigger (manual/job/heartbeat/agent). Manual PTY sessions opt
+   * out of the 1.2s claude idle auto-exit and instead stay alive as
+   * "awaiting-input" until the user closes them.
+   */
+  trigger?: import("../src/types/tasks").TaskTrigger;
 }): ActiveSession {
   const adapter = input.adapterType
     ? agentAdapterRegistry.get(input.adapterType)
@@ -796,10 +819,13 @@ function createSession(input: {
 
   // Legacy PTY path: forward the adapter session id as `adapterResumeId` so
   // the launch spec can append `--resume` / `--session` for providers that
-  // support terminal-mode resume (Claude, Cursor, OpenCode).
+  // support terminal-mode resume (Claude, Cursor, OpenCode). Also forward
+  // `trigger` so the manager can stash it on the session — claude-lifecycle
+  // uses it to skip auto-exit on manual runs.
   return ptyManager.spawn({
     ...input,
     adapterResumeId: input.adapterSessionId ?? null,
+    trigger: input.trigger,
   });
 }
 
@@ -1117,6 +1143,7 @@ const server = http.createServer(async (req, res) => {
         !active.exited &&
         !active.autoExitRequested &&
         !active.resolvedStatus &&
+        active.trigger !== "manual" &&
         transcriptShowsCompletedRun(plain, active.initialPrompt)
       ) {
         completeClaudeSession(active, plain, { completedOutput });
@@ -1172,10 +1199,19 @@ const server = http.createServer(async (req, res) => {
         conversationMeta.status === "running" &&
         transcriptShowsCompletedRun(plainTranscript, prompt)
       ) {
+        // Same rationale as completeClaudeSession: feed finalizeConversation
+        // a distilled one-liner instead of the full TUI-noise transcript
+        // so parseCabinetBlock's fallback regex can't scrape garbage
+        // SUMMARY/ARTIFACT lines out of prompt echoes.
+        const summaryOutput = distillPtyOutput(
+          plainTranscript,
+          0,
+          conversationMeta.providerId
+        );
         await finalizeConversation(sessionId, {
           status: "completed",
           exitCode: 0,
-          output: plainTranscript,
+          output: summaryOutput,
         }).catch(() => null);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
@@ -1214,7 +1250,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/sessions" && req.method === "POST") {
     let body = "";
     req.on("data", (chunk) => (body += chunk));
-    req.on("end", () => {
+    req.on("end", async () => {
       try {
         const {
           id,
@@ -1245,6 +1281,14 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        let trigger: import("../src/types/tasks").TaskTrigger | undefined;
+        try {
+          const meta = await readConversationMeta(sessionId);
+          trigger = meta?.trigger;
+        } catch {
+          trigger = undefined;
+        }
+
         try {
           const legacyProviderId = !adapterType
             ? providerId
@@ -1272,6 +1316,7 @@ const server = http.createServer(async (req, res) => {
             launchMode,
             adapterSessionId: adapterSessionId ?? null,
             adapterSessionParams: adapterSessionParams ?? null,
+            trigger,
           });
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -1332,6 +1377,48 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: msg }));
       }
     });
+    return;
+  }
+
+  // POST /session/:id/close — gracefully end a live PTY by writing `/exit`
+  // to its stdin (so the CLI shuts itself down cleanly and the PTY exits
+  // with code 0 → finalizeConversation runs with status="completed"). A
+  // 2s SIGTERM fallback covers CLIs that don't recognize /exit. Distinct
+  // from /stop which SIGTERMs immediately and finalizes as "failed".
+  const closeMatch = url.pathname.match(/^\/session\/([^/]+)\/close$/);
+  if (closeMatch && req.method === "POST") {
+    const sessionId = closeMatch[1];
+    const session = sessions.get(sessionId);
+    if (!session || session.exited) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Session not found or already exited" }));
+      return;
+    }
+    if (session.kind !== "pty") {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Only PTY sessions can be closed gracefully" }));
+      return;
+    }
+    try {
+      const result = ptyManager.writeInput(sessionId, "/exit", { appendEnter: true });
+      if (!result.ok) {
+        // Fall through to SIGTERM — writeInput refused (already exited, etc.)
+        session.stop("SIGTERM");
+      }
+      session.stopFallbackTimer = setTimeout(() => {
+        if (!session.exited) {
+          try {
+            session.stop("SIGTERM");
+          } catch {}
+        }
+      }, 2000);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, sessionId }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: msg }));
+    }
     return;
   }
 

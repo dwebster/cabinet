@@ -92,6 +92,27 @@ export async function stopConversation(id: string, cabinetPath?: string): Promis
 }
 
 /**
+ * Gracefully close a live terminal-mode conversation. The daemon writes
+ * `/exit` into the PTY's stdin; the CLI shuts itself down and the PTY
+ * exits code 0 — the task finalizes as `completed`, not `failed`. Used
+ * by the Done button on manual terminal tasks.
+ */
+export async function closeConversation(id: string, cabinetPath?: string): Promise<void> {
+  const params = new URLSearchParams();
+  if (cabinetPath) params.set("cabinetPath", cabinetPath);
+  const qs = params.toString();
+  const res = await fetch(`/api/agents/conversations/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "close" }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`close ${id} failed: ${res.status} ${text}`);
+  }
+}
+
+/**
  * Deletes a conversation record (meta + transcript + artifacts). DELETE
  * handler is at /api/agents/conversations/[id]. No undo — the legacy board
  * didn't offer one either; the drag-to-archive flow is the soft-delete.

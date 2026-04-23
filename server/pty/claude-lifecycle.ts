@@ -237,10 +237,21 @@ export function completeClaudeSession(
   session.autoExitRequested = true;
   const plain = stripAnsi(output);
   deps.completedOutput.set(session.id, { output: plain, completedAt: Date.now() });
+  // Pass a distilled one-liner — NOT the raw plain transcript — to
+  // finalizeConversation. Claude's TUI redraws its animated spinner many
+  // times per second; even after ANSI stripping, the transcript is full
+  // of "thinking with Xhigh effort" lines plus echoes of the system
+  // prompt. Feeding that to parseCabinetBlock's fallback regex produces
+  // garbage artifactPaths like "line per file you touched…" and
+  // summaries full of box-drawing chars. The one-liner has no SUMMARY:
+  // or ARTIFACT: tokens so the fallback correctly extracts nothing, and
+  // any fenced cabinet block the agent actually emitted has already
+  // been captured via scheduleStreamCabinetExtraction during the run.
+  const summaryOutput = distillPtyOutput(plain, 0, session.providerId);
   void finalizeConversation(session.id, {
     status: "completed",
     exitCode: 0,
-    output: plain,
+    output: summaryOutput,
   }).finally(() => {
     session.resolvingStatus = false;
   });
@@ -255,9 +266,12 @@ export function completeClaudeSession(
 
 /**
  * After each chunk, check whether the transcript since the initial prompt
- * submission shows a completed run. If yes, schedule the grace-period
- * completion timer (idempotent) — if it still looks complete after the
- * grace, call `completeClaudeSession`.
+ * submission shows a completed run. If yes:
+ *   - manual trigger → flip meta.awaitingInput=true; keep PTY alive until
+ *     the user closes it (Done button or /exit in the xterm)
+ *   - any other trigger (job/heartbeat/agent) → schedule the 1.2s grace
+ *     completion timer and force-exit the CLI, preserving the
+ *     fire-and-forget semantics scheduled jobs depend on.
  */
 export function maybeAutoExitClaudeSession(
   session: PtySession,
@@ -277,12 +291,24 @@ export function maybeAutoExitClaudeSession(
   const currentOutput = session.output.join("");
   if (currentOutput.length <= submittedLength) {
     clearClaudeCompletionTimer(session);
+    if (session.trigger === "manual") {
+      scheduleClaudeBusyFlip(session);
+    }
     return;
   }
 
   const outputSincePrompt = currentOutput.slice(submittedLength);
   if (!transcriptShowsCompletedRun(outputSincePrompt, session.initialPrompt)) {
     clearClaudeCompletionTimer(session);
+    if (session.trigger === "manual") {
+      scheduleClaudeBusyFlip(session);
+    }
+    return;
+  }
+
+  // Idle detected. For manual runs, don't kill — flip awaitingInput.
+  if (session.trigger === "manual") {
+    scheduleClaudeIdleFlip(session);
     return;
   }
 
@@ -309,4 +335,83 @@ export function maybeAutoExitClaudeSession(
 
     completeClaudeSession(session, latestOutput, deps);
   }, CLAUDE_AUTO_EXIT_GRACE_MS);
+}
+
+/**
+ * Manual terminal-mode idle flip: debounced write of
+ * `meta.awaitingInput = true` once the TUI has been idle for the grace
+ * window. Reuses CLAUDE_AUTO_EXIT_GRACE_MS (1.2s) so the UI feel is
+ * consistent with the previous kill-timer cadence — the user sees the
+ * status chip flip at the same moment they used to see "Session ended".
+ */
+function scheduleClaudeIdleFlip(session: PtySession): void {
+  if (session.awaitingInput) return;
+  // Cancel any pending busy-flip so we don't bounce between states.
+  if (session.awaitingInputBusyTimer) {
+    clearTimeout(session.awaitingInputBusyTimer);
+    delete session.awaitingInputBusyTimer;
+  }
+  if (session.awaitingInputIdleTimer) return;
+  session.awaitingInputIdleTimer = setTimeout(() => {
+    delete session.awaitingInputIdleTimer;
+    if (session.exited || session.resolvedStatus) return;
+    if (session.awaitingInput) return;
+    session.awaitingInput = true;
+    void flipAwaitingInput(session, true);
+  }, CLAUDE_AUTO_EXIT_GRACE_MS);
+}
+
+/**
+ * Inverse: once new output starts streaming after idle (user typed into
+ * the xterm and Claude is responding), flip meta.awaitingInput=false so
+ * the UI shows "running" again. Claude's idle prompt continuously
+ * re-renders (status hints, cursor blinks) which briefly makes
+ * `transcriptShowsCompletedRun` return false even when nothing
+ * substantive is happening. So require a longer sustained-busy window
+ * (2s — strictly longer than the 1.2s idle window) to avoid flicker,
+ * and only flip if the output actually grew by a meaningful amount.
+ */
+const CLAUDE_BUSY_FLIP_GRACE_MS = 2000;
+const CLAUDE_BUSY_MIN_NEW_BYTES = 120;
+function scheduleClaudeBusyFlip(session: PtySession): void {
+  if (!session.awaitingInput) return;
+  if (session.awaitingInputIdleTimer) {
+    clearTimeout(session.awaitingInputIdleTimer);
+    delete session.awaitingInputIdleTimer;
+  }
+  if (session.awaitingInputBusyTimer) return;
+  // Snapshot output length at the moment busy is suspected. After the
+  // grace window, require growth >= CLAUDE_BUSY_MIN_NEW_BYTES to flip —
+  // otherwise it's just the idle prompt re-rendering, not real input.
+  const snapshotLen = session.output.join("").length;
+  session.awaitingInputBusyTimer = setTimeout(() => {
+    delete session.awaitingInputBusyTimer;
+    if (session.exited || session.resolvedStatus) return;
+    if (!session.awaitingInput) return;
+    const nowLen = session.output.join("").length;
+    if (nowLen - snapshotLen < CLAUDE_BUSY_MIN_NEW_BYTES) return;
+    session.awaitingInput = false;
+    void flipAwaitingInput(session, false);
+  }, CLAUDE_BUSY_FLIP_GRACE_MS);
+}
+
+async function flipAwaitingInput(session: PtySession, value: boolean): Promise<void> {
+  const meta = await readConversationMeta(session.id).catch(() => null);
+  if (!meta || meta.status !== "running") return;
+  if ((meta.awaitingInput ?? false) === value) return;
+  meta.awaitingInput = value;
+  try {
+    await writeConversationMeta(meta);
+  } catch {
+    return;
+  }
+  publishConversationEvent({
+    type: "task.updated",
+    taskId: session.id,
+    cabinetPath: meta.cabinetPath,
+    payload: {
+      status: meta.status,
+      awaitingInput: value,
+    },
+  });
 }

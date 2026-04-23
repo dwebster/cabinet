@@ -560,6 +560,13 @@ function stripAnsiText(str: string): string {
     // Strip remaining CSI sequences (colors, formatting, erasing)
     .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "")
     .replace(/\u001B[@-_]/g, "")
+    // Remaining single-char ESC sequences: DECSC/DECRC (\u001B7 / \u001B8),
+    // RIS (\u001Bc), keypad mode (\u001B= / \u001B>), etc. Final byte in
+    // 0x30-0x3F or 0x60-0x7E. Without this, \u001B7 leaks into
+    // meta.summary as literal "\u001B7\u001B8─────" garbage for TUI-heavy agents.
+    .replace(/\u001B[\u0030-\u003F\u0060-\u007E]/g, "")
+    // Charset designate two-byte sequences: \u001B ( B | \u001B ) 0 | etc.
+    .replace(/\u001B[()*+\-./][\u0020-\u007E]/g, "")
     .replace(/[\u0000-\u0008\u000B-\u001A\u001C-\u001F\u007F]/g, "")
     // Collapse runs of spaces produced by cursor replacements
     .replace(/ {2,}/g, " ");
@@ -863,6 +870,13 @@ async function maybeResolveCompletedConversation(
   const prompt = (await fileExists(promptPathFs(meta.id, cabinetPath)))
     ? await readFileContent(promptPathFs(meta.id, cabinetPath))
     : "";
+  // Manual terminal-mode sessions stay "running" until the user closes
+  // them explicitly (Done button or /exit in the xterm). An idle CLI
+  // prompt is awaiting-input, not completed. Never silently flip these
+  // to status=completed from a detail-fetch side effect.
+  if (meta.status === "running" && meta.trigger === "manual") {
+    return meta;
+  }
   if (meta.status === "running" && !transcriptShowsCompletedRun(transcript, prompt)) {
     return meta;
   }
@@ -1024,9 +1038,27 @@ export async function finalizeConversation(
       ? meta.completedAt
       : new Date().toISOString();
   meta.exitCode = input.exitCode ?? null;
-  meta.summary = parsed.summary || makeSummaryFromOutput(cleanedOutput);
-  meta.contextSummary = parsed.contextSummary;
-  meta.artifactPaths = artifacts.map((artifact) => artifact.path);
+  // Preserve any values that were already set by `scheduleStreamCabinetExtraction`
+  // during the live run. That path parses fenced `cabinet` blocks as they
+  // stream in and writes clean SUMMARY/ARTIFACT values to meta. If the
+  // finalize-time parse comes back empty (e.g. we passed a distilled
+  // one-liner for PTY sessions, or the TUI redraw noise never produced a
+  // fence), clobbering those good values with `makeSummaryFromOutput` of
+  // the raw transcript is how we ended up with `"78─────"`-type
+  // summaries and artifactPaths full of prompt-echo fragments.
+  if (parsed.summary) {
+    meta.summary = parsed.summary;
+  } else if (!meta.summary) {
+    meta.summary = makeSummaryFromOutput(cleanedOutput);
+  }
+  if (parsed.contextSummary) {
+    meta.contextSummary = parsed.contextSummary;
+  }
+  if (artifacts.length > 0) {
+    meta.artifactPaths = artifacts.map((artifact) => artifact.path);
+  } else if (!meta.artifactPaths) {
+    meta.artifactPaths = [];
+  }
 
   // First-turn tokens — G7. Only write when the caller provided a reading and
   // we don't already have one (continue-turns handle aggregation via
@@ -1038,6 +1070,15 @@ export async function finalizeConversation(
     if (!existing || (existing.total ?? 0) < input.tokens.total) {
       meta.tokens = input.tokens;
     }
+  }
+
+  // Terminal statuses always exit the "awaiting-input" state — the session
+  // is gone, there's nothing left to input into. Without this, a manual
+  // terminal session that was mid-idle when the user clicked Done would
+  // render in the UI as "awaiting-input" after exit (deriveStatus prefers
+  // awaitingInput over doneAt/status).
+  if (input.status === "completed" || input.status === "failed") {
+    meta.awaitingInput = false;
   }
 
   if (input.status === "completed") {
@@ -1057,9 +1098,17 @@ export async function finalizeConversation(
     }
   }
 
+  // Keep artifacts.json in sync with the value we actually committed to
+  // meta.artifactPaths above — if we preserved a prior stream-extracted
+  // list (because this finalize had no fresh artifacts), write that back
+  // instead of a blank array.
+  const artifactsToWrite =
+    artifacts.length > 0
+      ? artifacts
+      : (meta.artifactPaths ?? []).map((artifactPath) => ({ path: artifactPath }));
   await Promise.all([
     writeConversationMeta(meta),
-    replaceConversationArtifacts(id, artifacts, cp),
+    replaceConversationArtifacts(id, artifactsToWrite, cp),
     sanitizeArtifactCabinetBlocks(meta.artifactPaths),
   ]);
 

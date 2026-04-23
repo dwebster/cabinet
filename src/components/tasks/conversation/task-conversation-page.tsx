@@ -28,9 +28,11 @@ import {
 } from "lucide-react";
 import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
 import { WebTerminal } from "@/components/terminal/web-terminal";
+import { TerminalExitedView } from "@/components/terminal/terminal-exited-view";
 import { ClaudeTranscriptView } from "@/components/tasks/conversation/claude-transcript-view";
 import { ConversationResultView } from "@/components/agents/conversation-result-view";
 import {
+  closeConversation,
   deleteConversation,
   restartConversation,
   stopConversation,
@@ -350,6 +352,21 @@ export function TaskConversationPage({
   const [terminalTab, setTerminalTab] = useState<
     "terminal" | "transcript" | "details"
   >("terminal");
+  // Tracks whether the user has explicitly picked a tab. Used to gate the
+  // auto-switch-to-Details behaviour on exit — if the user deliberately
+  // clicked Terminal after exit, we must not yank them back to Details.
+  const userPickedTabRef = useRef(false);
+  const pickTerminalTab = useCallback(
+    (next: "terminal" | "transcript" | "details") => {
+      userPickedTabRef.current = true;
+      setTerminalTab(next);
+    },
+    []
+  );
+  // Inside the exited Terminal tab we default to a compacted summary view;
+  // the user can reveal the raw xterm replay on demand. State lives here
+  // (not in a child) so the choice survives tab switches within the page.
+  const [showRawReplay, setShowRawReplay] = useState(false);
   const [detail, setDetail] = useState<import("@/types/conversations").ConversationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -385,16 +402,54 @@ export function TaskConversationPage({
     }
   }, [taskId, isDemo, task?.meta.cabinetPath]);
 
-  // Fetch the detail on first switch to Details tab, cache on subsequent
-  // toggles. Refetch when the underlying task updates (e.g. status flip to
-  // idle after PTY exit) so the Details tab reflects fresh artifacts.
+  // Fetch the detail on first switch to Details tab OR when we land in the
+  // exited-terminal summary view (TerminalExitedView reads detail.transcript
+  // to build its compacted tail). Cache on subsequent toggles; refetch
+  // when the underlying task updates (e.g. status flip to idle after PTY
+  // exit) so Details/Exited reflect fresh artifacts.
   useEffect(() => {
-    if (terminalTab !== "details") return;
     if (detailLoading) return;
-    // Refetch if we haven't loaded yet, or the task has changed status since.
+    const onDetailsTab = terminalTab === "details";
+    const onExitedTerminalSummary =
+      terminalTab === "terminal" &&
+      !!task &&
+      isLegacyAdapterType(task.meta.adapterType) &&
+      task.meta.status !== "running" &&
+      task.meta.status !== "awaiting-input";
+    if (!onDetailsTab && !onExitedTerminalSummary) return;
     void loadDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalTab, task?.meta.status, task?.meta.lastActivityAt]);
+
+  // Auto-flip terminal-mode tab from "terminal" to "details" the moment the
+  // PTY session exits — the raw xterm replay of an interactive TUI is
+  // low-value after exit (and visually noisy for agents like claude-code
+  // that redraw heavily). Only fires when the user has not explicitly
+  // picked a tab in this session.
+  const taskStatusForAutoTab = task?.meta.status;
+  useEffect(() => {
+    if (userPickedTabRef.current) return;
+    if (!taskStatusForAutoTab) return;
+    if (taskStatusForAutoTab === "running" || taskStatusForAutoTab === "awaiting-input") {
+      return;
+    }
+    // Only auto-switch for terminal-mode tasks (this effect is a no-op for
+    // structured tasks since the Details tab doesn't exist there).
+    if (!task || !isLegacyAdapterType(task.meta.adapterType)) return;
+    if (terminalTab === "terminal") {
+      setTerminalTab("details");
+    }
+  }, [taskStatusForAutoTab, task, terminalTab]);
+
+  // Reset per-task UI state when the route switches to a different task.
+  // Without this, "Show raw replay" picked on task A would stay active
+  // when the user navigates to task B, and the auto-switch-to-details
+  // gate would stay latched from the prior task's explicit tab click.
+  useEffect(() => {
+    userPickedTabRef.current = false;
+    setTerminalTab("terminal");
+    setShowRawReplay(false);
+  }, [taskId]);
 
   // Initial fetch (skip for demo)
   useEffect(() => {
@@ -806,7 +861,7 @@ export function TaskConversationPage({
               type="button"
               role="tab"
               aria-selected={terminalTab === "terminal"}
-              onClick={() => setTerminalTab("terminal")}
+              onClick={() => pickTerminalTab("terminal")}
               className={cn(
                 "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
                 terminalTab === "terminal"
@@ -822,7 +877,7 @@ export function TaskConversationPage({
                 type="button"
                 role="tab"
                 aria-selected={showTranscript}
-                onClick={() => setTerminalTab("transcript")}
+                onClick={() => pickTerminalTab("transcript")}
                 className={cn(
                   "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
                   showTranscript
@@ -839,7 +894,7 @@ export function TaskConversationPage({
               type="button"
               role="tab"
               aria-selected={showDetails}
-              onClick={() => setTerminalTab("details")}
+              onClick={() => pickTerminalTab("details")}
               className={cn(
                 "relative inline-flex h-9 items-center justify-center gap-2 rounded-t-md border border-b-0 px-4 transition-colors",
                 showDetails
@@ -1020,6 +1075,31 @@ export function TaskConversationPage({
           >
             <Copy className="size-3.5" />
           </button>
+          {task &&
+          task.meta.trigger === "manual" &&
+          (taskStatus === "running" || taskStatus === "awaiting-input") ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-[11px] text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+              disabled={busy || isDemo}
+              onClick={async () => {
+                if (!task) return;
+                try {
+                  setBusy(true);
+                  await closeConversation(task.meta.id, task.meta.cabinetPath);
+                } catch (e) {
+                  console.error(e);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              title="Gracefully close the CLI (writes /exit to the PTY)"
+            >
+              <CheckCircle2 className="size-3.5" />
+              Done
+            </Button>
+          ) : null}
           {task && (taskStatus === "running" || taskStatus === "awaiting-input") ? (
             <Button
               variant="ghost"
@@ -1087,19 +1167,35 @@ export function TaskConversationPage({
           </DropdownMenu>
         </header>
 
-        {/* Terminal fills the rest of the viewport. The terminal IS the
-            composer — the CLI handles input/output directly, so we don't
-            render a second composer card beneath it. Task only finalizes
-            when the user exits the CLI themselves (Ctrl-D / /exit). */}
+        {/* Terminal fills the rest of the viewport. While live, the terminal
+            IS the composer — the CLI handles input/output directly. After
+            the session exits, the raw PTY replay is unreadable for agents
+            that redraw heavily (claude-code's spinner alone produces
+            hundreds of duplicate "thinking…" lines once ANSI positioning
+            is stripped), so we default to a compacted summary with a
+            "Show raw replay" escape hatch. */}
         <div className="min-h-0 flex-1 bg-zinc-950">
-          <WebTerminal
-            sessionId={taskId}
-            reconnect
-            themeSurface="terminal"
-            onClose={() => {
-              /* PTY ending is handled by the daemon; status updates via SSE. */
-            }}
-          />
+          {task && !showRawReplay &&
+          taskStatus !== "running" &&
+          taskStatus !== "awaiting-input" ? (
+            <TerminalExitedView
+              meta={task.meta}
+              detail={detail}
+              detailLoading={detailLoading}
+              showRaw={showRawReplay}
+              onShowRaw={() => setShowRawReplay(true)}
+              onOpenDetails={() => pickTerminalTab("details")}
+            />
+          ) : (
+            <WebTerminal
+              sessionId={taskId}
+              reconnect
+              themeSurface="terminal"
+              onClose={() => {
+                /* PTY ending is handled by the daemon; status updates via SSE. */
+              }}
+            />
+          )}
         </div>
         </>
         )}
