@@ -71,6 +71,29 @@ export const editorExtensions = [
         },
       ];
     },
+    // Move the link shortcut off Mod-K — that key is owned by the global
+    // search palette everywhere in the app, including inside the editor.
+    addKeyboardShortcuts() {
+      return {
+        "Mod-e": () => {
+          const { state } = this.editor;
+          const { from, to } = state.selection;
+          if (from === to) return false;
+          const prevUrl = this.editor.getAttributes("link").href ?? "";
+          const url = typeof window !== "undefined" ? window.prompt("Link URL", prevUrl) : null;
+          if (url === null) return false;
+          if (url === "") {
+            return this.editor.chain().focus().extendMarkRange("link").unsetLink().run();
+          }
+          return this.editor
+            .chain()
+            .focus()
+            .extendMarkRange("link")
+            .setLink({ href: url })
+            .run();
+        },
+      };
+    },
   }),
   ...colorAndStyleExtensions,
   EmbedExtension,

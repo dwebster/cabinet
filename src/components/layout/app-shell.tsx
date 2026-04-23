@@ -38,8 +38,8 @@ import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
 import { AIPanel } from "@/components/ai-panel/ai-panel";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
-import { SearchDialog } from "@/components/search/search-dialog";
-import { KeyboardShortcuts } from "@/components/shortcuts/keyboard-shortcuts";
+import { SearchPalette } from "@/components/search/search-palette";
+import { useGlobalHotkeys } from "@/hooks/use-global-hotkeys";
 import { StatusBar } from "@/components/layout/status-bar";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { UpdateDialog } from "@/components/layout/update-dialog";
@@ -62,6 +62,7 @@ const WIZARD_DONE_STORAGE_KEY = "cabinet.wizard-done";
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export function AppShell() {
+  useGlobalHotkeys();
   const loadTree = useTreeStore((s) => s.loadTree);
   const nodes = useTreeStore((s) => s.nodes);
   const selectedPath = useTreeStore((s) => s.selectedPath);
@@ -486,8 +487,7 @@ export function AppShell() {
       </div>
       {taskPanelConversation && <TaskDetailPanel />}
       {!aiPanelCollapsed && <AIPanel />}
-      <SearchDialog />
-      <KeyboardShortcuts />
+      <SearchPalette />
       <UpdateDialog
         open={effectiveUpdateDialogOpen}
         update={update}

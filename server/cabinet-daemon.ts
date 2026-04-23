@@ -63,9 +63,58 @@ import {
   type PtyManager,
 } from "./pty/manager";
 import type { BaseSession, CompletedOutputEntry, PtySession } from "./pty/types";
+import { SearchIndex, buildPageRecord, walkDataDir } from "./search/index-builder";
+import { runSearch } from "./search/search-service";
+import { startWatcher } from "./search/watcher";
+import { loadAgentDocs, loadTaskDocs } from "./search/index-agents-tasks";
+import type { SearchScope } from "./search/types";
 
 const PORT = getDaemonPort();
 const CABINET_MANIFEST_FILE = ".cabinet";
+
+// ===== Search index =====
+
+const searchIndex = new SearchIndex();
+let searchIndexReady = false;
+
+async function bootstrapSearchIndex(): Promise<void> {
+  const t0 = Date.now();
+  broadcast("search", { type: "search:indexing", total: 0, done: 0 });
+  try {
+    const files = await walkDataDir();
+    for (const { fsPath, virtualPath } of files) {
+      const record = await buildPageRecord(fsPath, virtualPath);
+      if (record) searchIndex.add(record);
+    }
+    searchIndexReady = true;
+    const tookMs = Date.now() - t0;
+    console.log(`  Search index: ${searchIndex.size()} pages in ${tookMs}ms`);
+    broadcast("search", {
+      type: "search:ready",
+      pages: searchIndex.size(),
+      tookMs,
+    });
+  } catch (err) {
+    console.error("[cabinet-daemon] search index bootstrap failed:", err);
+    broadcast("search", {
+      type: "search:error",
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+function startSearchWatcher(): void {
+  startWatcher(searchIndex, {
+    onIndexed: ({ path: p, kind }) => {
+      broadcast("search", {
+        type: "search:indexed",
+        path: p,
+        kind,
+        pages: searchIndex.size(),
+      });
+    },
+  });
+}
 
 interface CabinetEntry {
   /** Relative path from DATA_DIR, empty string for root */
@@ -1536,6 +1585,47 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Search endpoint — daemon-backed live index
+  if (url.pathname === "/search" && req.method === "GET") {
+    try {
+      const q = (url.searchParams.get("q") ?? "").trim();
+      const scopeParam = (url.searchParams.get("scope") ?? "all") as SearchScope;
+      const scope: SearchScope = ["all", "pages", "agents", "tasks"].includes(scopeParam)
+        ? scopeParam
+        : "all";
+      const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "", 10);
+      const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 50;
+
+      const needsAgents = scope === "all" || scope === "agents";
+      const needsTasks = scope === "all" || scope === "tasks";
+
+      const [agents, tasks] = await Promise.all([
+        needsAgents ? loadAgentDocs() : Promise.resolve([]),
+        needsTasks ? loadTaskDocs() : Promise.resolve([]),
+      ]);
+
+      const response = runSearch(
+        {
+          pages: searchIndex,
+          agents: () => agents,
+          tasks: () => tasks,
+          indexReady: () => searchIndexReady,
+        },
+        q,
+        scope,
+        limit
+      );
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(response));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Search failed";
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: message }));
+    }
+    return;
+  }
+
   res.writeHead(404, { "Content-Type": "text/plain" });
   res.end("Not found");
 });
@@ -1605,11 +1695,13 @@ server.listen(PORT, () => {
   console.log(`  Reload schedules: POST http://localhost:${PORT}/reload-schedules`);
   console.log(`  Health check: http://localhost:${PORT}/health`);
   console.log(`  Trigger endpoint: POST http://localhost:${PORT}/trigger`);
+  console.log(`  Search endpoint: GET http://localhost:${PORT}/search`);
   console.log(`  Default provider: ${resolveProviderId()}`);
   console.log(`  Working directory: ${DATA_DIR}`);
 
   void reloadSchedules();
   void cleanupStaleRunningConversations();
+  void bootstrapSearchIndex().then(() => startSearchWatcher());
   void (async () => {
     try {
       const { loadExternalAdapters } = await import(
