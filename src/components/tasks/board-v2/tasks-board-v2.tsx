@@ -2,8 +2,26 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRightLeft, Bot, Clock3, HeartPulse, Loader2, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRightLeft,
+  Bot,
+  ChevronDown,
+  Clock3,
+  HeartPulse,
+  Loader2,
+  Plus,
+  Repeat,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   DndContext,
   DragOverlay,
@@ -24,7 +42,7 @@ import { DensityToggle, type BoardDensity } from "./density-toggle";
 import { FilterBar, TriggerChip, type TriggerFilter } from "./filter-bar";
 import { UndoToast, type PendingUndo } from "./undo-toast";
 import { ConfirmPopover, type PendingConfirm } from "./confirm-popover";
-import { NewTaskDialog } from "./new-task-dialog";
+import { StartWorkDialog, type StartWorkMode } from "@/components/composer/start-work-dialog";
 import { ReassignMenu } from "./reassign-menu";
 import { deleteConversation, reassignConversation } from "./board-actions";
 import {
@@ -125,16 +143,25 @@ export function TasksBoardV2({
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [newTaskMode, setNewTaskMode] = useState<StartWorkMode>("now");
   const [jobDialog, setJobDialog] = useState<JobDialogState | null>(null);
   const [heartbeatDialog, setHeartbeatDialog] = useState<HeartbeatDialogState | null>(null);
 
   // Sidebar "+ Tasks" pill dispatches `cabinet:open-create-task` after routing
   // to section=tasks. Listen for it so the pill actually opens the composer.
   useEffect(() => {
-    const handler = () => setNewTaskOpen(true);
+    const handler = () => {
+      setNewTaskMode("now");
+      setNewTaskOpen(true);
+    };
     window.addEventListener("cabinet:open-create-task", handler);
     return () => window.removeEventListener("cabinet:open-create-task", handler);
   }, []);
+
+  const openComposer = (mode: StartWorkMode) => {
+    setNewTaskMode(mode);
+    setNewTaskOpen(true);
+  };
 
   // Esc clears selection (the detail panel has its own Esc handler when
   // open so that one wins — clearing selection fires when nothing else
@@ -190,7 +217,7 @@ export function TasksBoardV2({
     return sorted;
   }, [filteredTasks]);
 
-  const handleAddTask = () => setNewTaskOpen(true);
+  const handleAddTask = () => openComposer("now");
 
   const selected = selectedId ? tasks.find((t) => t.id === selectedId) ?? null : null;
   const selectedLane = selected ? deriveLane(selected, now) : null;
@@ -382,6 +409,10 @@ export function TasksBoardV2({
               <Trash2 className="size-3" />
             </button>
           )}
+
+          <div className="h-3.5 w-px bg-border/60" />
+
+          <NewWorkButton onCreate={openComposer} />
         </div>
       </header>
 
@@ -516,11 +547,12 @@ export function TasksBoardV2({
         onDismiss={() => setPendingConfirm(null)}
       />
 
-      <NewTaskDialog
+      <StartWorkDialog
         open={newTaskOpen}
         onOpenChange={setNewTaskOpen}
         cabinetPath={cabinetPath}
         agents={overview?.agents ?? []}
+        initialMode={newTaskMode}
         onStarted={(id) => {
           void refresh();
           setSelectedId(id);
@@ -543,3 +575,59 @@ export function TasksBoardV2({
   );
 }
 // touch 1776619357
+
+function NewWorkButton({
+  onCreate,
+}: {
+  onCreate: (mode: StartWorkMode) => void;
+}) {
+  return (
+    <div className="inline-flex items-stretch overflow-hidden rounded-md shadow-sm">
+      <button
+        type="button"
+        onClick={() => onCreate("now")}
+        className="inline-flex items-center gap-1.5 bg-foreground px-3 py-1.5 text-[12px] font-semibold text-background transition-colors hover:bg-foreground/90"
+        title="Create a new task"
+      >
+        <Plus className="size-3.5" />
+        New Task
+      </button>
+      <div className="w-px bg-background/20" aria-hidden />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className="inline-flex items-center bg-foreground px-1.5 text-background transition-colors hover:bg-foreground/90"
+          title="More new item types"
+          aria-label="More new item types"
+        >
+          <ChevronDown className="size-3.5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[220px]">
+          <DropdownMenuItem
+            onClick={() => onCreate("now")}
+            className="flex items-start gap-2 py-2"
+          >
+            <Zap className="mt-0.5 size-3.5 text-foreground/70" />
+            <div className="flex flex-col">
+              <span className="text-[13px] font-medium">New Task</span>
+              <span className="text-[11px] text-muted-foreground">
+                Run once, right now
+              </span>
+            </div>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => onCreate("recurring")}
+            className="flex items-start gap-2 py-2"
+          >
+            <Repeat className="mt-0.5 size-3.5 text-indigo-500" />
+            <div className="flex flex-col">
+              <span className="text-[13px] font-medium">New Routine</span>
+              <span className="text-[11px] text-muted-foreground">
+                Run this prompt on a schedule
+              </span>
+            </div>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
