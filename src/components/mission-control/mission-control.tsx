@@ -710,7 +710,12 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
       {/* Natural language agent creation dialog */}
       {nlOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/40" onClick={() => !nlGenerating && setNlOpen(false)} />
+          <button
+            type="button"
+            aria-label="Close dialog"
+            className="fixed inset-0 bg-black/40"
+            onClick={() => !nlGenerating && setNlOpen(false)}
+          />
           <div className="relative bg-background border border-border rounded-xl shadow-2xl w-[440px] max-w-[90vw] p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div>
               <h2 className="text-[15px] font-semibold">Describe Your Agent</h2>
@@ -770,7 +775,12 @@ Choose an appropriate department. Pick a descriptive emoji. Make the body a comp
       {/* Confirm start dialog */}
       {confirmStart && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setConfirmStart(false)} />
+          <button
+            type="button"
+            aria-label="Close dialog"
+            className="fixed inset-0 bg-black/40"
+            onClick={() => setConfirmStart(false)}
+          />
           <div className="relative bg-background border border-border rounded-xl shadow-2xl w-[380px] max-w-[90vw] p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div>
               <h2 className="text-[15px] font-semibold flex items-center gap-2">

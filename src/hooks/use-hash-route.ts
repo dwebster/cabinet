@@ -27,6 +27,7 @@ import { useEditorStore } from "@/stores/editor-store";
  */
 
 const LS_KEY = "cabinet.last-route";
+const SESSION_KEY = "cabinet.tab-visited";
 
 type SectionState = ReturnType<typeof useAppStore.getState>["section"];
 
@@ -233,11 +234,18 @@ export function useHashRoute() {
 
   useEffect(() => {
     const hash = window.location.hash;
+    // Fresh tabs always land on home — last-route only restores inside a
+    // tab that has already rendered the app (manual reload, in-tab nav).
+    // Audit #7: reopening `/` used to hijack returning users to whatever
+    // route they were last on (frequently `#/settings/providers`).
+    const isSameTabContinuation =
+      typeof sessionStorage !== "undefined" &&
+      sessionStorage.getItem(SESSION_KEY) === "1";
     let route: RouteState;
 
     if (hash && hash !== "#" && hash !== "#/") {
       route = parseHash(hash);
-    } else {
+    } else if (isSameTabContinuation) {
       const saved = loadFromLocalStorage();
       if (saved) {
         route = parseHash(saved);
@@ -245,6 +253,14 @@ export function useHashRoute() {
       } else {
         route = { section: { type: "home" }, pagePath: null };
       }
+    } else {
+      route = { section: { type: "home" }, pagePath: null };
+    }
+
+    try {
+      sessionStorage.setItem(SESSION_KEY, "1");
+    } catch {
+      // sessionStorage can be disabled in some privacy modes; non-fatal.
     }
 
     suppressHashUpdate.current = true;

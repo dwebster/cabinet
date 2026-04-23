@@ -30,22 +30,22 @@ Execution tracker for the findings in [Cabinet Pre-Release UX Audit](../CABINET-
 | 1 | [**World-class search palette (Cmd+K)**](./01-search-palette/index.md) — daemon live index, 2-pane grouped results, unified Pages/Agents/Tasks scope, `/` when idle, AI fallback on zero results | P0 | **Done** (2026-04-23) | #110, #111, #112, #113, #114, #117, #118, #119, #185 |
 | 2 | Tasks board shows `0 tasks` across every view and filter despite live tasks | P0 | Open | #51, #52 |
 | 3 | Hash routes `/#/tasks`, `/#/agents`, `/#/jobs` don't render their views | P0 | Open | #11, #12 |
-| 4 | `cabinet.last-route` hijacks first paint on a fresh tab | P0 | Open | #7 |
-| 5 | Greeting shows literal `Good afternoon, there.` with unfilled placeholder | P0 | Open | #3, #38 |
-| 6 | Template carousel duplicates every card in the a11y tree | P0 | Open | #40 |
+| 4 | `cabinet.last-route` hijacks first paint on a fresh tab | P0 | **Done** (2026-04-23) | #7 |
+| 5 | Greeting shows literal `Good afternoon, there.` with unfilled placeholder | P0 | **Done** (2026-04-23) | #3, #38 |
+| 6 | Template carousel duplicates every card in the a11y tree | P0 | **Done** (2026-04-23) | #40 |
 | 7 | Task detail stuck on `Loading… · connecting` forever, no timeout | P0 | Open | #59 |
 | 8 | Agent "Recent work" shows prompt fragments as file names | P0 | Open | #73 |
-| 9 | Status bar acts as a marketing bar (Chat / Contribute / 1,659 stars) | P0 | Open | #156 |
+| 9 | Status bar acts as a marketing bar (Chat / Contribute / 1,659 stars) | P0 | **Done** (2026-04-23) | #156 |
 | 10 | Mobile is not designed — no hamburger, clipped composer, overlapping chrome | P0 | Open | #164 |
 | 11 | Editor toolbar icon buttons missing `aria-label` (confirmed empty on first 4) | P0 | Open | #89, #174 |
-| 12 | Greeting wrapped in `role="alert" aria-live="assertive"` shouts to screen readers | P0 | Open | #173 |
+| 12 | Greeting wrapped in `role="alert" aria-live="assertive"` shouts to screen readers | P0 | **N/A** — confirmed clear by inspection (2026-04-23) | #173 |
 | 13 | 22 Google Font families requested on first paint for theme preview | P0 | Open | #187 |
 | 14 | Duplicate API calls on first paint (providers ×3, overview ×5, health ×3, …) | P0 | Open | #188 |
-| 15 | Next.js DevTools button visible in production UI | P0 | Open | #219 |
+| 15 | Next.js DevTools button visible in production UI | P0 | **Done** (2026-04-23) | #219 |
 | 16 | No top-nav IA — only the mixed sidebar leads to agents/tasks/jobs/settings | P0 | Open | #11 |
 | 17 | Sidebar flattens 70+ CVs and songs to the root of DATA — looks like demo noise | P0 | Open | #22 |
 | 18 | Replace all `alert()` / `window.confirm()` with toasts + typed-confirm dialogs | P0 | Open | #207, #208 |
-| 19 | `<div onClick>` without keyboard handler in mission-control and elsewhere | P0 | Open | #175 |
+| 19 | `<div onClick>` without keyboard handler in mission-control and elsewhere | P0 | **Done** (2026-04-23) | #175 |
 
 ---
 

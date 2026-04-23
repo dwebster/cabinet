@@ -143,13 +143,21 @@ function RegistryCarousel({
       onMouseLeave={() => setIsPaused(false)}
     >
       <div ref={scrollRef} className="flex gap-3 will-change-transform">
-        {doubled.map((template, i) => (
-          <CabinetCard
-            key={`${template.slug}-${i}`}
-            template={template}
-            onClick={() => onSelect(template)}
-          />
-        ))}
+        {doubled.map((template, i) => {
+          const isClone = i >= templates.length;
+          return (
+            <div
+              key={`${template.slug}-${i}`}
+              aria-hidden={isClone || undefined}
+              inert={isClone || undefined}
+            >
+              <CabinetCard
+                template={template}
+                onClick={() => onSelect(template)}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -290,11 +298,13 @@ export function HomeScreen() {
   const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
 
   useEffect(() => {
-    fetch("/api/agents/config")
+    fetch("/api/user/profile")
       .then((r) => r.json())
       .then((data) => {
-        if (data.company?.name) {
-          setUserName(data.company.name);
+        const profileName: string | undefined =
+          data?.profile?.displayName || data?.profile?.name;
+        if (profileName) {
+          setUserName(profileName);
         }
       })
       .catch(() => {});
@@ -354,14 +364,13 @@ export function HomeScreen() {
   });
 
   const greeting = getGreeting();
-  const displayName = userName || "there";
+  const headline = userName ? `${greeting}, ${userName}.` : `${greeting}.`;
 
   return (
     <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-xl space-y-8">
         <h1 className="text-3xl md:text-4xl font-semibold text-center text-foreground tracking-tight">
-          {greeting}, {displayName}.<br />
-          What are we working on today?
+          {headline}
         </h1>
 
         <ComposerInput
