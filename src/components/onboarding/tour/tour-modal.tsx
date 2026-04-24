@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { ArrowLeft, ArrowRight, X, Sparkles } from "lucide-react";
+import { SlideIntro } from "./slide-intro";
 import { SlideData } from "./slide-data";
 import { SlideAgents } from "./slide-agents";
 import { SlideTasks } from "./slide-tasks";
+import { TOUR_PALETTE as P } from "./palette";
 
 interface TourModalProps {
   open: boolean;
@@ -16,10 +19,30 @@ const STARTER_TASK =
   "Run 10 tasks, each writing a new song, save to @Songs/";
 
 const SLIDES = [
+  { id: "intro", render: () => <SlideIntro /> },
   { id: "data", render: () => <SlideData /> },
   { id: "agents", render: () => <SlideAgents /> },
   { id: "tasks", render: () => <SlideTasks /> },
 ] as const;
+
+type DocWithViewTransitions = Document & {
+  startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+};
+
+// Animate cross-slide state changes with the View Transitions API. The
+// shared `view-transition-name` on the Cabinet card gives the browser an
+// identity to morph between the intro (centered) and tour (left) layouts.
+// Falls back to a synchronous update on browsers without the API.
+function transition(update: () => void) {
+  const doc = document as DocWithViewTransitions;
+  if (typeof doc.startViewTransition === "function") {
+    doc.startViewTransition(() => {
+      flushSync(update);
+    });
+    return;
+  }
+  update();
+}
 
 export function TourModal({ open, onClose, onLaunchTask }: TourModalProps) {
   // TourBody is only mounted while `open`, so its internal state resets on
@@ -37,11 +60,16 @@ function TourBody({
 }) {
   const [index, setIndex] = useState(0);
 
+  const goTo = useCallback((next: number) => {
+    const clamped = Math.max(0, Math.min(next, SLIDES.length - 1));
+    transition(() => setIndex(clamped));
+  }, []);
+
   const next = useCallback(() => {
-    setIndex((i) => Math.min(i + 1, SLIDES.length - 1));
+    transition(() => setIndex((i) => Math.min(i + 1, SLIDES.length - 1)));
   }, []);
   const back = useCallback(() => {
-    setIndex((i) => Math.max(i - 1, 0));
+    transition(() => setIndex((i) => Math.max(i - 1, 0)));
   }, []);
   const finish = useCallback(() => {
     onLaunchTask(STARTER_TASK);
@@ -78,18 +106,18 @@ function TourBody({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 backdrop-blur-md"
+      className="fixed inset-0 z-[200] flex items-center justify-center backdrop-blur-md"
       role="dialog"
       aria-modal="true"
       aria-label="Meet your Cabinet tour"
+      style={{ background: `${P.paper}F0`, color: P.text }}
     >
-      {/* Soft decorative background wash */}
+      {/* Soft decorative background wash — warm cream with subtle mocha glow */}
       <div
-        className="pointer-events-none absolute inset-0 -z-10 opacity-60"
+        className="pointer-events-none absolute inset-0 -z-10"
         aria-hidden="true"
         style={{
-          background:
-            "radial-gradient(1200px 600px at 15% 20%, rgba(245, 158, 11, 0.12), transparent 60%), radial-gradient(900px 500px at 85% 80%, rgba(139, 92, 246, 0.10), transparent 60%)",
+          background: `radial-gradient(1200px 600px at 15% 20%, rgba(139, 94, 60, 0.10), transparent 60%), radial-gradient(900px 500px at 85% 80%, rgba(122, 79, 48, 0.08), transparent 60%)`,
         }}
       />
 
@@ -97,7 +125,12 @@ function TourBody({
       <button
         onClick={onClose}
         aria-label="Skip tour"
-        className="absolute right-6 top-6 flex items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+        className="absolute right-6 top-6 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] transition-colors"
+        style={{
+          color: P.textSecondary,
+          background: P.bgCard,
+          border: `1px solid ${P.border}`,
+        }}
       >
         <span>Skip</span>
         <X className="h-3.5 w-3.5" />
@@ -118,7 +151,12 @@ function TourBody({
           <button
             onClick={back}
             disabled={index === 0}
-            className="flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-[12px] font-medium text-foreground/80 transition-colors hover:border-border hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{
+              color: P.textSecondary,
+              background: P.bgCard,
+              border: `1px solid ${P.border}`,
+            }}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back
@@ -129,13 +167,14 @@ function TourBody({
             {SLIDES.map((s, i) => (
               <button
                 key={s.id}
-                onClick={() => setIndex(i)}
+                onClick={() => goTo(i)}
                 aria-label={`Go to slide ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
+                className="h-1.5 rounded-full transition-all duration-300"
+                style={
                   i === index
-                    ? "w-7 bg-amber-500"
-                    : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                }`}
+                    ? { width: "28px", background: P.accent }
+                    : { width: "6px", background: P.textTertiary, opacity: 0.5 }
+                }
               />
             ))}
           </div>
@@ -144,7 +183,11 @@ function TourBody({
           {isLast ? (
             <button
               onClick={finish}
-              className="group flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-amber-500/30 transition-all hover:-translate-y-px hover:bg-amber-500/90 hover:shadow-xl hover:shadow-amber-500/40"
+              className="group flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-semibold text-white transition-all hover:-translate-y-px"
+              style={{
+                background: P.accent,
+                boxShadow: `0 10px 25px -10px ${P.accent}80`,
+              }}
             >
               <Sparkles className="h-4 w-4" />
               Write your first task
@@ -153,7 +196,8 @@ function TourBody({
           ) : (
             <button
               onClick={next}
-              className="flex items-center gap-1.5 rounded-full bg-foreground px-5 py-2 text-[12px] font-semibold text-background transition-all hover:-translate-y-px"
+              className="flex items-center gap-1.5 rounded-full px-5 py-2 text-[12px] font-semibold transition-all hover:-translate-y-px"
+              style={{ background: P.text, color: P.paper }}
             >
               Next
               <ArrowRight className="h-3.5 w-3.5" />

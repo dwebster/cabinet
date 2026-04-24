@@ -1,70 +1,179 @@
 "use client";
 
-import { type ReactNode } from "react";
-import { Archive, BookOpen, Users, Kanban } from "lucide-react";
+import { type CSSProperties, type ReactNode } from "react";
+import { Archive, BookOpen, Users, SquareKanban, ChevronDown } from "lucide-react";
+import { TOUR_PALETTE as P } from "./palette";
 
 export type MockupTab = "data" | "agents" | "tasks";
 
 interface MockupSidebarProps {
-  activeTab: MockupTab;
-  children: ReactNode;
+  activeTab?: MockupTab | null;
+  children?: ReactNode;
+  /**
+   * Hide the tab rail entirely. Used by the intro slide when only the
+   * Cabinet header has appeared and tabs haven't populated yet.
+   */
+  hideTabs?: boolean;
+  /**
+   * Hide the tree/body area. Used by the intro slide which shows just
+   * the header + tabs chrome with no content underneath.
+   */
+  hideBody?: boolean;
+  /**
+   * When true, the tab buttons start hidden and pop in with staggered
+   * delay — used by the intro slide to animate tabs into an empty shell.
+   */
+  tabsPopIn?: boolean;
+  /**
+   * Cabinet header title. Defaults to "Hila's Cabinet" to match the
+   * sidebar; the intro slide overrides to the generic "Cabinet".
+   */
+  title?: string;
+  /**
+   * Right-side chip in the Cabinet header (e.g. "+1", "All"). Matches the
+   * `DepthDropdown` slot in the real sidebar.
+   */
+  headerBadge?: string;
+  /**
+   * Shared element identity for the View Transitions API so the card can
+   * morph between slide layouts.
+   */
+  viewTransitionName?: string;
 }
 
 const TABS: Array<{ id: MockupTab; label: string; icon: typeof BookOpen }> = [
-  { id: "data", label: "DATA", icon: BookOpen },
-  { id: "agents", label: "AGENTS", icon: Users },
-  { id: "tasks", label: "TASKS", icon: Kanban },
+  { id: "data", label: "Data", icon: BookOpen },
+  { id: "agents", label: "Agents", icon: Users },
+  { id: "tasks", label: "Tasks", icon: SquareKanban },
 ];
 
-export function MockupSidebar({ activeTab, children }: MockupSidebarProps) {
+export function MockupSidebar({
+  activeTab,
+  children,
+  hideTabs = false,
+  hideBody = false,
+  tabsPopIn = false,
+  title = "Hila's Cabinet",
+  headerBadge = "+1",
+  viewTransitionName,
+}: MockupSidebarProps) {
+  const rootStyle: CSSProperties = {
+    color: P.text,
+    ...(viewTransitionName ? { viewTransitionName } : {}),
+  };
+
   return (
     <div
-      className="cabinet-tour-animated relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-muted/20 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.35)]"
+      className="cabinet-tour-animated relative flex h-full w-full flex-col px-2 pt-3"
       aria-hidden="true"
+      style={rootStyle}
     >
-      {/* Cabinet header */}
-      <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border/50 bg-amber-500/10">
-        <Archive className="h-4 w-4 text-amber-500" />
-        <span className="text-sm font-medium text-foreground">Hila&apos;s Cabinet</span>
-        <span className="ml-auto text-[10px] text-muted-foreground/70">+1</span>
+      {/* ── Container 1: Cabinet header rail ───────────────────────
+          Mirrors the sidebar's Cabinet pill: rounded-lg, warm cream
+          background, thin mocha ring, deep-mocha archive glyph,
+          muted-brown label. */}
+      <div
+        className="flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+        style={{
+          background: P.paperWarm,
+          boxShadow: `inset 0 0 0 1px ${P.border}`,
+        }}
+      >
+        <Archive
+          className="h-[18px] w-[18px] shrink-0"
+          style={{ color: P.accent }}
+        />
+        <span
+          className="min-w-0 flex-1 truncate text-sm font-medium"
+          style={{ color: P.textSecondary }}
+        >
+          {title}
+        </span>
+        {headerBadge && (
+          <span
+            className="inline-flex items-center gap-0.5 text-[10px]"
+            style={{ color: P.textTertiary }}
+          >
+            {headerBadge}
+            <ChevronDown className="h-3 w-3" />
+          </span>
+        )}
       </div>
 
-      {/* Tab switcher */}
-      <div className="grid grid-cols-3 gap-1.5 px-3 py-2 border-b border-border/50">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = tab.id === activeTab;
-          return (
-            <div
-              key={tab.id}
-              className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2 transition-all duration-500 ${
-                isActive
-                  ? "bg-background border border-border/60 shadow-sm"
-                  : "border border-transparent opacity-55"
-              }`}
-            >
-              <div className="relative">
-                {isActive && (
-                  <span className="absolute -top-1.5 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-amber-400" />
-                )}
-                <Icon className="h-4 w-4 text-foreground" strokeWidth={isActive ? 2.25 : 1.75} />
-              </div>
-              <span
-                className={`text-[10px] font-semibold tracking-[0.08em] ${
-                  isActive ? "text-foreground" : "text-muted-foreground"
-                }`}
+      {/* ── Container 2: Drawer tabs ───────────────────────────────
+          Inset by mx-[9px] so the header above reads as a wider crown.
+          Each tab renders a "drawer pull" handle at the top. */}
+      {!hideTabs && (
+        <div
+          role="tablist"
+          aria-label="Cabinet drawers"
+          className="mx-[9px] grid grid-cols-3 gap-1 rounded-b-lg p-1 pt-2"
+          style={{
+            background: "rgba(243, 237, 228, 0.7)",
+            boxShadow: `inset 0 0 0 1px ${P.borderLight}`,
+          }}
+        >
+          {TABS.map((tab, i) => {
+            const Icon = tab.icon;
+            const active = tab.id === activeTab;
+            return (
+              <div
+                key={tab.id}
+                className="relative"
+                style={
+                  tabsPopIn
+                    ? {
+                        opacity: 0,
+                        animation: "cabinet-tour-pop-in 0.45s ease-out forwards",
+                        animationDelay: `${900 + i * 180}ms`,
+                      }
+                    : undefined
+                }
               >
-                {tab.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+                <div
+                  className="relative flex w-full flex-col items-center gap-0.5 rounded-md px-1.5 pt-3 pb-2 transition-all duration-150"
+                  style={
+                    active
+                      ? {
+                          background: P.bgCard,
+                          color: P.text,
+                          transform: "translateY(-1px)",
+                          boxShadow: `0 1px 0 rgba(59,47,47,0.06), 0 6px 14px -10px rgba(59,47,47,0.35), 0 0 0 1px ${P.border}`,
+                        }
+                      : {
+                          color: P.textSecondary,
+                        }
+                  }
+                >
+                  {/* drawer pull handle */}
+                  <span
+                    aria-hidden
+                    className="absolute left-1/2 top-1 h-[2px] w-4 -translate-x-1/2 rounded-full"
+                    style={{
+                      background: active
+                        ? "rgba(139, 94, 60, 0.55)"
+                        : "rgba(168, 152, 136, 0.45)",
+                    }}
+                  />
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  <span className="text-[8px] font-semibold uppercase tracking-[0.1em]">
+                    {tab.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Body — slide-specific content */}
-      <div className="relative flex-1 overflow-hidden cabinet-tour-no-scrollbar">
-        {children}
-      </div>
+      {/* ── Tree / body area ───────────────────────────────
+          Rendered as a sibling below the two containers, matching the
+          sidebar where the tree lives outside the cabinet chrome. */}
+      {!hideBody && (
+        <div className="relative flex-1 overflow-hidden cabinet-tour-no-scrollbar pt-1">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
