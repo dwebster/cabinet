@@ -382,17 +382,15 @@ export function HomeScreen() {
           className="w-full"
           minHeight="44px"
           maxHeight="160px"
-          header={
-            <div className="flex items-center justify-end px-3 pt-3">
-              <WhenChip
-                mode="now"
-                onChange={(next) => {
-                  if (next === "now") return;
-                  setHandoffMode(next);
-                  setHandoffOpen(true);
-                }}
-              />
-            </div>
+          topRightOverlay={
+            <WhenChip
+              mode="now"
+              onChange={(next) => {
+                if (next === "now") return;
+                setHandoffMode(next);
+                setHandoffOpen(true);
+              }}
+            />
           }
           actionsStart={
             <TaskRuntimePicker

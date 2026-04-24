@@ -160,17 +160,15 @@ export function CabinetTaskComposer({
         maxHeight="220px"
         className="w-full"
         mentionDropdownPlacement="below"
-        header={
-          <div className="flex items-center justify-end px-3 pt-3">
-            <WhenChip
-              mode="now"
-              onChange={(next) => {
-                if (next === "now") return;
-                setHandoffMode(next);
-                setHandoffOpen(true);
-              }}
-            />
-          </div>
+        topRightOverlay={
+          <WhenChip
+            mode="now"
+            onChange={(next) => {
+              if (next === "now") return;
+              setHandoffMode(next);
+              setHandoffOpen(true);
+            }}
+          />
         }
         actionsStart={
           <>

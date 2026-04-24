@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Send, Loader2, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,27 @@ export interface ComposerInputProps {
   };
   mentionDropdownPlacement?: "above" | "below";
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  /**
+   * Appended to the default textarea classes via `cn`. Use this to override
+   * padding, text size, or line-height when a specific surface needs a
+   * different feel (e.g. the larger 14px textarea on the agent detail page).
+   */
+  textareaClassName?: string;
+  /**
+   * When set, the card turns on `transition-all` and adopts the given
+   * `borderColor` + 3px outer ring in the supplied `ringColor` while the
+   * textarea (or anything else in the card) holds focus. Used on the agent
+   * detail page to tint the composer with the agent's brand color.
+   */
+  focusTint?: { borderColor: string; ringColor: string };
+  /**
+   * Content absolutely positioned in the top-right corner of the card
+   * (e.g. the WhenChip for scheduling). The textarea automatically gains
+   * `pr-28` so wrapped text can't collide with the overlay. Prefer this over
+   * the `header` slot when you don't want the control to steal vertical
+   * space from the textarea.
+   */
+  topRightOverlay?: React.ReactNode;
 }
 
 export function ComposerInput({
@@ -51,6 +72,9 @@ export function ComposerInput({
   secondaryAction,
   mentionDropdownPlacement = "above",
   onKeyDown,
+  textareaClassName,
+  focusTint,
+  topRightOverlay,
 }: ComposerInputProps) {
   useEffect(() => {
     if (autoFocus) {
@@ -59,16 +83,41 @@ export function ComposerInput({
   }, [autoFocus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isDisabled = disabled || composer.submitting;
+  const [cardFocused, setCardFocused] = useState(false);
 
   return (
     <div className={cn("relative flex flex-col", className)}>
       <div
         className={cn(
           "relative flex flex-col",
-          variant === "card" &&
-            "rounded-2xl border border-border bg-card",
+          variant === "card" && "rounded-2xl border border-border bg-card",
+          focusTint && "transition-all",
+          focusTint && cardFocused && "shadow-sm"
         )}
+        style={
+          focusTint && cardFocused
+            ? {
+                borderColor: focusTint.borderColor,
+                boxShadow: `0 0 0 3px ${focusTint.ringColor}`,
+              }
+            : undefined
+        }
+        onFocus={focusTint ? () => setCardFocused(true) : undefined}
+        onBlur={
+          focusTint
+            ? (e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setCardFocused(false);
+                }
+              }
+            : undefined
+        }
       >
+        {topRightOverlay ? (
+          <div className="absolute right-3 top-3 z-10">
+            {topRightOverlay}
+          </div>
+        ) : null}
         {header}
         <div className="relative flex flex-col">
           {composer.showDropdown && composer.filteredItems.length > 0 && (
@@ -93,7 +142,11 @@ export function ComposerInput({
             placeholder={placeholder}
             disabled={isDisabled}
             style={{ minHeight, maxHeight }}
-            className="w-full resize-none overflow-y-auto bg-transparent px-4 pt-4 pb-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={cn(
+              "w-full resize-none overflow-y-auto bg-transparent px-4 pt-4 pb-2 text-[13px] text-foreground caret-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 disabled:cursor-not-allowed",
+              topRightOverlay && "pr-28",
+              textareaClassName
+            )}
           />
         </div>
 

@@ -2172,18 +2172,16 @@ export function AgentsWorkspace({
         variant="card"
         items={mentionItems}
         autoFocus
-        header={
-          <div className="flex items-center justify-end px-3 pt-3">
-            <WhenChip
-              mode="now"
-              onChange={(next) => {
-                if (next === "now") return;
-                setHandoffAgentSlug(agentSlug);
-                setHandoffMode(next);
-                setHandoffOpen(true);
-              }}
-            />
-          </div>
+        topRightOverlay={
+          <WhenChip
+            mode="now"
+            onChange={(next) => {
+              if (next === "now") return;
+              setHandoffAgentSlug(agentSlug);
+              setHandoffMode(next);
+              setHandoffOpen(true);
+            }}
+          />
         }
         actionsStart={
           <TaskRuntimePicker

@@ -7,6 +7,10 @@ import {
   TaskRuntimePicker,
   type TaskRuntimeSelection,
 } from "@/components/composer/task-runtime-picker";
+import {
+  WhenChip,
+  type StartWorkMode,
+} from "@/components/composer/start-work-dialog";
 import { useComposer, type MentionableItem } from "@/hooks/use-composer";
 import { cn } from "@/lib/utils";
 import type { ConversationRuntimeOverride } from "@/types/conversations";
@@ -63,6 +67,16 @@ export interface TaskComposerPanelProps {
   /** Optional className for outer wrapper. */
   className?: string;
   disabled?: boolean;
+  /**
+   * When provided, renders the WhenChip in the composer's top-right corner.
+   * Called when the user picks a non-"now" mode (recurring or heartbeat) —
+   * the current draft message is forwarded so the parent can open
+   * StartWorkDialog seeded with the in-flight prompt.
+   */
+  onScheduleHandoff?: (
+    mode: Exclude<StartWorkMode, "now">,
+    message: string
+  ) => void;
 }
 
 export function TaskComposerPanel({
@@ -73,6 +87,7 @@ export function TaskComposerPanel({
   autoLoadMentions = true,
   className,
   disabled,
+  onScheduleHandoff,
 }: TaskComposerPanelProps) {
   // We don't seed with initialRuntime directly — that way, when the parent
   // re-renders with fresh meta (SSE → fetchTask), the displayed runtime
@@ -189,6 +204,17 @@ export function TaskComposerPanel({
         minHeight="52px"
         maxHeight="240px"
         className={awaitingInput ? "[&>div:first-child]:border-amber-500/40" : undefined}
+        topRightOverlay={
+          onScheduleHandoff ? (
+            <WhenChip
+              mode="now"
+              onChange={(next) => {
+                if (next === "now") return;
+                onScheduleHandoff(next, composer.input);
+              }}
+            />
+          ) : undefined
+        }
         actionsStart={
           <TaskRuntimePicker
             value={effectiveRuntime}

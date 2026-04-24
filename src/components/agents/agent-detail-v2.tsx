@@ -79,6 +79,13 @@ import {
   TaskRuntimePicker,
   type TaskRuntimeSelection,
 } from "@/components/composer/task-runtime-picker";
+import {
+  StartWorkDialog,
+  WhenChip,
+  type StartWorkMode,
+} from "@/components/composer/start-work-dialog";
+import { ComposerInput } from "@/components/composer/composer-input";
+import { useComposer } from "@/hooks/use-composer";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { editorExtensions } from "@/components/editor/extensions";
 import { markdownToHtml } from "@/lib/markdown/to-html";
@@ -901,20 +908,30 @@ function Hero({
 }
 
 /* ─── Composer ─── */
+// Thin wrapper around the shared `ComposerInput`. The only thing this adds
+// over a raw ComposerInput callsite is the agent-scoped boilerplate —
+// persona-tinted focus ring, agent-flavored suggestion chips, and the
+// runtime picker seeded from the persona's default provider/model. Visual
+// parity with the shared composer is preserved via `textareaClassName`
+// (matches the original 14px / pt-3 pb-1 feel) and `focusTint` (the
+// agent-colored ring).
 function Composer({
   persona,
   onSubmit,
   submitting,
+  onScheduleHandoff,
 }: {
   persona: AgentPersona;
   onSubmit: (message: string, runtime: TaskRuntimeSelection) => void;
   submitting: boolean;
+  onScheduleHandoff?: (
+    mode: Exclude<StartWorkMode, "now">,
+    message: string
+  ) => void;
 }) {
-  const [value, setValue] = useState("");
   const palette = persona.color
     ? tintFromHex(persona.color)
     : getAgentColor(persona.slug);
-  const [focused, setFocused] = useState(false);
   const [runtime, setRuntime] = useState<TaskRuntimeSelection>(() => ({
     providerId: persona.provider || undefined,
     adapterType: persona.adapterType || undefined,
@@ -937,67 +954,42 @@ function Composer({
 
   const name = getAgentDisplayName(persona) || persona.name;
 
-  const handleSubmit = () => {
-    if (!value.trim()) return;
-    onSubmit(value.trim(), runtime);
-    setValue("");
-  };
-
-  const apply = (s: string) => setValue(s);
+  const composer = useComposer({
+    items: [],
+    onSubmit: async ({ message }) => {
+      onSubmit(message, runtime);
+    },
+    disabled: submitting,
+  });
 
   return (
     <div className="px-6 pb-5">
-      <div
-        className={cn(
-          "relative rounded-2xl border bg-card transition-all",
-          focused ? "shadow-sm" : "border-border"
-        )}
-        style={
-          focused
-            ? {
-                borderColor: palette.text,
-                boxShadow: `0 0 0 3px ${palette.bg}`,
-              }
-            : undefined
+      <ComposerInput
+        composer={composer}
+        placeholder={`Ask ${name} something…`}
+        submitLabel="Send"
+        variant="card"
+        minHeight="78px"
+        maxHeight="320px"
+        showKeyHint={false}
+        textareaClassName="pt-3 pb-1 text-[14px] leading-relaxed"
+        focusTint={{ borderColor: palette.text, ringColor: palette.bg }}
+        disabled={submitting}
+        topRightOverlay={
+          onScheduleHandoff ? (
+            <WhenChip
+              mode="now"
+              onChange={(next) => {
+                if (next === "now") return;
+                onScheduleHandoff(next, composer.input);
+              }}
+            />
+          ) : undefined
         }
-      >
-        <textarea
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-              e.preventDefault();
-              handleSubmit();
-            }
-          }}
-          placeholder={`Ask ${name} something…`}
-          rows={3}
-          className="w-full resize-none bg-transparent px-4 pt-3 pb-1 text-[14px] leading-relaxed focus:outline-none"
-        />
-        <div className="flex items-center justify-between px-3 pb-2.5 pt-1 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <TaskRuntimePicker value={runtime} onChange={setRuntime} />
-            <span className="text-[11px] text-muted-foreground whitespace-nowrap hidden sm:inline">
-              ⌘↵ to send
-            </span>
-          </div>
-          <Button
-            size="sm"
-            className="h-7 gap-1.5 px-3 text-[12px] shrink-0"
-            onClick={handleSubmit}
-            disabled={!value.trim() || submitting}
-          >
-            {submitting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Send className="h-3.5 w-3.5" />
-            )}
-            Send
-          </Button>
-        </div>
-      </div>
+        actionsStart={
+          <TaskRuntimePicker value={runtime} onChange={setRuntime} />
+        }
+      />
 
       {/* Suggested prompts */}
       <div className="flex flex-wrap gap-1.5 mt-3">
@@ -1005,7 +997,7 @@ function Composer({
           <button
             key={s}
             type="button"
-            onClick={() => apply(s)}
+            onClick={() => composer.setInput(s)}
             className="text-[11px] text-muted-foreground hover:text-foreground rounded-full border border-border/60 px-2.5 py-1 hover:border-border transition-colors"
           >
             {s}
@@ -1916,6 +1908,13 @@ export function AgentDetailV2({
   const [routineDialogOpen, setRoutineDialogOpen] = useState(false);
   const [routineEditJob, setRoutineEditJob] = useState<JobConfig | null>(null);
 
+  // Schedule handoff — lets the user convert the current composer draft into
+  // a recurring routine or heartbeat by opening StartWorkDialog seeded with
+  // the draft + this agent.
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffMode, setHandoffMode] = useState<StartWorkMode>("recurring");
+  const [handoffPrompt, setHandoffPrompt] = useState("");
+
   const effectiveCabinetPath = persona?.cabinetPath ?? cabinetPath;
 
   const refresh = useCallback(async () => {
@@ -2283,6 +2282,11 @@ export function AgentDetailV2({
                   persona={persona}
                   onSubmit={handleComposerSubmit}
                   submitting={submitting}
+                  onScheduleHandoff={(mode, message) => {
+                    setHandoffMode(mode);
+                    setHandoffPrompt(message);
+                    setHandoffOpen(true);
+                  }}
                 />
               </div>
               <InboxSection
@@ -2348,6 +2352,44 @@ export function AgentDetailV2({
           }}
           onDeleted={() => {
             setRoutineEditJob(null);
+            void refresh();
+          }}
+        />
+
+        <StartWorkDialog
+          open={handoffOpen}
+          onOpenChange={setHandoffOpen}
+          cabinetPath={effectiveCabinetPath || ""}
+          agents={[
+            {
+              scopedId: `${persona.cabinetPath || effectiveCabinetPath || ""}::agent::${persona.slug}`,
+              name: persona.name,
+              slug: persona.slug,
+              emoji: persona.emoji,
+              role: persona.role,
+              active: persona.active,
+              department: persona.department,
+              type: persona.type,
+              heartbeat: persona.heartbeat,
+              workspace: persona.workspace,
+              jobCount: 0,
+              taskCount: 0,
+              cabinetPath: persona.cabinetPath || effectiveCabinetPath || "",
+              cabinetName: "",
+              cabinetDepth: 0,
+              inherited: false,
+              displayName: persona.displayName,
+              iconKey: persona.iconKey,
+              color: persona.color,
+              avatar: persona.avatar,
+              avatarExt: persona.avatarExt,
+            },
+          ]}
+          initialMode={handoffMode}
+          initialPrompt={handoffPrompt}
+          initialAgentSlug={persona.slug}
+          onStarted={() => {
+            setHandoffOpen(false);
             void refresh();
           }}
         />

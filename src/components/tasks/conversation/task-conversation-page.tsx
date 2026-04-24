@@ -37,7 +37,7 @@ import {
   deleteConversation,
   restartConversation,
   stopConversation,
-} from "@/components/tasks/board-v2/board-actions";
+} from "@/components/tasks/board/board-actions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { openArtifactPath } from "@/lib/navigation/open-artifact-path";
+import { buildTaskHash } from "@/lib/navigation/task-route";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,7 +58,13 @@ import { DiffPanel } from "./diff-panel";
 import { LogsPanel } from "./logs-panel";
 import { TaskComposerPanel } from "./task-composer-panel";
 import { MOCK_TASK } from "./mock-data";
+import {
+  StartWorkDialog,
+  type StartWorkMode,
+} from "@/components/composer/start-work-dialog";
 import type { Task, TaskEvent, TaskStatus } from "@/types/tasks";
+import type { AgentListItem } from "@/types/agents";
+import type { CabinetAgentSummary } from "@/types/cabinets";
 import { compactTask, fetchTask, patchTask, postTurn } from "@/lib/agents/task-client";
 import { peekTaskIsTerminal } from "@/lib/agents/terminal-mode-cache";
 
@@ -373,6 +380,60 @@ export function TaskConversationPage({
   const [detail, setDetail] = useState<import("@/types/conversations").ConversationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Schedule handoff — lets the user convert the current conversation prompt
+  // into a recurring routine or a heartbeat by opening StartWorkDialog seeded
+  // with the in-flight draft + the current agent.
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffMode, setHandoffMode] = useState<StartWorkMode>("recurring");
+  const [handoffPrompt, setHandoffPrompt] = useState("");
+  const [handoffAgents, setHandoffAgents] = useState<CabinetAgentSummary[]>([]);
+
+  const openScheduleHandoff = useCallback(
+    async (mode: Exclude<StartWorkMode, "now">, message: string) => {
+      setHandoffMode(mode);
+      setHandoffPrompt(message);
+      if (handoffAgents.length === 0) {
+        try {
+          const res = await fetch("/api/agents/personas");
+          if (res.ok) {
+            const data = (await res.json()) as { personas?: AgentListItem[] };
+            const personas = data.personas || [];
+            const fallbackCabinetPath = task?.meta.cabinetPath || "";
+            setHandoffAgents(
+              personas.map((a) => ({
+                scopedId: a.scopedId ?? `${a.cabinetPath || fallbackCabinetPath}::agent::${a.slug}`,
+                name: a.name,
+                slug: a.slug,
+                emoji: a.emoji,
+                role: a.role,
+                active: a.active,
+                department: a.department,
+                type: a.type,
+                heartbeat: a.heartbeat,
+                workspace: a.workspace,
+                jobCount: a.jobCount ?? 0,
+                taskCount: 0,
+                cabinetPath: a.cabinetPath || fallbackCabinetPath,
+                cabinetName: a.cabinetName || "",
+                cabinetDepth: 0,
+                inherited: false,
+                displayName: a.displayName,
+                iconKey: a.iconKey,
+                color: a.color,
+                avatar: a.avatar,
+                avatarExt: a.avatarExt,
+              }))
+            );
+          }
+        } catch {
+          // Fall through — StartWorkDialog handles empty agents gracefully.
+        }
+      }
+      setHandoffOpen(true);
+    },
+    [handoffAgents.length, task?.meta.cabinetPath]
+  );
 
   const loadDetail = useCallback(async () => {
     if (!taskId || isDemo) return;
@@ -736,11 +797,7 @@ export function TaskConversationPage({
   const handleCopyLink = useCallback(async () => {
     if (typeof window === "undefined") return;
     const base = `${window.location.origin}${window.location.pathname}`;
-    const cp = task?.meta.cabinetPath;
-    const hash =
-      cp && cp !== "."
-        ? `#/cabinet/${encodeURIComponent(cp)}/tasks/${encodeURIComponent(taskId)}`
-        : `#/ops/tasks/${encodeURIComponent(taskId)}`;
+    const hash = buildTaskHash(taskId, task?.meta.cabinetPath);
     try {
       await navigator.clipboard.writeText(`${base}${hash}`);
     } catch {
@@ -1492,6 +1549,7 @@ export function TaskConversationPage({
                       <TaskComposerPanel
                         awaitingInput={task.meta.status === "awaiting-input"}
                         onSend={handleSend}
+                        onScheduleHandoff={openScheduleHandoff}
                         initialRuntime={{
                           providerId: task.meta.providerId,
                           adapterType: task.meta.adapterType,
@@ -1580,6 +1638,7 @@ export function TaskConversationPage({
                 <TaskComposerPanel
                   awaitingInput={task.meta.status === "awaiting-input"}
                   onSend={handleSend}
+                  onScheduleHandoff={openScheduleHandoff}
                   initialRuntime={{
                     providerId: task.meta.providerId,
                     adapterType: task.meta.adapterType,
@@ -1639,6 +1698,19 @@ export function TaskConversationPage({
           </div>
         </TabsContent>
       </Tabs>
+
+      <StartWorkDialog
+        open={handoffOpen}
+        onOpenChange={setHandoffOpen}
+        cabinetPath={task.meta.cabinetPath || ""}
+        agents={handoffAgents}
+        initialMode={handoffMode}
+        initialPrompt={handoffPrompt}
+        initialAgentSlug={task.meta.agentSlug}
+        onStarted={() => {
+          setHandoffOpen(false);
+        }}
+      />
     </div>
   );
 }
