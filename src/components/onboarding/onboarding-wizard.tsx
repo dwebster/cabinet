@@ -2512,10 +2512,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </div>
               )}
 
-              {/* Model + effort selectors are intentionally hidden during onboarding.
-                  The provider tile click still seeds sensible defaults via
-                  resolveProviderModel / getSuggestedProviderEffort, and users can
-                  refine model/effort later from Settings → Providers. */}
+              {/* Model + effort selectors are intentionally hidden during onboarding —
+                  the provider tile click seeds the first model + suggested effort,
+                  and both are refinable later from Settings → Providers. */}
 
               {/* Coming soon providers */}
               <div className="space-y-2">
