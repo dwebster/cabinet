@@ -32,12 +32,64 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
 
-const QUICK_ACTIONS = [
-  "Brainstorm ideas",
-  "Map user journey",
-  "Plan roadmap",
-  "Create research plan",
-  "Create requirements doc",
+type QuickAction = {
+  label: string;
+  prompt: string;
+  // For delegation chips: ordered list of preferred dispatcher slugs. The
+  // first one that exists in the user's cabinet is used; if none exist, the
+  // chip is hidden so we never ship a "showcase" that silently routes to a
+  // non-dispatcher (e.g. editor) and quietly degrades to a solo task.
+  // Solo chips omit this field and use the composer's default routing.
+  preferredAgents?: string[];
+};
+
+// Common dispatch-enabled lead slugs. Per
+// `data/getting-started/delegating-between-agents`, leads default to
+// canDispatch:true. We try them in order; the first one present wins.
+const LEAD_FALLBACKS = ["ceo", "cto", "pm"];
+
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    label: "Launch 10 song-writing editors",
+    preferredAgents: LEAD_FALLBACKS,
+    prompt:
+      "Launch 10 LAUNCH_TASKs to the editor in parallel. Each one writes a short song from the perspective of a different Harry Potter character (Harry, Hermione, Ron, Dumbledore, Snape, Hagrid, Luna, Draco, Neville, McGonagall). Save each as its own page under @Songs. Use effort=low.",
+  },
+  {
+    label: "Daily review at 9am",
+    preferredAgents: LEAD_FALLBACKS,
+    prompt:
+      "Schedule a SCHEDULE_JOB on the editor with cron `0 9 * * *` — every day at 9am, write a short daily review of yesterday and what's on today, and append it to @Daily Review.",
+  },
+  {
+    label: "Weekly review next Monday",
+    preferredAgents: LEAD_FALLBACKS,
+    prompt:
+      "Schedule a SCHEDULE_TASK on the assistant for next Monday 09:00 — review what I worked on this past week by inspecting recently-modified files in this cabinet, then write @Weekly Review and a @Tasks for Next Week list.",
+  },
+  {
+    label: "Plan my Thailand trip",
+    preferredAgents: LEAD_FALLBACKS,
+    prompt:
+      "Plan a 2-week Thailand trip. Dispatch a LAUNCH_TASK to the librarian (effort=high) to research itinerary, places to stay, and food spots, and a LAUNCH_TASK to the editor (effort=medium) to compile the findings into one @Thailand Trip page with a day-by-day schedule and a rough budget.",
+  },
+  {
+    label: "Build me a physics study app",
+    prompt:
+      "Create an interactive webapp inside this cabinet so I can study physics for beginners. Include clear explanations, simple animations where useful, and quick checks for understanding.",
+  },
+  {
+    label: "Map article connections",
+    preferredAgents: LEAD_FALLBACKS,
+    prompt:
+      "Pipeline of two LAUNCH_TASKs: first dispatch the librarian to identify the articles in this cabinet and map connections between their ideas, people, and concepts. Then dispatch the editor to build an interactive webapp that visualises that graph.",
+  },
+  {
+    label: "Spin up a 6-module physics course",
+    preferredAgents: LEAD_FALLBACKS,
+    prompt:
+      "Plan a beginner physics curriculum across 6 modules (motion, forces, energy, waves, electricity, light). Dispatch one LAUNCH_TASK per module to the editor (effort=high) to build an interactive lesson page. Save them under @Physics 101.",
+  },
 ];
 
 const DOMAIN_COLORS: Record<string, string> = {
@@ -298,6 +350,7 @@ export function HomeScreen() {
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [taskRuntime, setTaskRuntime] = useState<TaskRuntimeSelection>({});
+  const [quickRunning, setQuickRunning] = useState(false);
 
   useEffect(() => {
     fetch("/api/user/profile")
@@ -387,6 +440,54 @@ export function HomeScreen() {
     },
   });
 
+  const dispatcherFor = (action: QuickAction): string | null => {
+    if (!action.preferredAgents) return null;
+    const have = new Set(agents.map((a) => a.slug));
+    for (const slug of action.preferredAgents) {
+      if (have.has(slug)) return slug;
+    }
+    return null;
+  };
+
+  // Solo chips always render. Delegation chips only render once we've
+  // confirmed a dispatcher slug they prefer is actually installed in this
+  // cabinet — keeps the showcase honest on trimmed installs without a CEO.
+  const visibleActions = QUICK_ACTIONS.filter((action) => {
+    if (!action.preferredAgents) return true;
+    if (agents.length === 0) return false;
+    return dispatcherFor(action) !== null;
+  });
+
+  const runQuickAction = async (action: QuickAction) => {
+    if (composer.submitting || quickRunning) return;
+    const dispatcher = dispatcherFor(action);
+    if (!dispatcher) {
+      void composer.submit(action.prompt);
+      return;
+    }
+    setQuickRunning(true);
+    try {
+      const data = await createConversation({
+        agentSlug: dispatcher,
+        userMessage: action.prompt,
+        mentionedPaths: [],
+        attachmentPaths: [],
+        ...taskRuntime,
+      });
+      if (data.conversation?.id) {
+        setSection({
+          type: "task",
+          taskId: data.conversation.id,
+          cabinetPath: ROOT_CABINET_PATH,
+        });
+      }
+    } catch {
+      // Best-effort: chip clicks fail silently; the composer stays interactive.
+    } finally {
+      setQuickRunning(false);
+    }
+  };
+
   const greeting = getGreeting();
   const headline = userName ? `${greeting}, ${userName}.` : `${greeting}.`;
 
@@ -426,22 +527,26 @@ export function HomeScreen() {
         />
 
         <div className="flex flex-wrap items-center justify-center gap-2">
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action}
-              onClick={() => void composer.submit(action)}
-              disabled={composer.submitting}
-              className={cn(
-                "rounded-full border border-border px-4 py-1.5",
-                "text-sm text-foreground/80",
-                "hover:bg-accent hover:text-accent-foreground",
-                "transition-colors",
-                composer.submitting && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              {action}
-            </button>
-          ))}
+          {visibleActions.map((action) => {
+            const disabled = composer.submitting || quickRunning;
+            return (
+              <button
+                key={action.label}
+                onClick={() => void runQuickAction(action)}
+                disabled={disabled}
+                title={action.prompt}
+                className={cn(
+                  "rounded-full border border-border px-4 py-1.5",
+                  "text-sm text-foreground/80",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  "transition-colors",
+                  disabled && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {action.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

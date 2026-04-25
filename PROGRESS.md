@@ -1,5 +1,7 @@
 # Progress
 
+[2026-04-25] Added Daily Review folder (`data/Daily Review/index.md`) and a daily-review scheduled job (`data/.jobs/daily-review.yaml`, cron `0 9 * * *`) that writes a YYYY-MM-DD entry covering yesterday's recap and today's plan.
+
 [2026-04-25] Replaced the external Cabinet Cloud waitlist link in onboarding with an inline opt-in email form. Adds a small browser-side waitlist client (`src/lib/telemetry/waitlist-client.ts`) that records anonymous view/start events alongside the explicit email submit, all keyed by a per-tab visit id.
 
 [2026-04-25] Tightened TELEMETRY.md: opt-out instructions now appear in the first paragraph, and the `install_id` / `session_id` descriptions are more precise about cross-machine and cross-process behavior.
@@ -1198,3 +1200,46 @@
 [2026-04-25] Added 10 haiku songs (33–42) to Songs/ as a multi-task creative writing run.
 
 [2026-04-25] Added a shared `AgentPicker` chip (`src/components/composer/agent-picker.tsx`) and wired it into the composers that lacked one: AI Panel (functional — explicit alternative to `@`-mention routing), Agent Detail (locked with tooltip "Locked to {agent} — this is their workspace"), and Task continuation composer (locked with tooltip "Continuing with {agent} — agent can't change mid-conversation"). Cabinet task composer and StartWorkDialog already had functional pickers.
+
+[2026-04-25] Replaced the lame home-screen quick-action chips ("Brainstorm ideas", "Map user journey", etc.) with six punchier prompts that show off Cabinet — parallel agent fanout, scheduled daily reviews, weekly reflection from recent files, a Thailand trip planner, an interactive physics study app, and an article-connection graph. Chip labels stay short; the full prompt is what gets submitted (and shown via `title` on hover).
+[2026-04-25] Added 10 Harry Potter character songs (43-52) to Songs/ — Harry, Hermione, Ron, Dumbledore, Snape, Hagrid, Draco, Luna, Sirius, Voldemort. Generated in parallel by 10 editor subagents.
+[2026-04-25] Added getting-started/thailand-trip-planner with 14-day itinerary, lodging picks, food spots, and tiered budget.
+
+[2026-04-25] Added `data/weekly-review/` with `index.md` (wins, blockers, themes for Apr 19–25 reconstructed from this week's file changes) and `tasks-next-week.md` (decide/do/fix/defer plan pulling from rose-mission ask_user gaps, marketing positioning blockers, and the architecture audit's Immediate items).
+[2026-04-25] Added physics-for-beginners interactive study app under data/ — full-screen embedded webapp with 5 lessons (motion, forces, gravity, energy, waves), animated canvas sandboxes, and a final quiz with progress tracking.
+[2026-04-25] Added `data/Songs/graph/` — full-screen embedded webapp (D3 force-directed graph) that visualises connections between the 52 Songs articles via shared characters, tags, genres, and 17 curated concepts (home, highway, memory, loss, religion, magic, etc.). Graph is pre-computed at build time and inlined; left panel filters by node type, right panel shows neighbour breakdown on click.
+
+[2026-04-25] Reworked home-screen quick-action chips to actually showcase delegation per `data/getting-started/delegating-between-agents`. Five of seven chips now route to the `ceo` agent (which has `canDispatch` on by default for leads) and embed explicit LAUNCH_TASK / SCHEDULE_JOB / SCHEDULE_TASK verbs so the dispatch pending-actions panel is the immediate response: a 10-way song fan-out, a daily 9am cron job, a one-shot SCHEDULE_TASK for next Monday, a multi-agent Thailand trip split (librarian + editor with mixed effort), a librarian→editor pipeline for article connections, and a 6-module physics curriculum fan-out. The "Build me a physics study app" chip stays solo (no `agent`) so we still demo a single interactive-webapp task. Added per-chip `agent?` field plus a `runQuickAction` helper that bypasses the composer when a chip pins an agent — necessary because `composer.submit(text)` does not re-parse `@mentions` from raw text.
+[2026-04-25] Added Songs/59-vacancy-light.md — noir-tinged original song using a flickering motel VACANCY sign as metaphor for fading love, in verse/chorus/bridge form.
+[2026-04-25] Added Songs/58-haiku-woodsmoke-and-early-dark.md — three-haiku autumn song (leaves, woodsmoke, early dark) matching the spare style of the 33-42 haiku entries.
+[2026-04-25] Added Songs/53-am-band-revelation.md — original late-night highway song with verse/chorus/bridge structure.
+[2026-04-25] Added Songs/56-porch-light-weather.md — original americana song about watching a thunderstorm from a porch and weighing whether to stay or leave a relationship.
+[2026-04-25] Added Songs/55-the-letter-i-never-sent.md — country-folk song about a father's unsent letter to his son.
+[2026-04-25] Added Songs/62-the-morning-of-the-first-frost.md — original song about an old farmer's last season at first frost (verse/chorus/bridge).
+[2026-04-25] Added Songs/60-the-recipe-she-never-wrote.md — original americana song about a grandmother's kitchen, unwritten recipes, and what endures after loss.
+[2026-04-25] Added Songs/61-counting-cars.md — original americana song about being stopped at a train crossing, counting cars, and thinking about the life not chosen.
+[2026-04-25] Added Songs/57-the-day-the-whistle-died.md — heartland-rock song about a one-industry town the day the factory closes; verse/chorus/bridge with working-class anger and dignity.
+[2026-04-25] Added Songs/54-six-am-at-marlenes.md — original small-town diner song with verse/chorus/bridge structure.
+
+[2026-04-25] Made home-screen delegation chips robust to cabinets without a CEO. Replaced the hardcoded `agent: "ceo"` with `preferredAgents: ["ceo", "cto", "pm"]` and a `dispatcherFor()` resolver that picks the first installed lead. Chips with `preferredAgents` are filtered out of `visibleActions` when none of their preferred dispatchers exist in `agents` — so trimmed installs never see a delegation chip that would silently route to a non-dispatcher. The solo physics-study-app chip always renders so the chip row is never empty during the brief agent-overview load.
+[2026-04-25] Added Songs/draco-malfoy-song.md — short 3-verse + chorus song from Draco Malfoy's perspective.
+[2026-04-25] Added Songs/snape-song.md — short 3-verse Snape song with chorus.
+[2026-04-25] Added Songs/hagrid-song.md — short 3-verse song from Hagrid's perspective.
+[2026-04-25] Added Songs/dumbledore-song.md — short 3-verse + chorus song from Dumbledore's perspective.
+[2026-04-25] Added Songs/luna-lovegood-song.md — short 3-verse + chorus song from Luna Lovegood's perspective.
+[2026-04-25] Added Songs/neville-longbottom-song.md — 3-verse Harry Potter song from Neville's perspective.
+[2026-04-25] Added Songs/ron-weasley-song.md — short 3-verse song with chorus from Ron Weasley's perspective.
+[2026-04-25] Added Songs/63-harry-potter-song.md — new 3-verse + chorus song from Harry Potter's perspective.
+[2026-04-25] Added Songs/63-mcgonagall-tartan-and-tower.md — McGonagall-perspective song (3 verses + chorus).
+[2026-04-25] Added Songs/hermione-granger-song.md — short 3-verse + chorus song from Hermione's perspective.
+
+[2026-04-25] Added Songs/hp-luna-song.md — Luna Lovegood POV song (3 verses + chorus + bonus verse).
+[2026-04-25] Added Songs/hp-dumbledore-song.md — Dumbledore POV song (greater good, regret, lemon drops, long games).
+[2026-04-25] Added Songs/hp-snape-song.md — Snape POV song (always, doe patronus, double life).
+[2026-04-25] Added Songs/hp-hermione-song.md — Hermione POV song (3 verses + bridge + chorus) on books, loyalty, being underestimated.
+[2026-04-25] Added Songs/hp-ron-song.md — Ron Weasley POV song (Second-Hand Hero) with 4 verses + chorus.
+[2026-04-25] Added Songs/hp-draco-song.md — Draco Malfoy POV song (4 verses + chorus): Lucius, the Dark Mark, the tower scene, and a quieter epilogue.
+[2026-04-25] Added Songs/hp-harry-song.md — Harry Potter POV song on survivor's weight, scar, and chosen-one fatigue.
+[2026-04-25] Added Songs/hp-hagrid-song.md — Hagrid POV song (3 verses + chorus + outro).
+[2026-04-25] Added Songs/hp-neville-song.md — Neville Longbottom POV song (herbology, late bloomer, sword/snake).
+[2026-04-25] Added Songs/hp-mcgonagall-song.md — short song from McGonagall's POV (tartan/tower/transfiguration/stern love).
