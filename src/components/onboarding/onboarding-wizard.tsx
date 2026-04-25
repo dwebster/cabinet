@@ -45,6 +45,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getSuggestedProviderEffort } from "@/lib/agents/runtime-options";
+import { sendTelemetry } from "@/lib/telemetry/browser";
 
 type OnboardingVerifyStatus =
   | "pass"
@@ -1454,8 +1455,26 @@ const dotGridStyle: React.CSSProperties = {
   backgroundSize: "32px 32px",
 };
 
+const STEP_NAMES: Record<number, string> = {
+  0: "intro",
+  [STEP_WELCOME_HOME]: "welcome-home",
+  [STEP_ROOM_SETUP]: "room-setup",
+  [STEP_TEAM]: "team",
+  [STEP_PROVIDER]: "provider",
+  5: "github",
+  6: "discord",
+  7: "cloud",
+  8: "launch",
+};
+
 export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const stepName = STEP_NAMES[step] ?? `step-${step}`;
+    sendTelemetry("onboarding.step", { step: stepName });
+  }, [step]);
+
   const [answers, setAnswers] = useState<OnboardingAnswers>({
     name: "",
     role: "",
@@ -1726,6 +1745,11 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           },
           selectedAgents: selected,
         }),
+      });
+
+      sendTelemetry("onboarding.completed", {
+        roomType: answers.roomType ?? null,
+        provider: selectedProvider ?? null,
       });
 
       onComplete();

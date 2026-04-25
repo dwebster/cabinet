@@ -43,6 +43,7 @@ import { readLibraryPersona } from "./library-manager";
 import { listPersonas, readPersona, type AgentPersona } from "./persona-manager";
 import { getDefaultProviderId } from "./provider-runtime";
 import { looksLikeAwaitingInput } from "./task-heuristics";
+import { emit as emitTelemetry } from "@/lib/telemetry";
 
 export interface ConversationCompletion {
   meta: ConversationMeta;
@@ -574,6 +575,11 @@ export async function startConversationRun(
       cwd: input.cwd,
       timeoutSeconds: input.timeoutSeconds,
     });
+    emitTelemetry("agent.run.started", {
+      provider: resolvedProviderId,
+      adapterType: resolvedAdapterType,
+    });
+    emitTelemetry("task.created", { source: input.trigger });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to start daemon session";
     await appendConversationTranscript(meta.id, `${message}\n`);
@@ -581,6 +587,11 @@ export async function startConversationRun(
       status: "failed",
       output: message,
       exitCode: 1,
+    });
+    emitTelemetry("agent.run.failed", {
+      provider: resolvedProviderId,
+      adapterType: resolvedAdapterType,
+      errorCode: error instanceof Error ? error.name : "SpawnError",
     });
     throw error;
   }
@@ -731,6 +742,22 @@ export async function waitForConversationCompletion(
         status: normalizedStatus,
       } satisfies ConversationCompletion;
 
+      emitTelemetry(
+        normalizedStatus === "completed" ? "agent.run.completed" : "agent.run.failed",
+        {
+          provider: finalMeta.providerId ?? null,
+          adapterType: finalMeta.adapterType ?? null,
+          durationMs: Date.now() - startedAt,
+          ...(normalizedStatus === "failed"
+            ? { errorCode: data.adapterErrorKind ?? "RunFailed" }
+            : { success: true }),
+        }
+      );
+      emitTelemetry("task.completed", {
+        durationMs: Date.now() - startedAt,
+        status: normalizedStatus,
+      });
+
       if (onComplete) {
         await onComplete(completion);
       }
@@ -745,6 +772,16 @@ export async function waitForConversationCompletion(
     status: "failed",
     output: "Conversation timed out while waiting for completion.",
     exitCode: 124,
+  });
+  emitTelemetry("agent.run.failed", {
+    provider: finalMeta?.providerId ?? null,
+    adapterType: finalMeta?.adapterType ?? null,
+    durationMs: Date.now() - startedAt,
+    errorCode: "Timeout",
+  });
+  emitTelemetry("task.completed", {
+    durationMs: Date.now() - startedAt,
+    status: "failed",
   });
 
   if (!finalMeta) {

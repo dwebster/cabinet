@@ -171,11 +171,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  setSection: (section) =>
-    set({ section, taskPanelConversation: null, taskPanelFullscreen: false, returnTo: null }),
+  setSection: (section) => {
+    const prev = get().section;
+    if (prev.cabinetPath !== section.cabinetPath) {
+      void fetch("/api/telemetry", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "cabinet.switched", payload: {} }),
+        keepalive: true,
+      }).catch(() => {});
+    }
+    set({ section, taskPanelConversation: null, taskPanelFullscreen: false, returnTo: null });
+  },
 
-  pushSection: (next, from) =>
-    set({ section: next, taskPanelConversation: null, taskPanelFullscreen: false, returnTo: from }),
+  pushSection: (next, from) => {
+    const prev = get().section;
+    if (prev.cabinetPath !== next.cabinetPath) {
+      void fetch("/api/telemetry", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "cabinet.switched", payload: {} }),
+        keepalive: true,
+      }).catch(() => {});
+    }
+    set({ section: next, taskPanelConversation: null, taskPanelFullscreen: false, returnTo: from });
+  },
 
   popReturnTo: () => {
     const { returnTo } = get();

@@ -66,6 +66,7 @@ import { ICON_PICKER_KEYS, getIconByKey } from "@/lib/agents/icon-catalog";
 import { AGENT_PALETTE } from "@/lib/themes";
 import { AVATAR_PRESETS } from "@/lib/agents/avatar-catalog";
 import Image from "next/image";
+import { sendTelemetry } from "@/lib/telemetry/browser";
 
 interface McpServer {
   name: string;
@@ -276,6 +277,9 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [activeThemeName, setActiveThemeName] = useState<string | null>(null);
+  const [telemetryEnabled, setTelemetryEnabled] = useState<boolean | null>(null);
+  const [telemetryEnvDisabled, setTelemetryEnvDisabled] = useState(false);
+  const [telemetrySaving, setTelemetrySaving] = useState(false);
   const { setTheme: setNextTheme } = useTheme();
   const {
     update,
@@ -296,11 +300,48 @@ export function SettingsPage() {
     setActiveThemeName(getStoredThemeName() || "paper");
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/telemetry/settings")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data: { enabled?: boolean; envDisabled?: boolean }) => {
+        if (cancelled) return;
+        setTelemetryEnabled(data.enabled ?? true);
+        setTelemetryEnvDisabled(Boolean(data.envDisabled));
+      })
+      .catch(() => {
+        if (!cancelled) setTelemetryEnabled(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleTelemetry = useCallback(async (next: boolean) => {
+    setTelemetrySaving(true);
+    try {
+      const res = await fetch("/api/telemetry/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { enabled: boolean };
+        setTelemetryEnabled(data.enabled);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setTelemetrySaving(false);
+    }
+  }, []);
+
   const selectTheme = (themeDef: ThemeDefinition) => {
     applyTheme(themeDef);
     setActiveThemeName(themeDef.name);
     storeThemeName(themeDef.name);
     setNextTheme(themeDef.type);
+    sendTelemetry("theme.changed", { themeName: themeDef.name });
   };
 
   const darkThemes = THEMES.filter((t) => t.type === "dark");
@@ -1393,6 +1434,41 @@ export function SettingsPage() {
                 <p className="text-[12px] text-muted-foreground">
                   All content lives as markdown files on disk. Humans define intent. Agents do the work. The knowledge base is the shared memory between both.
                 </p>
+              </div>
+
+              <div className="border-t border-border pt-6">
+                <h3 className="text-[14px] font-semibold mb-1">Privacy</h3>
+                <p className="text-[12px] text-muted-foreground mb-3">
+                  Cabinet sends anonymous usage telemetry to help us improve the
+                  product. No file contents, paths, prompts, or secrets are collected.
+                  <a
+                    href="https://github.com/hilash/cabinet/blob/main/TELEMETRY.md"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1 underline hover:text-foreground"
+                  >
+                    What&apos;s collected?
+                  </a>
+                </p>
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={telemetryEnabled === true && !telemetryEnvDisabled}
+                      disabled={telemetryEnabled === null || telemetrySaving || telemetryEnvDisabled}
+                      onChange={(e) => toggleTelemetry(e.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <div>
+                      <span className="text-[13px] font-medium">Anonymous usage telemetry</span>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {telemetryEnvDisabled
+                          ? "Disabled by CABINET_TELEMETRY_DISABLED=1 (env var)."
+                          : "Event counts, versions, and platform info only. Toggle off to stop sending."}
+                      </p>
+                    </div>
+                  </div>
+                </label>
               </div>
 
               <div className="border-t border-border pt-6">

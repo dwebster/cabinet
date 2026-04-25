@@ -69,6 +69,13 @@ import { runSearch } from "./search/search-service";
 import { startWatcher } from "./search/watcher";
 import { loadAgentDocs, loadTaskDocs } from "./search/index-agents-tasks";
 import type { SearchScope } from "./search/types";
+import {
+  clearSessionId,
+  emit as emitTelemetry,
+  getOrCreateSessionId,
+  printStartupBannerIfNeeded,
+  startTelemetryFlusher,
+} from "../src/lib/telemetry";
 
 const PORT = getDaemonPort();
 const CABINET_MANIFEST_FILE = ".cabinet";
@@ -1700,6 +1707,11 @@ server.listen(PORT, () => {
   console.log(`  Default provider: ${resolveProviderId()}`);
   console.log(`  Working directory: ${DATA_DIR}`);
 
+  getOrCreateSessionId();
+  printStartupBannerIfNeeded();
+  startTelemetryFlusher();
+  emitTelemetry("app.launched", {});
+
   void reloadSchedules();
   void cleanupStaleRunningConversations();
   // Sweep composer-attachment staging dirs that were abandoned (paste
@@ -1740,6 +1752,8 @@ server.listen(PORT, () => {
 
 function shutdown(): void {
   console.log("\nShutting down...");
+  emitTelemetry("app.exited", {});
+  clearSessionId();
   for (const [, task] of scheduledJobs) {
     task.stop();
   }
@@ -1770,8 +1784,11 @@ wssEvents.on("error", (err) => {
 
 process.on("uncaughtException", (err) => {
   console.error("Uncaught exception:", err.message);
+  emitTelemetry("error.unhandled", { where: "uncaughtException", errorCode: err.name });
 });
 
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection:", reason);
+  const name = reason instanceof Error ? reason.name : "UnknownRejection";
+  emitTelemetry("error.unhandled", { where: "unhandledRejection", errorCode: name });
 });

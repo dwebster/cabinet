@@ -10,6 +10,7 @@ import { seedGettingStartedDir } from "@/lib/storage/cabinet-scaffold";
 import { downloadRegistryTemplate } from "@/lib/registry/github-fetch";
 import { REGISTRY_TEMPLATES } from "@/lib/registry/registry-manifest";
 import { CABINET_MANIFEST_FILE } from "@/lib/cabinets/files";
+import { emit as emitTelemetry } from "@/lib/telemetry";
 
 interface ImportRequest {
   slug: string;
@@ -82,6 +83,11 @@ export async function POST(req: NextRequest) {
       await fs.rm(targetDir, { recursive: true, force: true }).catch(() => {});
       throw err;
     }
+
+    emitTelemetry("template.installed", {
+      templateKind: "cabinet",
+      templateSlug: template.slug,
+    });
 
     return NextResponse.json(
       {

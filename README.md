@@ -223,6 +223,12 @@ npx create-cabinet my-startup
 
 See [CHANGELOG.md](CHANGELOG.md) for breaking changes, or follow the full release history on the [documentation site](https://runcabinet.com).
 
+## Privacy
+
+Cabinet sends anonymous usage telemetry by default (event counts, versions,
+platform — never file contents, paths, prompts, or secrets). See
+[TELEMETRY.md](TELEMETRY.md) for the full list and how to turn it off.
+
 ## Community
 
 Questions, ideas, feedback, screenshots, wild experiments — bring them to the [Discord](https://discord.gg/hJa5TRTbTH). That’s where the Cabinet community hangs out and where a lot of the product direction gets shaped in real time.

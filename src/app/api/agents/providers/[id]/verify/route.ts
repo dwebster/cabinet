@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import { NextResponse } from "next/server";
 import { providerRegistry } from "@/lib/agents/provider-registry";
 import { ADAPTER_RUNTIME_PATH } from "@/lib/agents/adapters/utils";
+import { emit as emitTelemetry } from "@/lib/telemetry";
 
 type VerifyStatus =
   | "pass"
@@ -147,6 +148,12 @@ export async function POST(
     result.stderr,
     result.spawnError
   );
+
+  emitTelemetry("provider.verified", {
+    provider: id,
+    success: status === "pass",
+    durationMs,
+  });
 
   return NextResponse.json({
     status,

@@ -1,5 +1,11 @@
 # Progress
 
+[2026-04-25] Tightened TELEMETRY.md: opt-out instructions now appear in the first paragraph, and the `install_id` / `session_id` descriptions are more precise about cross-machine and cross-process behavior.
+
+[2026-04-25] Extended anonymous telemetry with per-event payload-key enforcement, shared session id across daemon + Next.js, and additional events (`provider.verified`, `cabinet.switched`, `template.installed`, `theme.changed`, `task.created`, `task.completed`, and onboarding sub-steps). TELEMETRY.md updated.
+
+[2026-04-25] Added anonymous telemetry client module under `src/lib/telemetry/` with opt-out via `CABINET_TELEMETRY_DISABLED=1` env var and a Settings toggle. New `/api/telemetry` + `/api/telemetry/settings` routes. Emissions wired in the daemon lifecycle (`cabinet-daemon.ts`), onboarding completion, agent-run start/finish/fail (`conversation-runner.ts`), and top-level error handlers. Added `TELEMETRY.md` documenting what's collected and how to disable; README links to it under a new Privacy section.
+
 [2026-04-24] Portfolio Manager weekly health check (Fund II, April 24): appended new section to `data/archive/data-old/vc-os/portfolio/index.md`. April metrics book is now locked with no revisions since April 17 — aggregate ARR $13.05M (+1.3% MoM), no metric moved >15%, no new `news.md` entries this week. Open risk flags (NeuralFlow 2nd flat month, DevForge runway 18 mo flat, DataStream Series A ARR gap) remain open into May.
 
 [2026-04-24] Route task launches + notification clicks to the conversation panel (`type: "task"` → `TaskConversationPage`) instead of the calling agent panel (`type: "agent"` → `AgentsWorkspace`/`AgentDetailV2`). Fixed in `notification-toasts.tsx` (drops the now-redundant `cabinet:open-conversation` event), `home-screen.tsx` (both "now" submit and `StartWorkDialog` handoff), `cabinet-view.tsx` (`CabinetTaskComposer`'s `onNavigate`), and `agents-workspace.tsx` (`StartWorkDialog` handoff). Conversation id doubles as task id, so navigation only needs `taskId` + `cabinetPath`.
@@ -1180,3 +1186,7 @@
 [2026-04-24] Added Songs/20-the-coat-still-smells-like-you.md — original folk ballad about a dog grieving after losing its person, with verses, pre-chorus, chorus, bridge, and outro.
 [2026-04-24] Tasks list view: reordered row to place the agent chip immediately left of the trigger badge (status · title · agent · trigger · time), bumped row horizontal padding px-4 → px-6, shifted the hover-action cluster from right-24 to right-[300px] so it no longer overlaps the trigger/time column, and added responsive page-edge gaps on the list scroll wrapper (md:px-[4%], lg:px-[6%], xl:px-[8%], 2xl:px-[10%]). File: `src/components/tasks/board/list-view.tsx`.
 [2026-04-24] Added Terms of Service (https://runcabinet.com/terms) and Privacy Policy (https://runcabinet.com/privacy) links to the first-load warning dialog in `src/components/layout/breaking-changes-warning.tsx`, with `target="_blank"` + `rel="noopener noreferrer"` and an explicit "By continuing you agree to..." acceptance clause.
+[2026-04-24] Added Songs/21-lana-del-rey.md — a poem about Lana Del Rey.
+[2026-04-25] Added song 'Payphone on Fillmore' (Songs/22) — original lyrics with verses, choruses, and bridge about a forgotten payphone as a metaphor for connections that outlast their infrastructure.
+
+[2026-04-25] Added Song 2 "The Long Way Home" as a melancholy folk ballad counterweight to the Song 1 dance-pop track, saved under data/marketing/drafts/.
