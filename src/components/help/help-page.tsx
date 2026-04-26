@@ -23,10 +23,11 @@ import {
 } from "./help-visuals";
 import { DemoModal, type DemoConfig } from "./demo-modal";
 import { buildAiTeamDemo } from "./demos/ai-team-demo";
+import { buildCabinetsDemo } from "./demos/cabinets-demo";
 import { buildKnowledgeDemo } from "./demos/knowledge-demo";
 import { buildTaskBoardDemo } from "./demos/task-board-demo";
 
-type DemoId = "ai-team" | "task-board" | "knowledge";
+type DemoId = "ai-team" | "task-board" | "knowledge" | "cabinets";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 
@@ -106,9 +107,9 @@ const HELP_ITEMS: HelpItem[] = [
     ),
     description:
       "Cabinets nest inside cabinets. Each one is its own AI team with its own data, agents, and visibility scope — and they can collaborate up and down the tree.",
-    cta: "See the hierarchy",
+    cta: "Watch the demo",
     visual: <CabinetsVisual />,
-    action: { kind: "navigate", section: { type: "cabinet", cabinetPath: ROOT_CABINET_PATH } },
+    action: { kind: "demo", demoId: "cabinets" },
   },
   {
     id: "routines",
@@ -299,6 +300,10 @@ export function HelpPage() {
     }
     if (demoId === "knowledge") {
       setActiveDemo(buildKnowledgeDemo());
+      return;
+    }
+    if (demoId === "cabinets") {
+      setActiveDemo(buildCabinetsDemo());
       return;
     }
   };
