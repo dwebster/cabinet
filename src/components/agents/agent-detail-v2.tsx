@@ -21,6 +21,7 @@ import {
   FileCode,
   FileSpreadsheet,
   FileText,
+  FolderOpen,
   HelpCircle,
   Image as ImageIcon,
   Loader2,
@@ -1627,11 +1628,7 @@ function SkillsMultiSelect({
           Failed to load catalog: {error}
         </div>
       ) : catalog.length === 0 && selected.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2.5 text-[11px] text-muted-foreground">
-          No skills detected. Create a directory under{" "}
-          <code className="rounded bg-muted px-1 py-0.5">~/.cabinet/skills/</code> with a{" "}
-          <code className="rounded bg-muted px-1 py-0.5">SKILL.md</code> to see it here.
-        </div>
+        <SkillsEmptyState />
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {catalog.map((entry) => {
@@ -1684,6 +1681,147 @@ function SkillsMultiSelect({
         </a>
         .
       </p>
+    </div>
+  );
+}
+
+/**
+ * Audit #052: replace the bare "go open a terminal and mkdir" instruction
+ * with two in-app buttons. "Open folder" reveals `~/.cabinet/skills/` in
+ * Finder; "New skill" scaffolds a slug + SKILL.md template and reveals it.
+ * Curated starter skills and per-skill install state are deferred to the
+ * planned Skills Marketplace (separate workstream).
+ */
+function SkillsEmptyState() {
+  const [busy, setBusy] = useState<"open" | "new" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [namePromptOpen, setNamePromptOpen] = useState(false);
+  const [name, setName] = useState("");
+
+  async function openFolder() {
+    if (busy) return;
+    setBusy("open");
+    setError(null);
+    try {
+      const res = await fetch("/api/agents/skills", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ open: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function createSkill() {
+    if (busy || !name.trim()) return;
+    setBusy("new");
+    setError(null);
+    try {
+      const res = await fetch("/api/agents/skills", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      setNamePromptOpen(false);
+      setName("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-3 text-[11px] text-muted-foreground">
+      <p className="mb-2 leading-snug">
+        No skills yet. Skills are reusable instruction bundles Cabinet
+        symlinks into each run so agents can reach for them on demand.
+      </p>
+      {error && (
+        <p className="mb-2 rounded-sm bg-destructive/10 px-2 py-1 text-[10.5px] text-destructive">
+          {error}
+        </p>
+      )}
+      {namePromptOpen ? (
+        <div className="space-y-2">
+          <input
+            type="text"
+            name="new-skill-name"
+            aria-label="New skill name"
+            value={name}
+            placeholder="e.g. Meeting Notes"
+            autoFocus
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void createSkill();
+              if (e.key === "Escape") {
+                setNamePromptOpen(false);
+                setName("");
+                setError(null);
+              }
+            }}
+            className="w-full rounded-md border border-border/60 bg-background px-2 py-1 text-[12px] text-foreground focus:border-border focus:outline-none focus:ring-1 focus:ring-primary/30"
+          />
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => void createSkill()}
+              disabled={!name.trim() || busy === "new"}
+              className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[11px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {busy === "new" ? <Loader2 className="size-3 animate-spin" /> : null}
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNamePromptOpen(false);
+                setName("");
+                setError(null);
+              }}
+              className="rounded-md border border-border/60 bg-background px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-muted"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setNamePromptOpen(true)}
+            disabled={!!busy}
+            className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[11px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+          >
+            <Sparkles className="size-3" />
+            New skill
+          </button>
+          <button
+            type="button"
+            onClick={() => void openFolder()}
+            disabled={!!busy}
+            className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-0.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            {busy === "open" ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <FolderOpen className="size-3" />
+            )}
+            Open folder
+          </button>
+        </div>
+      )}
     </div>
   );
 }

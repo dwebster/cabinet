@@ -1688,16 +1688,7 @@ function SkillsSettings() {
           Failed to load skill catalog: {error}
         </div>
       ) : !catalog || catalog.count === 0 ? (
-        <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center">
-          <Sparkles className="mx-auto mb-2 size-5 text-muted-foreground/50" />
-          <p className="text-[13px] font-medium text-muted-foreground">
-            No skills detected yet
-          </p>
-          <p className="mt-1 text-[11px] text-muted-foreground/70">
-            Create <code className="rounded bg-muted px-1 py-0.5">{catalog?.root ?? "~/.cabinet/skills/"}</code>{" "}
-            and drop a skill directory there to see it listed.
-          </p>
-        </div>
+        <SkillsSettingsEmptyState root={catalog?.root ?? "~/.cabinet/skills/"} />
       ) : (
         <div
           className="pointer-events-none select-none space-y-2 opacity-60"
@@ -1743,6 +1734,151 @@ function SkillsSettings() {
         frontmatter with{" "}
         <code className="rounded bg-muted px-1 py-0.5">skills: [slug, slug]</code>.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Audit #052: in-app guidance for the otherwise shell-only skills workflow.
+ * Two buttons: "New skill" scaffolds `~/.cabinet/skills/<slug>/SKILL.md` from
+ * a starter template and reveals it in Finder; "Open folder" reveals the
+ * skills root.
+ */
+function SkillsSettingsEmptyState({ root }: { root: string }) {
+  const [busy, setBusy] = useState<"open" | "new" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [namePromptOpen, setNamePromptOpen] = useState(false);
+  const [name, setName] = useState("");
+
+  async function openFolder() {
+    if (busy) return;
+    setBusy("open");
+    setError(null);
+    try {
+      const res = await fetch("/api/agents/skills", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ open: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function createSkill() {
+    if (busy || !name.trim()) return;
+    setBusy("new");
+    setError(null);
+    try {
+      const res = await fetch("/api/agents/skills", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      setNamePromptOpen(false);
+      setName("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center">
+      <Sparkles className="mx-auto mb-2 size-5 text-muted-foreground/50" />
+      <p className="text-[13px] font-medium text-muted-foreground">
+        No skills detected yet
+      </p>
+      <p className="mt-1 text-[11px] text-muted-foreground/70">
+        Drop a skill directory under{" "}
+        <code className="rounded bg-muted px-1 py-0.5">{root}</code>{" "}
+        — or use the buttons below.
+      </p>
+      {error && (
+        <p className="mx-auto mt-3 max-w-sm rounded-md bg-destructive/10 px-3 py-1.5 text-[11px] text-destructive">
+          {error}
+        </p>
+      )}
+      {namePromptOpen ? (
+        <div className="mx-auto mt-4 flex max-w-sm flex-col gap-2">
+          <input
+            type="text"
+            name="new-skill-name"
+            aria-label="New skill name"
+            value={name}
+            placeholder="e.g. Meeting Notes"
+            autoFocus
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void createSkill();
+              if (e.key === "Escape") {
+                setNamePromptOpen(false);
+                setName("");
+                setError(null);
+              }
+            }}
+            className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-[12px] text-foreground focus:border-border focus:outline-none focus:ring-1 focus:ring-primary/30"
+          />
+          <div className="flex items-center justify-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => void createSkill()}
+              disabled={!name.trim() || busy === "new"}
+              className="inline-flex items-center gap-1 rounded-md bg-foreground px-3 py-1 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {busy === "new" ? <Loader2 className="size-3 animate-spin" /> : null}
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNamePromptOpen(false);
+                setName("");
+                setError(null);
+              }}
+              className="rounded-md border border-border/60 bg-background px-3 py-1 text-[12px] font-medium text-foreground hover:bg-muted"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setNamePromptOpen(true)}
+            disabled={!!busy}
+            className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+          >
+            <Sparkles className="size-3.5" />
+            New skill
+          </button>
+          <button
+            type="button"
+            onClick={() => void openFolder()}
+            disabled={!!busy}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background px-3 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            {busy === "open" ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <FolderOpen className="size-3.5" />
+            )}
+            Open folder
+          </button>
+        </div>
+      )}
     </div>
   );
 }
