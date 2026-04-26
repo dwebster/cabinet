@@ -187,6 +187,13 @@ export function ComposerInput({
           )}
           <textarea
             ref={composer.textareaRef}
+            // Audit #098 / browser issue: a textarea with neither id nor
+            // name nor aria-label trips a "form field needs id/name" alert
+            // and is invisible to assistive tech. The placeholder is
+            // dynamic ("I want to create…" on home, "Ask Editor something…"
+            // on agent pages, etc.) so it doubles as the accessible label.
+            aria-label={typeof placeholder === "string" ? placeholder : "Compose"}
+            name="composer-input"
             value={composer.input}
             onChange={composer.handleChange}
             onPaste={attachmentsEnabled ? handlePaste : undefined}

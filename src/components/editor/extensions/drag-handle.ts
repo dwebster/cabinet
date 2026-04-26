@@ -1,6 +1,63 @@
 import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey, NodeSelection } from "@tiptap/pm/state";
+import { Plugin, PluginKey, NodeSelection, type Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+
+/**
+ * Move the top-level block containing the current selection up or down
+ * by one sibling. Returns true if the doc was mutated. Used for keyboard
+ * reorder (Alt+Shift+Up/Down) so non-mouse users get parity with the
+ * drag handle (audit #102).
+ */
+function moveCurrentBlock(
+  state: EditorView["state"],
+  dispatch: ((tr: Transaction) => void) | undefined,
+  direction: "up" | "down"
+): boolean {
+  const { selection, doc } = state;
+  // Resolve the top-level block that holds the current selection. We walk
+  // up to depth 1 because doc → top-level-block → … is the layout we care
+  // about; nested list items still move as siblings of their parent block.
+  let $pos = doc.resolve(selection.from);
+  while ($pos.depth > 1) {
+    $pos = doc.resolve($pos.before($pos.depth));
+  }
+  if ($pos.depth === 0) return false;
+
+  const blockPos = $pos.before(1);
+  const block = doc.nodeAt(blockPos);
+  if (!block) return false;
+
+  const parent = doc;
+  const indexInParent = $pos.index(0);
+  const siblingIndex = direction === "up" ? indexInParent - 1 : indexInParent + 1;
+  if (siblingIndex < 0 || siblingIndex >= parent.childCount) return false;
+
+  const sibling = parent.child(siblingIndex);
+  let tr = state.tr;
+
+  // Remove the block, then re-insert it on the other side of the sibling.
+  // Computing the insertion target *before* the cut keeps positions stable.
+  const blockEnd = blockPos + block.nodeSize;
+  const siblingStart = direction === "up" ? blockPos - sibling.nodeSize : blockEnd;
+  const siblingEnd = direction === "up" ? blockPos : blockEnd + sibling.nodeSize;
+
+  if (direction === "up") {
+    tr = tr.delete(blockPos, blockEnd);
+    tr = tr.insert(siblingStart, block);
+    // After re-insert the block lives at siblingStart; restore selection on it.
+    tr = tr.setSelection(NodeSelection.create(tr.doc, siblingStart));
+  } else {
+    tr = tr.delete(blockPos, blockEnd);
+    // After deletion the sibling shifts left by block.nodeSize, so the
+    // insertion target is siblingEnd - block.nodeSize.
+    const insertAt = siblingEnd - block.nodeSize;
+    tr = tr.insert(insertAt, block);
+    tr = tr.setSelection(NodeSelection.create(tr.doc, insertAt));
+  }
+
+  if (dispatch) dispatch(tr.scrollIntoView());
+  return true;
+}
 
 const HANDLE_ID = "cabinet-drag-handle";
 
@@ -54,6 +111,21 @@ function getOrCreateHandle(): HTMLDivElement {
 
 export const DragHandle = Extension.create({
   name: "dragHandle",
+
+  addKeyboardShortcuts() {
+    // Audit #102: drag handle is mouse-only. Add Alt+Shift+ArrowUp /
+    // Alt+Shift+ArrowDown so keyboard users can reorder blocks too.
+    return {
+      "Mod-Alt-ArrowUp": ({ editor }) =>
+        moveCurrentBlock(editor.state, editor.view.dispatch, "up"),
+      "Mod-Alt-ArrowDown": ({ editor }) =>
+        moveCurrentBlock(editor.state, editor.view.dispatch, "down"),
+      "Alt-Shift-ArrowUp": ({ editor }) =>
+        moveCurrentBlock(editor.state, editor.view.dispatch, "up"),
+      "Alt-Shift-ArrowDown": ({ editor }) =>
+        moveCurrentBlock(editor.state, editor.view.dispatch, "down"),
+    };
+  },
 
   addProseMirrorPlugins() {
     let currentBlock: { pos: number; node: { nodeSize: number }; dom: HTMLElement } | null = null;

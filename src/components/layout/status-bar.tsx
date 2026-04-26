@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight, HelpCircle } from "lucide-react";
+import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight, HelpCircle, AlertTriangle, XCircle, CircleDot, Loader2 } from "lucide-react";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -337,6 +337,10 @@ export function StatusBar() {
           <div className="flex items-center rounded-full border border-border/50 bg-muted/30 px-2.5 py-0.5 gap-1.5 focus-within:border-border/80 focus-within:bg-muted/60 transition-colors w-56">
             <input
               type="text"
+              // Audit #098: anonymous form field tripped the
+              // "needs id/name" warning on every page surface.
+              name="status-bar-ai-prompt"
+              aria-label="Ask AI to edit this page"
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               onKeyDown={(e) => {
@@ -391,17 +395,20 @@ export function StatusBar() {
             }
             aria-label="Server status — click for details"
           >
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                checkingHealth
-                  ? "bg-muted-foreground/60"
-                  : appAlive && daemonAlive && anyProviderReady
-                  ? "bg-green-500"
-                  : !appAlive
-                  ? "bg-red-500 animate-pulse"
-                  : "bg-amber-500 animate-pulse"
-              }`}
-            />
+            {/* Audit #100: pair color with a state-specific shape so
+                colorblind users (and anyone scanning fast) can read the
+                pill without relying on hue. The visible "Online" /
+                "Degraded" / "Offline" label below also covers screen
+                readers. */}
+            {checkingHealth ? (
+              <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
+            ) : appAlive && daemonAlive && anyProviderReady ? (
+              <CircleDot className="h-3 w-3 shrink-0 text-green-500" aria-hidden="true" />
+            ) : !appAlive ? (
+              <XCircle className="h-3 w-3 shrink-0 text-red-500 animate-pulse" aria-hidden="true" />
+            ) : (
+              <AlertTriangle className="h-3 w-3 shrink-0 text-amber-500 animate-pulse" aria-hidden="true" />
+            )}
             <span>
               {checkingHealth
                 ? "Checking…"
