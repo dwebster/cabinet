@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { requestShowTour } from "@/components/onboarding/tour/use-tour";
 import { TOUR_PALETTE as P } from "@/components/onboarding/tour/palette";
 import { useAppStore, type SelectedSection } from "@/stores/app-store";
-import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { cn } from "@/lib/utils";
 import {
   AgentsVisual,
@@ -24,11 +23,18 @@ import {
 import { DemoModal, type DemoConfig } from "./demo-modal";
 import { buildAiTeamDemo } from "./demos/ai-team-demo";
 import { buildCabinetsDemo } from "./demos/cabinets-demo";
+import { buildConversationsDemo } from "./demos/conversations-demo";
 import { buildKnowledgeDemo } from "./demos/knowledge-demo";
 import { buildRoutinesDemo } from "./demos/routines-demo";
 import { buildTaskBoardDemo } from "./demos/task-board-demo";
 
-type DemoId = "ai-team" | "task-board" | "knowledge" | "cabinets" | "routines";
+type DemoId =
+  | "ai-team"
+  | "task-board"
+  | "knowledge"
+  | "cabinets"
+  | "routines"
+  | "conversations";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 
@@ -134,9 +140,9 @@ const HELP_ITEMS: HelpItem[] = [
     ),
     description:
       "Agents propose actions — launch a task, schedule a job — and you approve before anything runs.",
-    cta: "See it in action",
+    cta: "Watch the demo",
     visual: <ConversationsVisual />,
-    action: { kind: "navigate", section: { type: "agents", cabinetPath: ROOT_CABINET_PATH } },
+    action: { kind: "demo", demoId: "conversations" },
   },
   {
     id: "themes",
@@ -309,6 +315,10 @@ export function HelpPage() {
     }
     if (demoId === "routines") {
       setActiveDemo(buildRoutinesDemo());
+      return;
+    }
+    if (demoId === "conversations") {
+      setActiveDemo(buildConversationsDemo());
       return;
     }
   };
