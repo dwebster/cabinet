@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowUpRight, HelpCircle, MessageCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { requestShowTour } from "@/components/onboarding/tour/use-tour";
@@ -21,11 +21,16 @@ import {
   TasksVisual,
   ThemesVisual,
 } from "./help-visuals";
+import { DemoModal, type DemoConfig } from "./demo-modal";
+import { buildAiTeamDemo } from "./demos/ai-team-demo";
+
+type DemoId = "ai-team";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 
 type HelpAction =
   | { kind: "tour" }
+  | { kind: "demo"; demoId: DemoId }
   | { kind: "navigate"; section: SelectedSection }
   | { kind: "soon" };
 
@@ -60,9 +65,9 @@ const HELP_ITEMS: HelpItem[] = [
     ),
     description:
       "Hire leads and specialists. Group them into departments. Let them dispatch work to each other.",
-    cta: "Meet the agents",
+    cta: "Watch the demo",
     visual: <AgentsVisual />,
-    action: { kind: "navigate", section: { type: "agents", cabinetPath: ROOT_CABINET_PATH } },
+    action: { kind: "demo", demoId: "ai-team" },
   },
   {
     id: "tasks",
@@ -183,13 +188,25 @@ const HELP_ITEMS: HelpItem[] = [
   },
 ];
 
-function HelpCard({ item, reversed }: { item: HelpItem; reversed: boolean }) {
+function HelpCard({
+  item,
+  reversed,
+  onLaunchDemo,
+}: {
+  item: HelpItem;
+  reversed: boolean;
+  onLaunchDemo: (demoId: DemoId) => void;
+}) {
   const setSection = useAppStore((s) => s.setSection);
   const isSoon = item.action.kind === "soon";
 
   const handleClick = () => {
     if (item.action.kind === "tour") {
       requestShowTour();
+      return;
+    }
+    if (item.action.kind === "demo") {
+      onLaunchDemo(item.action.demoId);
       return;
     }
     if (item.action.kind === "navigate") {
@@ -267,6 +284,14 @@ function HelpCard({ item, reversed }: { item: HelpItem; reversed: boolean }) {
 }
 
 export function HelpPage() {
+  const [activeDemo, setActiveDemo] = useState<DemoConfig | null>(null);
+
+  const launchDemo = (demoId: DemoId) => {
+    if (demoId === "ai-team") {
+      setActiveDemo(buildAiTeamDemo());
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div
@@ -295,7 +320,12 @@ export function HelpPage() {
 
           <div className="flex flex-col gap-6">
             {HELP_ITEMS.map((item, i) => (
-              <HelpCard key={item.id} item={item} reversed={i % 2 === 1} />
+              <HelpCard
+                key={item.id}
+                item={item}
+                reversed={i % 2 === 1}
+                onLaunchDemo={launchDemo}
+              />
             ))}
           </div>
 
@@ -323,6 +353,8 @@ export function HelpPage() {
           </div>
         </div>
       </ScrollArea>
+
+      <DemoModal demo={activeDemo} onClose={() => setActiveDemo(null)} />
     </div>
   );
 }
