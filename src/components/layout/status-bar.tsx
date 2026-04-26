@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight, Sparkles } from "lucide-react";
-import { requestShowTour } from "@/components/onboarding/tour/use-tour";
+import { GitBranch, RefreshCw, Check, CloudDownload, Star, X, ArrowRight, HelpCircle } from "lucide-react";
 import { useCabinetUpdate } from "@/hooks/use-cabinet-update";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -646,14 +645,14 @@ export function StatusBar() {
       <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => requestShowTour()}
-          aria-label="Replay the Meet your Cabinet tour"
-          title="Replay the Cabinet tour"
-          className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/25 bg-amber-500/10 px-2.5 py-1 text-amber-700 transition-all hover:-translate-y-px hover:border-amber-400/40 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 dark:text-amber-300"
+          onClick={() => setSection({ type: "help" })}
+          aria-label="Open the Help page"
+          title="Help — demos, videos, and guides"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 text-muted-foreground transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1"
         >
-          <Sparkles className="h-3.5 w-3.5" />
+          <HelpCircle className="h-3.5 w-3.5" />
           <span className="text-[10px] font-semibold tracking-[0.04em] text-foreground">
-            Tour
+            Help
           </span>
         </button>
         <a

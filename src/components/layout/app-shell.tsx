@@ -77,6 +77,10 @@ const SettingsPage = dynamic(
   () => import("@/components/settings/settings-page").then((m) => m.SettingsPage),
   { ssr: false }
 );
+const HelpPage = dynamic(
+  () => import("@/components/help/help-page").then((m) => m.HelpPage),
+  { ssr: false }
+);
 const CabinetView = dynamic(
   () => import("@/components/cabinets/cabinet-view").then((m) => m.CabinetView),
   { ssr: false }
@@ -388,6 +392,7 @@ export function AppShell() {
     if (section.type === "home") return <HomeScreen />;
     if (section.type === "registry") return <RegistryBrowser />;
     if (section.type === "settings") return <SettingsPage />;
+    if (section.type === "help") return <HelpPage />;
     if (section.type === "cabinet" && section.cabinetPath) {
       return <CabinetView cabinetPath={section.cabinetPath} />;
     }

@@ -14,7 +14,8 @@ export type SectionType =
   | "tasks"
   | "task"
   | "settings"
-  | "registry";
+  | "registry"
+  | "help";
 
 const CABINET_VISIBILITY_STORAGE_KEY = "cabinet.visibility.modes";
 const SIDEBAR_DRAWER_STORAGE_KEY = "cabinet.sidebar.drawer";
