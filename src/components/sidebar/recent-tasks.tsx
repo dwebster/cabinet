@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
+import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
 import { getAgentColor, tintFromHex } from "@/lib/agents/cron-compute";
 import { isLegacyAdapterType } from "@/lib/agents/adapters/legacy-ids";
@@ -76,9 +77,14 @@ export function RecentTasks({
       const params = new URLSearchParams({ limit: String(FETCH_POOL) });
       if (cabinetPath) params.set("cabinetPath", cabinetPath);
       try {
-        const res = await fetch(`/api/agents/conversations?${params.toString()}`, {
-          cache: "no-store",
-        });
+        // Audit #104: use dedupFetch with a small TTL so sibling consumers
+        // mounting on the same tick (board, agents-workspace) coalesce to
+        // one underlying network request when their query strings match.
+        const res = await dedupFetch(
+          `/api/agents/conversations?${params.toString()}`,
+          { cache: "no-store" },
+          { ttlMs: 1500 }
+        );
         const data = await res.json();
         if (cancelled) return;
         const convos = Array.isArray(data.conversations) ? data.conversations : [];

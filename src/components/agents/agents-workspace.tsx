@@ -27,6 +27,7 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -723,7 +724,12 @@ export function AgentsWorkspace({
       if (status) params.set("status", status);
       params.set("limit", "200");
 
-      const response = await fetch(`/api/agents/conversations?${params.toString()}`);
+      // Audit #104: dedupe same-URL races with sidebar / board on cold paint.
+      const response = await dedupFetch(
+        `/api/agents/conversations?${params.toString()}`,
+        undefined,
+        { ttlMs: 1500 }
+      );
       if (response.ok) {
         const data = await response.json();
         setConversations((data.conversations || []) as ConversationMeta[]);
