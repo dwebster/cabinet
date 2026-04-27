@@ -597,20 +597,26 @@ function Row({
   let title: string;
   let subtitle: string;
   let badgeText: string | null = null;
+  // Audit #079: surface the first match's context as a snippet under each
+  // result so users can verify relevance without opening the page first.
+  let snippet: string | null = null;
 
   if (entry.kind === "page") {
     icon = <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
     title = entry.hit.title;
     subtitle = entry.hit.path;
     badgeText = entry.hit.matchCount > 0 ? `${entry.hit.matchCount}` : null;
+    snippet = entry.hit.matches[0]?.context ?? null;
   } else if (entry.kind === "agent") {
     icon = <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
     title = entry.hit.title;
     subtitle = [entry.hit.role, entry.hit.department].filter(Boolean).join(" · ") || entry.hit.slug;
+    snippet = entry.hit.matches[0]?.context ?? null;
   } else {
     icon = <CheckSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
     title = entry.hit.title;
     subtitle = [entry.hit.agent, entry.hit.status].filter(Boolean).join(" · ") || "task";
+    snippet = entry.hit.matches[0]?.context ?? null;
   }
 
   return (
@@ -637,6 +643,11 @@ function Row({
         <span className="block truncate text-[11px] text-muted-foreground">
           {subtitle}
         </span>
+        {snippet && snippet !== title && snippet !== subtitle ? (
+          <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground/80">
+            {highlight(snippet, query)}
+          </span>
+        ) : null}
       </span>
     </button>
   );
