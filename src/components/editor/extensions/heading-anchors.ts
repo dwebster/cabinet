@@ -28,7 +28,10 @@ export const HeadingAnchors = Extension.create({
               if (!base) return;
               const count = seen.get(base) ?? 0;
               seen.set(base, count + 1);
-              el.id = count === 0 ? base : `${base}-${count}`;
+              const id = count === 0 ? base : `${base}-${count}`;
+              // Only write the attribute when it differs to avoid triggering
+              // ProseMirror's MutationObserver in a feedback loop.
+              if ((el as HTMLElement).id !== id) (el as HTMLElement).id = id;
             });
           },
         }),
