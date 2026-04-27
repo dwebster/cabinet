@@ -80,6 +80,16 @@ const QUICK_ACTIONS: QuickAction[] = [
       "Create an interactive webapp inside this cabinet so I can study physics for beginners. Include clear explanations, simple animations where useful, and quick checks for understanding.",
   },
   {
+    label: "Summarise my recent work",
+    prompt:
+      "Read the most recently modified pages in this cabinet and write a concise summary of what I've been working on. Group by theme, note any open threads, and save the result as @Recent Work Summary.",
+  },
+  {
+    label: "Draft a recruiter reply",
+    prompt:
+      "Write a polite, direct reply to a recruiter outreach message. Ask the key qualifying questions (role, comp range, company stage, remote policy) without committing to anything. Keep it under 100 words.",
+  },
+  {
     label: "Map article connections",
     preferredAgents: LEAD_FALLBACKS,
     prompt:
