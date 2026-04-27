@@ -134,6 +134,8 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
             className="h-7 w-7"
             onClick={() => setCollapsed(true)}
           >
@@ -223,6 +225,8 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Expand sidebar"
+          title="Expand sidebar"
           className={cn(
             "absolute top-3 h-7 w-7",
             isMobile ? "left-3 z-50" : "left-2 z-20"

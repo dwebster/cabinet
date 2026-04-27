@@ -36,6 +36,8 @@ export function HeaderActions() {
       <Button
         variant="ghost"
         size="icon"
+        aria-label={isOpen ? "Close AI panel" : "Open AI panel"}
+        title={isOpen ? "Close AI panel" : "Open AI panel"}
         className={cn("h-7 w-7", isOpen && "text-primary")}
         onClick={toggle}
       >
