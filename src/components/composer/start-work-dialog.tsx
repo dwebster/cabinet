@@ -433,9 +433,16 @@ export function StartWorkDialog({
 export function WhenChip({
   mode,
   onChange,
+  allowHeartbeat = true,
 }: {
   mode: StartWorkMode;
   onChange: (next: StartWorkMode) => void;
+  /**
+   * Audit #020: heartbeat is per-agent — surface it only on composers that
+   * already have a specific agent context. The home-screen composer
+   * (free-text prompt with no agent picked yet) hides this option.
+   */
+  allowHeartbeat?: boolean;
 }) {
   const { icon: Icon, label, tone } = modeMeta(mode);
   return (
@@ -464,12 +471,14 @@ export function WhenChip({
           onSelect={() => onChange("recurring")}
           hint="Run this prompt on a schedule"
         />
-        <ModeItem
-          mode="heartbeat"
-          active={mode === "heartbeat"}
-          onSelect={() => onChange("heartbeat")}
-          hint="Wake the agent on its own rhythm"
-        />
+        {allowHeartbeat && (
+          <ModeItem
+            mode="heartbeat"
+            active={mode === "heartbeat"}
+            onSelect={() => onChange("heartbeat")}
+            hint="Wake the agent on its own rhythm"
+          />
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

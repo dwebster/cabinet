@@ -522,6 +522,10 @@ export function HomeScreen() {
           topRightOverlay={
             <WhenChip
               mode="now"
+              // Audit #020: home-screen composer has no agent context yet,
+              // so "Heartbeat" doesn't apply. Surface it only on agent
+              // detail / mid-conversation composers.
+              allowHeartbeat={false}
               onChange={(next) => {
                 if (next === "now") return;
                 setHandoffMode(next);
