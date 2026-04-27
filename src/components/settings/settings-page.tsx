@@ -2377,7 +2377,7 @@ function ProfileTab() {
         </p>
       </div>
 
-      <div className="flex items-center gap-2 border-t border-border pt-4">
+      <div className="sticky bottom-0 flex items-center gap-2 border-t border-border bg-background pt-4 pb-2 z-10">
         <Button onClick={() => void save()} disabled={saving} size="sm">
           {saving ? (
             <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
