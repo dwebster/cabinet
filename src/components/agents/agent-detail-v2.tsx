@@ -452,15 +452,17 @@ function TopBar({
 
   return (
     <div className="flex items-center justify-between px-6 pt-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-7 text-[12px] gap-1.5 -ml-2 text-muted-foreground"
-        onClick={onBack}
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Back to agents
-      </Button>
+      <nav className="flex items-center gap-1 text-[12px] text-muted-foreground -ml-2">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1 rounded-md px-2 py-1 hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Agents
+        </button>
+        <span aria-hidden>/</span>
+        <span className="px-2 py-1 font-medium text-foreground">{persona.name}</span>
+      </nav>
 
       <div className="flex items-center gap-1">
         <Tooltip>
@@ -1290,7 +1292,7 @@ function RecentWorkSection({
     >
       {top.length === 0 ? (
         <p className="text-[12px] text-muted-foreground py-6 text-center">
-          No edits yet. Files this agent writes to will appear here.
+          No edits yet — run a task to see files written here.
         </p>
       ) : (
         <ul className="space-y-0">
