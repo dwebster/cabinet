@@ -19,7 +19,17 @@ export type SectionType =
 
 const CABINET_VISIBILITY_STORAGE_KEY = "cabinet.visibility.modes";
 const SIDEBAR_DRAWER_STORAGE_KEY = "cabinet.sidebar.drawer";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "cabinet.sidebar.collapsed";
 const TERMINAL_POSITION_STORAGE_KEY = "cabinet.terminal.position";
+
+function loadSidebarCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 function loadTerminalPosition(): "bottom" | "right" {
   if (typeof window === "undefined") return "bottom";
@@ -152,7 +162,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTerminalTab: null,
   terminalPosition: loadTerminalPosition(),
   terminalCwd: null,
-  sidebarCollapsed: false,
+  sidebarCollapsed: loadSidebarCollapsed(),
   sidebarDrawer: loadSidebarDrawer(),
   aiPanelCollapsed: false,
   cabinetVisibilityModes: loadCabinetVisibilityModes(),
@@ -296,7 +306,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setTerminalCwd: (cwd) => set({ terminalCwd: cwd }),
 
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  setSidebarCollapsed: (collapsed) => {
+    try { window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(collapsed)); } catch { /* ignore */ }
+    set({ sidebarCollapsed: collapsed });
+  },
   setSidebarDrawer: (drawer) => {
     try {
       window.localStorage.setItem(SIDEBAR_DRAWER_STORAGE_KEY, drawer);

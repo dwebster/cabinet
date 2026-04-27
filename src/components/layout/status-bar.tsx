@@ -661,7 +661,7 @@ export function StatusBar() {
               Save failed — retry
             </button>
           ) : (
-            <span>
+            <span title="Force save: ⌘S">
               {saveStatus === "saving"
                 ? "Saving..."
                 : saveStatus === "saved"
