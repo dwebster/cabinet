@@ -671,16 +671,6 @@ em-emoji-picker {
   padding-left: 80px;
 }
 
-/* ── Disclaimer floating shield icons ── */
-@keyframes cabinet-disclaimer-float {
-  0%, 100% { translate: 0 0px;    opacity: 0.055; }
-  50%       { translate: 0 -14px; opacity: 0.10;  }
-}
-@keyframes cabinet-disclaimer-card-in {
-  0%   { opacity: 0; transform: scale(0.94) translateY(12px); }
-  100% { opacity: 1; transform: scale(1)    translateY(0px);  }
-}
-
 /* ── GitHub stars burst animation ── */
 @keyframes cabinet-star-burst {
   0%   { transform: translate(-50%, -50%) translate(0px, 0px) scale(1.6); opacity: 1; }
