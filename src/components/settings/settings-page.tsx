@@ -619,11 +619,12 @@ export function SettingsPage() {
       {/* Tabs */}
       <div className="flex items-center gap-1 px-4 py-2 border-b border-border">
         {tabs.map((t) => (
-          <button
+          <a
             key={t.id}
-            onClick={() => setTab(t.id)}
+            href={`#/settings/${t.id}`}
+            onClick={(e) => { e.preventDefault(); setTab(t.id); }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors no-underline",
               tab === t.id
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
@@ -631,7 +632,7 @@ export function SettingsPage() {
           >
             {t.icon}
             {t.label}
-          </button>
+          </a>
         ))}
       </div>
 
