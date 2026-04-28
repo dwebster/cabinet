@@ -129,15 +129,24 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   }, []);
 
   useEffect(() => {
-    updateScrollState();
     const el = scrollRef.current;
     if (!el) return;
+    // Initial measurement runs after paint so clientWidth/scrollWidth are settled.
+    const raf = requestAnimationFrame(updateScrollState);
     const onResize = () => updateScrollState();
     window.addEventListener("resize", onResize);
     el.addEventListener("scroll", updateScrollState);
+    // Observe the container itself and its content so the chevrons appear
+    // when the editor pane resizes (e.g. AI panel toggle) or when the visible
+    // button set changes (e.g. table-mode buttons mounting).
+    const ro = new ResizeObserver(() => updateScrollState());
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
       el.removeEventListener("scroll", updateScrollState);
+      ro.disconnect();
     };
   }, [updateScrollState]);
 
@@ -368,7 +377,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <div
           ref={scrollRef}
           onWheel={onWheel}
-          className="flex items-center gap-0.5 px-2 py-1 overflow-x-auto overflow-y-hidden scrollbar-none"
+          className="flex items-center gap-0.5 px-2 py-1 overflow-x-auto overflow-y-hidden scrollbar-thin"
         >
           {[...primaryItems, { separator: true } as ButtonSpec, ...secondaryItems].map((item, i) => {
             if ("separator" in item) {
