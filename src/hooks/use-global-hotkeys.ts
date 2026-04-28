@@ -45,17 +45,10 @@ export function useGlobalHotkeys(): void {
       // inside editable surfaces because the modifier makes them unambiguous.
       if (!mod) return;
 
-      // Cmd+N — new task (navigate to tasks board and open the composer)
+      // Cmd+N — open the global new-task composer in place (no navigation)
       if (!e.shiftKey && !e.altKey && (e.key === "n" || e.key === "N")) {
         e.preventDefault();
-        const app = useAppStore.getState();
-        const cabinetPath =
-          ("cabinetPath" in app.section && app.section.cabinetPath) ||
-          ROOT_CABINET_PATH;
-        app.setSection({ type: "tasks", cabinetPath });
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("cabinet:open-create-task"));
-        }, 100);
+        window.dispatchEvent(new CustomEvent("cabinet:global-new-task"));
         return;
       }
 

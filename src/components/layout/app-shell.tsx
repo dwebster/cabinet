@@ -129,6 +129,7 @@ export function AppShell() {
   const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
   const aiPanelCollapsed = useAppStore((s) => s.aiPanelCollapsed);
   const taskPanelConversation = useAppStore((s) => s.taskPanelConversation);
+  const setTaskPanelConversation = useAppStore((s) => s.setTaskPanelConversation);
   const {
     update,
     refreshing: updateRefreshing,
@@ -313,6 +314,25 @@ export function AppShell() {
         // Empty list is fine — StartWorkDialog handles it gracefully.
       });
   }, []);
+
+  // Global Cmd+N new-task composer — opens in-place without navigation.
+  const [globalNewTaskOpen, setGlobalNewTaskOpen] = useState(false);
+  const [globalNewTaskAgents, setGlobalNewTaskAgents] = useState<CabinetAgentSummary[]>([]);
+
+  useEffect(() => {
+    const handler = () => {
+      const cabinetPath =
+        ("cabinetPath" in section && section.cabinetPath) || ROOT_CABINET_PATH;
+      fetchCabinetOverviewClient(cabinetPath, "all")
+        .then((data) => {
+          setGlobalNewTaskAgents((data.agents || []) as CabinetAgentSummary[]);
+        })
+        .catch(() => {});
+      setGlobalNewTaskOpen(true);
+    };
+    window.addEventListener("cabinet:global-new-task", handler);
+    return () => window.removeEventListener("cabinet:global-new-task", handler);
+  }, [section]);
 
   const handleWizardComplete = useCallback(() => {
     setShowWizard(false);
@@ -675,6 +695,30 @@ export function AppShell() {
             taskId: conversationId,
             cabinetPath: ROOT_CABINET_PATH,
           });
+        }}
+      />
+      <StartWorkDialog
+        open={globalNewTaskOpen}
+        onOpenChange={setGlobalNewTaskOpen}
+        cabinetPath={
+          ("cabinetPath" in section && section.cabinetPath) || ROOT_CABINET_PATH
+        }
+        agents={globalNewTaskAgents}
+        initialMode="now"
+        onStarted={async (conversationId, conversationCabinetPath) => {
+          setGlobalNewTaskOpen(false);
+          try {
+            const params = new URLSearchParams();
+            if (conversationCabinetPath) params.set("cabinetPath", conversationCabinetPath);
+            const res = await fetch(
+              `/api/agents/conversations/${encodeURIComponent(conversationId)}${params.toString() ? `?${params.toString()}` : ""}`
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data?.meta) setTaskPanelConversation(data.meta);
+          } catch {
+            // non-fatal — task is created, panel just won't auto-open
+          }
         }}
       />
     </div>
