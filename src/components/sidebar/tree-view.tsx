@@ -44,7 +44,6 @@ import {
   Trash2,
   Archive,
   TriangleAlert,
-  Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentAvatar, getAgentDisplayName } from "@/components/agents/agent-avatar";
@@ -90,7 +89,7 @@ const itemClass = (active: boolean) =>
   );
 
 export function TreeView() {
-  const { nodes, loading, selectedPath } = useTreeStore();
+  const { nodes, loading } = useTreeStore();
   const selectPage = useTreeStore((s) => s.selectPage);
   const createPage = useTreeStore((s) => s.createPage);
   const deletePage = useTreeStore((s) => s.deletePage);
@@ -698,22 +697,6 @@ export function TreeView() {
                     className="pt-1 animate-in fade-in slide-in-from-top-1 duration-200 ease-out"
                   >
               <>
-                {/* Pinned Home row — links to the cabinet root index.md */}
-                {!activeCabinet && (
-                  <button
-                    type="button"
-                    onClick={() => openCabinetDataPage(cabinetPath)}
-                    className={itemClass(
-                      selectedPath === cabinetPath ||
-                        (section.type === "cabinet" && !selectedPath)
-                    )}
-                    style={pad(1)}
-                  >
-                    <Home className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    Home
-                  </button>
-                )}
-
                 {visibleTreeNodes.length === 0 ? (
                   <button
                     onClick={() => {
