@@ -122,6 +122,16 @@ export function KBEditor() {
   const isLoadingRef = useRef(false);
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceText, setSourceText] = useState("");
+  // Reset the tab to "page" whenever the path changes — opening a new folder
+  // shouldn't skip its index.md if the previous folder was on Files. Uses the
+  // React-recommended "adjust state during render" pattern instead of an
+  // effect (avoids cascading renders).
+  const [folderTab, setFolderTab] = useState<"page" | "files">("page");
+  const [tabPath, setTabPath] = useState(currentPath);
+  if (tabPath !== currentPath) {
+    setTabPath(currentPath);
+    setFolderTab("page");
+  }
 
   const handleUpdate = useCallback(
     ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
@@ -428,8 +438,60 @@ export function KBEditor() {
     }
   };
 
+  // Folder pages with both an index.md (loadStatus === "ok") AND children
+  // get a Page / Files tab strip so users can switch between the page body
+  // and the directory listing without leaving the route.
+  const renderedFolderNode = findNodeByPath(nodes, currentPath);
+  const renderedFolderChildren =
+    renderedFolderNode?.type === "directory" || renderedFolderNode?.type === "cabinet"
+      ? renderedFolderNode.children ?? []
+      : [];
+  const showFolderTabs = renderedFolderChildren.length > 0;
+  const onFilesTab = showFolderTabs && folderTab === "files";
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {showFolderTabs && (
+        <div className="flex items-center gap-1 px-3 pt-2 border-b border-border">
+          <button
+            onClick={() => setFolderTab("page")}
+            className={`px-3 py-1.5 text-[12px] rounded-t-md border-b-2 -mb-px transition-colors ${
+              folderTab === "page"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            aria-pressed={folderTab === "page"}
+          >
+            Page
+          </button>
+          <button
+            onClick={() => setFolderTab("files")}
+            className={`px-3 py-1.5 text-[12px] rounded-t-md border-b-2 -mb-px transition-colors ${
+              folderTab === "files"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            aria-pressed={folderTab === "files"}
+          >
+            Files
+            <span className="ml-1.5 text-muted-foreground/60">
+              {renderedFolderChildren.length}
+            </span>
+          </button>
+        </div>
+      )}
+      {onFilesTab ? (
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-6 py-6">
+            <FolderIndex
+              key={currentPath}
+              folderPath={currentPath}
+              entries={renderedFolderChildren}
+            />
+          </div>
+        </div>
+      ) : (
+      <>
       <div className="flex items-center min-w-0">
         <div className="flex-1 min-w-0">
           {!sourceMode && <EditorToolbar editor={editor} />}
@@ -507,6 +569,8 @@ export function KBEditor() {
           {saveStatus === "error" && "Save failed"}
         </span>
       </div>
+      </>
+      )}
 
     </div>
   );
