@@ -87,3 +87,6 @@ data/.agents/.library/.next/
 # cabinetai CLI
 cabinetai/dist/
 cabinetai/node_modules/
+
+# local install config (per-machine dataDir)
+.cabinet-install.json
