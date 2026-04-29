@@ -120,9 +120,7 @@ export function FilterBar({
               style={
                 hasImage
                   ? undefined
-                  : active
-                    ? { backgroundColor: tint.bg, color: tint.text }
-                    : { backgroundColor: tint.bg, color: tint.text, opacity: 0.65 }
+                  : { backgroundColor: tint.bg, color: tint.text }
               }
               title={
                 agent.active

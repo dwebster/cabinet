@@ -325,7 +325,7 @@ export function getAgentColor(slug: string): { bg: string; text: string } {
 }
 
 // Derive the tinted { bg, text } pair from a user-picked hex color.
-// Mirrors the existing palette look: 18% alpha bg, full-saturation text.
+// Mirrors the existing palette look: 8% alpha bg, full-saturation text.
 export function tintFromHex(hex: string): { bg: string; text: string } {
   const clean = hex.trim().replace(/^#/, "");
   const full =
@@ -342,7 +342,7 @@ export function tintFromHex(hex: string): { bg: string; text: string } {
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);
   return {
-    bg: `rgba(${r}, ${g}, ${b}, 0.18)`,
+    bg: `rgba(${r}, ${g}, ${b}, 0.08)`,
     text: `rgb(${r}, ${g}, ${b})`,
   };
 }

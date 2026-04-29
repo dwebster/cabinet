@@ -1,19 +1,19 @@
 // Theme definitions for the multi-theme system
 // Each theme defines CSS custom properties using OKLCh color space
 
-// Vivid agent colors — Tailwind-500 family. Each entry is an 18%-alpha tint
+// Vivid agent colors — Tailwind-500 family. Each entry is an 8%-alpha tint
 // for the pill background and the full-saturation rgb for the text / glyph
 // color. Order matters: `getAgentColor(slug)` hashes into this list, so
 // shuffling will change every unset agent's default color.
 export const AGENT_PALETTE: Array<{ bg: string; text: string }> = [
-  { bg: "rgba(99, 102, 241, 0.18)", text: "rgb(99, 102, 241)" }, // indigo-500
-  { bg: "rgba(16, 185, 129, 0.18)", text: "rgb(16, 185, 129)" }, // emerald-500
-  { bg: "rgba(245, 158, 11, 0.18)", text: "rgb(245, 158, 11)" }, // amber-500
-  { bg: "rgba(244, 63, 94, 0.18)", text: "rgb(244, 63, 94)" }, // rose-500
-  { bg: "rgba(139, 92, 246, 0.18)", text: "rgb(139, 92, 246)" }, // violet-500
-  { bg: "rgba(14, 165, 233, 0.18)", text: "rgb(14, 165, 233)" }, // sky-500
-  { bg: "rgba(236, 72, 153, 0.18)", text: "rgb(236, 72, 153)" }, // pink-500
-  { bg: "rgba(20, 184, 166, 0.18)", text: "rgb(20, 184, 166)" }, // teal-500
+  { bg: "rgba(99, 102, 241, 0.08)", text: "rgb(99, 102, 241)" }, // indigo-500
+  { bg: "rgba(16, 185, 129, 0.08)", text: "rgb(16, 185, 129)" }, // emerald-500
+  { bg: "rgba(245, 158, 11, 0.08)", text: "rgb(245, 158, 11)" }, // amber-500
+  { bg: "rgba(244, 63, 94, 0.08)", text: "rgb(244, 63, 94)" }, // rose-500
+  { bg: "rgba(139, 92, 246, 0.08)", text: "rgb(139, 92, 246)" }, // violet-500
+  { bg: "rgba(14, 165, 233, 0.08)", text: "rgb(14, 165, 233)" }, // sky-500
+  { bg: "rgba(236, 72, 153, 0.08)", text: "rgb(236, 72, 153)" }, // pink-500
+  { bg: "rgba(20, 184, 166, 0.08)", text: "rgb(20, 184, 166)" }, // teal-500
 ];
 
 export interface ThemeDefinition {

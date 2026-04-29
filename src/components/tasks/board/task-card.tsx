@@ -124,7 +124,7 @@ export function TaskCard({
           )
         )}
         {lane === "needs" && task.status === "failed" && (
-          <span className="inline-flex items-center rounded bg-destructive/15 px-1.5 py-0.5 text-[9px] font-semibold text-destructive">
+          <span className="inline-flex items-center rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive opacity-75">
             Failed
           </span>
         )}

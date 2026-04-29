@@ -39,7 +39,7 @@ export function AgentPill({
           size === "md" ? "py-0.5 pl-0.5 pr-2 text-[11px]" : "py-0.5 pl-0.5 pr-1.5 text-[10px]",
           className
         )}
-        style={{ backgroundColor: tint.bg, color: tint.text }}
+        style={{ backgroundColor: tint.bg, color: tint.text, opacity: 0.75 }}
       >
         <AgentAvatar agent={agent} shape="circle" size="xs" />
         {label}
@@ -55,7 +55,7 @@ export function AgentPill({
         size === "md" ? "px-2 py-0.5 text-[11px]" : "px-1.5 py-0.5 text-[10px]",
         className
       )}
-      style={{ backgroundColor: tint.bg, color: tint.text }}
+      style={{ backgroundColor: tint.bg, color: tint.text, opacity: 0.75 }}
     >
       <Icon className={size === "md" ? "size-3" : "size-2.5"} />
       {label}
