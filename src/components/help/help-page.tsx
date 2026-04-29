@@ -31,6 +31,8 @@ import { buildRoutinesDemo } from "./demos/routines-demo";
 import { buildTaskBoardDemo } from "./demos/task-board-demo";
 import { buildThemesDemo } from "./demos/themes-demo";
 import { buildShortcutsDemo } from "./demos/shortcuts-demo";
+import { buildSkillsDemo } from "./demos/skills-demo";
+import { buildApiKeysDemo } from "./demos/api-keys-demo";
 
 type DemoId =
   | "ai-team"
@@ -41,7 +43,9 @@ type DemoId =
   | "conversations"
   | "themes"
   | "byoai"
-  | "shortcuts";
+  | "shortcuts"
+  | "skills"
+  | "api-keys";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 
@@ -198,20 +202,33 @@ const HELP_ITEMS: HelpItem[] = [
       </>
     ),
     description:
-      "Installable Agent Skills — drop-in capabilities like SEO research, design system, or DevOps. Coming soon.",
-    cta: "Coming soon",
+      "Installable Agent Skills — playbooks the model pulls in for a task. Install from GitHub or skills.sh, attach to a persona, or @-mention one in any composer for a single run.",
+    cta: "Watch the demo",
     visual: <SkillsVisual />,
-    action: { kind: "soon" },
+    action: { kind: "demo", demoId: "skills" },
+  },
+  {
+    id: "api-keys",
+    title: (
+      <>
+        <span style={{ color: P.accent }}>API keys</span> for your tools.
+      </>
+    ),
+    description:
+      "Set OpenAI, Anthropic, GitHub, or any custom env var once and Cabinet hands it to every CLI and skill at spawn time. Stored locally in .cabinet.env, owner-only, gitignored.",
+    cta: "Watch the demo",
+    visual: <IntegrationsVisual />,
+    action: { kind: "demo", demoId: "api-keys" },
   },
   {
     id: "integrations",
     title: (
       <>
-        <span style={{ color: P.accent }}>Integrations</span> & apps.
+        <span style={{ color: P.accent }}>MCP servers</span> & integrations.
       </>
     ),
     description:
-      "MCP servers, Slack, Telegram, Gmail, Calendar, and external apps. Coming soon.",
+      "MCP servers, Slack, Telegram, Gmail, and Calendar OAuth — connect once and Cabinet handles the tokens. Coming soon.",
     cta: "Coming soon",
     visual: <IntegrationsVisual />,
     action: { kind: "soon" },
@@ -351,6 +368,14 @@ export function HelpPage() {
     }
     if (demoId === "shortcuts") {
       setActiveDemo(buildShortcutsDemo());
+      return;
+    }
+    if (demoId === "skills") {
+      setActiveDemo(buildSkillsDemo());
+      return;
+    }
+    if (demoId === "api-keys") {
+      setActiveDemo(buildApiKeysDemo());
       return;
     }
   };
