@@ -29,7 +29,6 @@ import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import type { ProviderInfo } from "@/types/agents";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
-import { getDomainAccent } from "@/lib/registry/registry-manifest";
 import { TiltCard } from "@/components/ui/tilt-card";
 import { showError } from "@/lib/ui/toast";
 import { RegistryBrowser } from "@/components/registry/registry-browser";
@@ -342,13 +341,10 @@ function TeamCarousel({
         {doubled.map((item, i) => {
           const agentCount = "agentCount" in item ? item.agentCount : ("agents" in item ? (item as PreMadeTeam).agents : 0);
           const coverUrl = "coverUrl" in item ? item.coverUrl : null;
-          const domain = "domain" in item ? item.domain : "Other";
-          const accent = getDomainAccent(domain);
           return (
             <TiltCard
               key={`${item.name}-${i}`}
               className="flex-shrink-0 w-48"
-              style={{ "--accent": accent } as React.CSSProperties}
             >
             <button
               className="fancy-card w-48 flex flex-col text-left"

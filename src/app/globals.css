@@ -913,16 +913,12 @@ em-emoji-picker {
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
-  transition:
-    box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
-    border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .fancy-card:hover {
   box-shadow:
-    0 24px 64px color-mix(in srgb, var(--accent, var(--primary)) 40%, transparent),
-    0 4px 12px color-mix(in srgb, var(--accent, var(--primary)) 25%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent, var(--primary)) 60%, transparent);
-  border-color: var(--accent, var(--primary));
+    0 22px 56px color-mix(in srgb, var(--foreground) 22%, transparent),
+    0 4px 12px color-mix(in srgb, var(--foreground) 12%, transparent);
 }
 /* Carousel container that lets card hover-glow bleed outside the strip
    while still hard-clipping the horizontally-scrolling content. */

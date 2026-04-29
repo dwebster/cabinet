@@ -670,40 +670,54 @@ function DetailView({
             <>
               {/* Header section — warm background strip */}
               <div className="border-b" style={{ backgroundColor: P.bgWarm, borderColor: P.border }}>
-                <div className="mx-auto max-w-4xl px-6 py-10">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h1 className="text-2xl font-bold sm:text-3xl" style={{ color: P.textPrimary }}>
-                          {detail.meta.name}
-                        </h1>
-                        <span
-                          className="rounded-full border px-2.5 py-0.5 text-xs font-mono"
-                          style={{ borderColor: P.border, color: P.textTertiary }}
-                        >
-                          v{detail.meta.version}
-                        </span>
-                        {detail.domain && (() => {
-                          const ds = DOMAIN_COLORS[detail.domain] || { bg: P.bgWarm, text: P.textTertiary };
-                          return (
-                            <span
-                              className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
-                              style={{ backgroundColor: ds.bg, color: ds.text }}
-                            >
-                              {detail.domain}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                      <p className="text-base max-w-2xl" style={{ color: P.textSecondary }}>
-                        {detail.meta.description}
-                      </p>
-                      {detail.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-3">
-                          {detail.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
-                        </div>
-                      )}
+                {detail.coverUrl && (
+                  <div className="mx-auto max-w-4xl px-6 pt-8">
+                    <div
+                      className="relative w-full overflow-hidden rounded-xl border"
+                      style={{
+                        aspectRatio: "16 / 6",
+                        borderColor: P.border,
+                        backgroundColor: P.bgCard,
+                        backgroundImage: `url(${detail.coverUrl})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                      aria-hidden
+                    />
+                  </div>
+                )}
+                <div className="mx-auto max-w-4xl px-6 py-8">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h1 className="text-2xl font-bold sm:text-3xl" style={{ color: P.textPrimary }}>
+                        {detail.meta.name}
+                      </h1>
+                      <span
+                        className="rounded-full border px-2.5 py-0.5 text-xs font-mono"
+                        style={{ borderColor: P.border, color: P.textTertiary }}
+                      >
+                        v{detail.meta.version}
+                      </span>
+                      {detail.domain && (() => {
+                        const ds = DOMAIN_COLORS[detail.domain] || { bg: P.bgWarm, text: P.textTertiary };
+                        return (
+                          <span
+                            className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
+                            style={{ backgroundColor: ds.bg, color: ds.text }}
+                          >
+                            {detail.domain}
+                          </span>
+                        );
+                      })()}
                     </div>
+                    <p className="text-base max-w-2xl" style={{ color: P.textSecondary }}>
+                      {detail.meta.description}
+                    </p>
+                    {detail.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {detail.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
+                      </div>
+                    )}
                   </div>
 
                   {/* Stats */}
@@ -915,10 +929,18 @@ export function RegistryBrowser({
       <div className="border-b px-6 py-5 shrink-0" style={{ borderColor: P.border, backgroundColor: P.bgWarm }}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="flex items-center gap-2 text-xl font-bold">
-              <Archive className="h-5 w-5 shrink-0" style={{ color: P.accent }} />
-              <span style={{ color: P.accent }}>Cabinets</span>
-              <span className="text-base font-normal" style={{ color: P.textTertiary }}>
+            <h1 className="flex items-baseline gap-2">
+              <Archive className="h-5 w-5 shrink-0 self-center" style={{ color: P.accent }} />
+              <span
+                className="font-logo italic tracking-[-0.01em] text-2xl"
+                style={{ color: P.accent }}
+              >
+                Cabinets
+              </span>
+              <span
+                className="text-sm font-normal"
+                style={{ color: P.textSecondary }}
+              >
                 AI teams, off the shelf
               </span>
             </h1>

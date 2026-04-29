@@ -6,7 +6,7 @@ import { useTreeStore } from "@/stores/tree-store";
 import { selectDaemonLevel, useHealthStore } from "@/stores/health-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
-import { Users, Download, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { flattenTree } from "@/lib/tree-utils";
 import { createConversation } from "@/lib/agents/conversation-client";
@@ -33,7 +33,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
-import { getDomainAccent } from "@/lib/registry/registry-manifest";
 import { TiltCard } from "@/components/ui/tilt-card";
 
 type QuickAction = {
@@ -106,23 +105,6 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
-const DOMAIN_COLORS: Record<string, string> = {
-  "Marketing": "bg-blue-500/15 text-blue-400",
-  "E-commerce": "bg-emerald-500/15 text-emerald-400",
-  "Media": "bg-purple-500/15 text-purple-400",
-  "Software": "bg-orange-500/15 text-orange-400",
-  "Sales": "bg-rose-500/15 text-rose-400",
-  "Finance": "bg-yellow-500/15 text-yellow-400",
-  "Professional Services": "bg-cyan-500/15 text-cyan-400",
-  "Data & Research": "bg-indigo-500/15 text-indigo-400",
-  "Education": "bg-teal-500/15 text-teal-400",
-  "Operations": "bg-slate-500/15 text-slate-400",
-  "Paid Social": "bg-pink-500/15 text-pink-400",
-  "Content Ops": "bg-amber-500/15 text-amber-400",
-  "Lifestyle": "bg-fuchsia-500/15 text-fuchsia-400",
-  "Other": "bg-muted text-muted-foreground",
-};
-
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -137,61 +119,44 @@ function CabinetCard({
   template: RegistryTemplate;
   onClick: () => void;
 }) {
-  const colorClass =
-    DOMAIN_COLORS[template.domain] || "bg-muted text-muted-foreground";
-  const accent = getDomainAccent(template.domain);
-
   return (
-    <TiltCard
-      className="flex-shrink-0 w-64"
-      style={{ "--accent": accent } as React.CSSProperties}
-    >
+    <TiltCard className="flex-shrink-0 w-48">
       <button
         onClick={onClick}
-        className="fancy-card group w-full border border-border bg-card flex flex-col text-left"
+        className="fancy-card w-full border border-border bg-card flex flex-col text-left"
       >
-      <div
-        className="relative h-24 w-full bg-muted"
-        style={
-          template.coverUrl
-            ? {
-                backgroundImage: `url(${template.coverUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : undefined
-        }
-      >
-        {!template.coverUrl && (
-          <div className="absolute inset-0 flex items-center justify-center text-3xl opacity-30">
-            📦
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-card/20 to-transparent" />
-      </div>
-      <div className="p-4 flex flex-col flex-1">
-        <h3 className="text-sm font-medium text-foreground leading-tight">
-          {template.name}
-        </h3>
-        <p className="text-xs text-muted-foreground leading-relaxed mt-2 line-clamp-2">
-          {template.description}
-        </p>
-        <div className="flex items-center justify-between mt-auto pt-3">
-          <span
-            className={cn(
-              "text-[10px] font-medium px-2 py-0.5 rounded-full",
-              colorClass
-            )}
-          >
-            {template.domain}
-          </span>
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Users className="h-3 w-3" />
-            {template.agentCount} agents
-            <Download className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </span>
+        <div
+          className="relative h-20 w-full bg-muted"
+          style={
+            template.coverUrl
+              ? {
+                  backgroundImage: `url(${template.coverUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : undefined
+          }
+          aria-hidden
+        >
+          {!template.coverUrl && (
+            <div className="absolute inset-0 flex items-center justify-center text-xl opacity-40">
+              📦
+            </div>
+          )}
         </div>
-      </div>
+        <div className="p-2.5 flex flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[11px] font-medium leading-tight line-clamp-1 flex-1 min-w-0 text-foreground">
+              {template.name}
+            </p>
+            <span className="text-[9px] shrink-0 text-muted-foreground">
+              {template.agentCount} agents
+            </span>
+          </div>
+          <p className="text-[9px] leading-snug line-clamp-2 text-muted-foreground">
+            {template.description}
+          </p>
+        </div>
       </button>
     </TiltCard>
   );
