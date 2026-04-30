@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const net = require("net");
 const { spawn } = require("child_process");
-const { app, BrowserWindow, dialog, autoUpdater } = require("electron");
+const { app, BrowserWindow, dialog, autoUpdater, ipcMain } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
 
 if (require("electron-squirrel-startup")) {
@@ -380,6 +380,57 @@ function cleanupBackends() {
   }
   backendChildren = [];
 }
+
+/**
+ * macOS uninstall — removes the .app bundle, caches, preferences, saved
+ * application state, web storage, and logs. Does NOT touch user data at
+ * `~/Library/Application Support/Cabinet/cabinet-data` (the cabinet itself).
+ *
+ * Spawns a detached shell that waits 2s for the app to quit, then deletes
+ * the targets and exits. Quitting from inside the running app can't delete
+ * its own .app bundle while it's executing — the deferred shell handles it.
+ */
+function macosUninstallApp() {
+  if (process.platform !== "darwin") {
+    return { ok: false, error: "Uninstall is macOS-only." };
+  }
+  const HOME = app.getPath("home");
+  const APP_NAME = "Cabinet";
+  const BUNDLE_ID = "com.runcabinet.cabinet";
+  // Targets exclude `~/Library/Application Support/Cabinet/` — that's user data.
+  const targets = [
+    `/Applications/${APP_NAME}.app`,
+    `${HOME}/Library/Caches/${APP_NAME}`,
+    `${HOME}/Library/Caches/${BUNDLE_ID}`,
+    `${HOME}/Library/Caches/${BUNDLE_ID}.ShipIt`,
+    `${HOME}/Library/HTTPStorages/${BUNDLE_ID}`,
+    `${HOME}/Library/HTTPStorages/${BUNDLE_ID}.binarycookies`,
+    `${HOME}/Library/WebKit/${BUNDLE_ID}`,
+    `${HOME}/Library/Preferences/${BUNDLE_ID}.plist`,
+    `${HOME}/Library/Saved Application State/${BUNDLE_ID}.savedState`,
+    `${HOME}/Library/Logs/${APP_NAME}`,
+  ];
+  // Build a shell script that sleeps then rm -rfs each target.
+  const rmLines = targets
+    .map((t) => `rm -rf ${JSON.stringify(t)}`)
+    .join("\n");
+  const script = `#!/bin/bash\nsleep 2\n${rmLines}\nexit 0\n`;
+  const scriptPath = path.join(app.getPath("temp"), `cabinet-uninstall-${Date.now()}.sh`);
+  fs.writeFileSync(scriptPath, script, { mode: 0o755 });
+  // Detach so the shell survives Electron quitting.
+  const child = spawn("/bin/bash", [scriptPath], {
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+  // Quit shortly after; the script's 2s sleep covers shutdown.
+  setTimeout(() => app.quit(), 200);
+  return { ok: true, dataPath: managedDataDir };
+}
+
+ipcMain.handle("cabinet:uninstall-app", () => {
+  return macosUninstallApp();
+});
 
 async function createWindow() {
   const runtime = await startEmbeddedCabinet();

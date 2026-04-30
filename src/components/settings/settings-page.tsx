@@ -42,6 +42,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SkillLibrary } from "@/components/skills/skill-library";
 import { ApiKeysSection } from "@/components/settings/api-keys-section";
+import { UninstallSection } from "@/components/settings/uninstall-section";
 import { CliMcpSection } from "@/components/settings/cli-mcp-section";
 import { ConnectedIntegrationsCard } from "@/components/settings/connected-integrations-card";
 import { UpdateSummary } from "@/components/system/update-summary";
@@ -1546,6 +1547,8 @@ export function SettingsPage() {
                   </a>
                 </div>
               </div>
+
+              <UninstallSection />
             </div>
           )}
         </div>

@@ -112,6 +112,17 @@ async function bundleDaemon() {
     platform: "node",
     target: "node20",
     external: ["better-sqlite3", "node-pty"],
+    // CJS bundles emit `var import_meta = {}; import_meta.url` which is
+    // undefined at runtime. createRequire(undefined) and fileURLToPath(undefined)
+    // both crash the daemon at startup (v0.4.0/v0.4.1 Electron bug). Polyfill
+    // by declaring a top-level helper in a banner and rewriting all
+    // `import.meta.url` references to point at it.
+    banner: {
+      js: "var __cabinet_self_url = require('url').pathToFileURL(__filename).href;",
+    },
+    define: {
+      "import.meta.url": "__cabinet_self_url",
+    },
     logLevel: "silent",
   });
 }
