@@ -110,16 +110,20 @@ if pgrep -x "$APP_NAME" >/dev/null 2>&1; then
 fi
 
 # Unmount any mounted DMG volumes.
-for v in "${mounted_volumes[@]}"; do
-  echo "Unmounting $v"
-  hdiutil detach "$v" -quiet 2>/dev/null || hdiutil detach "$v" -force -quiet 2>/dev/null || true
-done
+if [ ${#mounted_volumes[@]} -gt 0 ]; then
+  for v in "${mounted_volumes[@]}"; do
+    echo "Unmounting $v"
+    hdiutil detach "$v" -quiet 2>/dev/null || hdiutil detach "$v" -force -quiet 2>/dev/null || true
+  done
+fi
 
 # Remove every existing target.
-for t in "${existing[@]}"; do
-  echo "Removing $t"
-  rm -rf -- "$t"
-done
+if [ ${#existing[@]} -gt 0 ]; then
+  for t in "${existing[@]}"; do
+    echo "Removing $t"
+    rm -rf -- "$t"
+  done
+fi
 
 # Drop any cached LaunchServices registration for the bundle id.
 LS_REG="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"
