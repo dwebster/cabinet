@@ -156,6 +156,9 @@ module.exports = {
     osxSign: process.env.APPLE_ID
       ? {
           identity: process.env.APPLE_SIGN_IDENTITY,
+          optionsForFile: () => ({
+            entitlements: path.join(__dirname, "electron", "entitlements.mac.plist"),
+          }),
         }
       : undefined,
     osxNotarize: process.env.APPLE_ID
