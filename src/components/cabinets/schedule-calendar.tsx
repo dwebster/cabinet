@@ -12,7 +12,7 @@ import {
 } from "@/lib/agents/cron-compute";
 import type { CabinetAgentSummary, CabinetJobSummary } from "@/types/cabinets";
 import type { ConversationMeta } from "@/types/conversations";
-import { AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -121,7 +121,7 @@ function EventPill({
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      title={`${event.label} · ${event.agentName} · ${formatTime(event.time)}${missed ? " · did not run — click to run now" : ""}`}
+      title={`${event.label} · ${event.agentName} · ${formatTime(event.time)}${missed ? " · no run logged — click to run now" : ""}`}
       className={cn(
         "flex items-center gap-1 rounded-md px-1.5 text-left transition-all",
         "hover:ring-1 hover:ring-foreground/20 hover:shadow-sm",
@@ -134,9 +134,13 @@ function EventPill({
         color: missed ? undefined : event.enabled ? color.text : undefined,
       }}
     >
-      {missed && (
-        <AlertCircle className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
-      )}
+      {/*
+       * Audit #019: missed = "no scheduled conversation found for this slot".
+       * On a local-first product the most common cause is the daemon was off,
+       * not a real failure. We render this as a neutral hollow chip rather
+       * than an amber-warning chip — yelling about the normal state erodes
+       * trust in the calendar.
+       */}
       <span className="shrink-0 text-[10px] leading-none">{event.agentEmoji}</span>
       <span className={cn("truncate text-[10px] font-medium", wide && "text-[11px]")}>
         {event.label}
@@ -176,7 +180,7 @@ function EventDot({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
-            aria-label={`${event.label} · ${formatTime(event.time)}${missed ? " · did not run" : ""}`}
+            aria-label={`${event.label} · ${formatTime(event.time)}${missed ? " · no run logged" : ""}`}
             className={cn(
               "shrink-0 rounded-full outline-none transition-all",
               "hover:ring-2 hover:ring-foreground/30 focus-visible:ring-2 focus-visible:ring-foreground/40",
@@ -202,10 +206,10 @@ function EventDot({
           {event.agentName} · {formatTime(event.time)}
           {isPast ? " · past" : " · upcoming"}
           {!event.enabled && " · disabled"}
-          {missed && " · did not run"}
+          {missed && " · no run logged"}
         </div>
         {missed && (
-          <div className="text-[10px] text-amber-300 mt-0.5">
+          <div className="text-[10px] text-muted-foreground/70 mt-0.5">
             Click to run now →
           </div>
         )}
@@ -719,9 +723,7 @@ function MonthView({
                           onEventClick(event);
                         }}
                       >
-                        {missed && (
-                          <AlertCircle className="h-2.5 w-2.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                        )}
+                        {/* Audit #019: muted, not amber. */}
                         <span className="shrink-0 text-[8px]">{event.agentEmoji}</span>
                         <span className="truncate">
                           {event.label}
