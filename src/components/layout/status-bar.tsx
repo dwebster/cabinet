@@ -728,12 +728,17 @@ export function StatusBar() {
             type="button"
             onClick={() => uncommitted > 0 && setShowUncommittedPopup((v) => !v)}
             disabled={uncommitted === 0}
+            // Audit #006: pluralize properly (was "1 uncommitted files" before).
             aria-label={
               uncommitted > 0
-                ? `${uncommitted} uncommitted files — click to see the list`
+                ? `${uncommitted} uncommitted ${uncommitted === 1 ? "file" : "files"} — click to see the list`
                 : "All committed"
             }
-            title={uncommitted > 0 ? "Click to see uncommitted files" : "All committed"}
+            title={
+              uncommitted > 0
+                ? `Click to see uncommitted ${uncommitted === 1 ? "file" : "files"}`
+                : "All committed"
+            }
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-current"
           >
             <GitBranch className="h-3 w-3" />

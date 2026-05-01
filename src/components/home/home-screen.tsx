@@ -154,7 +154,9 @@ function CabinetCard({
               {template.name}
             </p>
             <span className="text-[9px] shrink-0 text-muted-foreground">
-              {template.agentCount} agents
+              {template.agentCount === 0
+                ? "No agents"
+                : `${template.agentCount} agent${template.agentCount === 1 ? "" : "s"}`}
             </span>
           </div>
           <p className="text-[9px] leading-snug line-clamp-2 text-muted-foreground">
@@ -305,10 +307,10 @@ function ImportDialog({
             {template.description}
           </p>
           <div className="flex gap-4 text-xs text-muted-foreground">
-            <span>{template.agentCount} agents</span>
-            <span>{template.jobCount} jobs</span>
+            <span>{template.agentCount} {template.agentCount === 1 ? "agent" : "agents"}</span>
+            <span>{template.jobCount} {template.jobCount === 1 ? "job" : "jobs"}</span>
             {template.childCount > 0 && (
-              <span>{template.childCount} sub-cabinets</span>
+              <span>{template.childCount} {template.childCount === 1 ? "sub-cabinet" : "sub-cabinets"}</span>
             )}
           </div>
           <div className="space-y-1.5">
@@ -552,7 +554,12 @@ export function HomeScreen() {
   return (
     <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-xl space-y-8">
-        <h1 className="text-3xl md:text-4xl font-semibold text-center text-foreground tracking-tight">
+        {/*
+         * Audit #005: greeting was display-size and pushed the prompt below
+         * the fold on 13" laptops. The prompt is the primary surface — the
+         * greeting is decoration. Halved to text-xl/2xl with tighter rhythm.
+         */}
+        <h1 className="text-xl md:text-2xl font-semibold text-center text-foreground tracking-tight">
           {headline}
         </h1>
 
@@ -634,7 +641,7 @@ export function HomeScreen() {
       <div className="w-screen pb-8 pt-4 space-y-3">
         <div className="flex items-center justify-center gap-3">
           <h2 className="text-sm font-medium text-muted-foreground">
-            Import a pre-made zero-human team
+            Start from a template
           </h2>
           <button
             onClick={() => setSection({ type: "registry" })}

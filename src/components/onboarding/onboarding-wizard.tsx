@@ -941,7 +941,7 @@ function TeamBuildStep({
             className="text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: WEB.textTertiary }}
           >
-            Import a pre-made zero-human team
+            Start from a template
           </p>
           <button
             onClick={() => setRegistryOpen(true)}
