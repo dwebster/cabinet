@@ -839,7 +839,14 @@ export function StatusBar() {
             Help
           </span>
           {displayStars !== null && (
-            <span className="-mr-0.5 inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-px text-[9px] font-semibold text-amber-700 dark:text-amber-300">
+            <span
+              // Audit #004: explain what the count is on hover. The whole
+              // Help button opens a popup that links to GitHub, so the
+              // number itself doesn't need an extra click target — just
+              // a clear name.
+              title={`${formatGithubStars(displayStars)} GitHub stars — open Help & community menu to star Cabinet`}
+              className="-mr-0.5 inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-px text-[9px] font-semibold text-amber-700 dark:text-amber-300"
+            >
               <Star className="h-2.5 w-2.5 fill-current" />
               {formatGithubStars(displayStars)}
             </span>

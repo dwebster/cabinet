@@ -347,7 +347,10 @@ export const THEMES: ThemeDefinition[] = [
       "--destructive":          "oklch(0.55 0.22 25)",
       "--border":               "oklch(0.882 0.016 56)",   // #E8DDD0
       "--input":                "oklch(0.882 0.016 56)",   // #E8DDD0
-      "--ring":                 "oklch(0.47 0.09 48)",     // #8B5E3C
+      // Audit #054: focus rings against the warm parchment background were
+      // calculated at ~2.6:1 contrast — under WCAG 2.4.7 (3:1 for non-text
+      // UI). Push L 0.47 → 0.34 (deeper rust, same hue) to clear 4:1.
+      "--ring":                 "oklch(0.34 0.09 48)",     // deeper #6B4A2D for visibility
       "--sidebar":              "oklch(0.946 0.010 60)",   // #F3EDE4 bg-warm
       "--sidebar-foreground":   "oklch(0.22 0.018 28)",    // #3B2F2F
       "--sidebar-primary":      "oklch(0.47 0.09 48)",     // #8B5E3C
@@ -355,7 +358,7 @@ export const THEMES: ThemeDefinition[] = [
       "--sidebar-accent":       "oklch(0.92 0.026 56)",    // #F5E6D3
       "--sidebar-accent-foreground":  "oklch(0.22 0.018 28)", // #3B2F2F
       "--sidebar-border":       "oklch(0.882 0.016 56)",   // #E8DDD0
-      "--sidebar-ring":         "oklch(0.47 0.09 48)",     // #8B5E3C
+      "--sidebar-ring":         "oklch(0.34 0.09 48)",     // matches --ring
     },
   },
   {

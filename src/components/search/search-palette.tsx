@@ -689,12 +689,15 @@ function DetailPane({
   }
 
   if (!entry) {
+    /*
+     * Audit #037: the right pane previously echoed the left pane's hint.
+     * Drop the redundant copy — keep the icon as a subtle hero glyph so
+     * the empty state still feels furnished. The left pane's hint copy is
+     * sufficient on its own.
+     */
     return (
-      <div className="flex flex-1 items-center justify-center p-6 text-center text-[12px] text-muted-foreground">
-        <div className="max-w-[240px]">
-          <SearchIcon className="mx-auto mb-2 h-5 w-5 opacity-50" />
-          <p>Start typing to search across pages, agents, and tasks.</p>
-        </div>
+      <div className="flex flex-1 items-center justify-center p-6 text-center">
+        <SearchIcon className="h-6 w-6 text-muted-foreground/40" />
       </div>
     );
   }
