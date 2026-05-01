@@ -378,7 +378,15 @@ export function StatusBar() {
   }, [githubStars]);
 
   return (
-    <div className="relative flex items-center justify-between px-3 py-1 border-t border-border text-[11px] text-muted-foreground/60 bg-background">
+    /* Audit #060: status bar is contentinfo for the page. Audit #048: gap-3
+       between groups becomes gap-3 + 1px separators on either side of the
+       diagnostics + tools clusters so the bar reads as
+       [diagnostics | tools | brand] rather than seven flat items. */
+    <footer
+      role="contentinfo"
+      aria-label="Status bar"
+      className="relative flex items-center justify-between px-3 py-1 border-t border-border text-[11px] text-muted-foreground/60 bg-background"
+    >
       {/* Center: AI edit pill + runtime picker. Picker sits to the LEFT of
           the pill so the narrow input stays readable; the same value is sent
           in the createConversation call (terminal mode swaps to legacy PTY). */}
@@ -898,6 +906,6 @@ export function StatusBar() {
           </div>
         )}
       </div>
-    </div>
+    </footer>
   );
 }

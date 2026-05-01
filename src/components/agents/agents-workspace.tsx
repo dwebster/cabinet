@@ -2796,6 +2796,8 @@ export function AgentsWorkspace({
                   className="h-7 gap-1.5 text-[11px]"
                   onClick={() => setOrgChartOpen(true)}
                   disabled={agents.length === 0}
+                  // Audit #021: title disambiguates "what does this open"
+                  title="View this team as an org chart (opens fullscreen)"
                 >
                   <Network className="size-3.5" />
                   Org chart
@@ -3000,6 +3002,7 @@ export function AgentsWorkspace({
                   <div>
                     <DropdownMenu>
                       <DropdownMenuTrigger
+                        data-add-routine-trigger
                         className={cn(
                           "inline-flex h-12 items-center gap-2.5 rounded-xl bg-foreground px-5 text-[15px] font-semibold text-background shadow-sm transition-colors hover:bg-foreground/90 disabled:pointer-events-none disabled:opacity-50"
                         )}
@@ -3032,10 +3035,12 @@ export function AgentsWorkspace({
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <p className="mt-2 text-[12px] text-muted-foreground/80">
-                      Pick which agent runs this routine, then set the prompt
-                      and schedule.
-                    </p>
+                    {/*
+                     * Audit #024: orphan help text was sitting outside the
+                     * Add-routine popover. Removed from the page; the popover
+                     * itself + the empty-state card in the Routines section
+                     * already explain what a routine is.
+                     */}
                   </div>
 
                   {/* Team schedule board — embed the existing ScheduleView */}
@@ -3117,13 +3122,26 @@ export function AgentsWorkspace({
                       </p>
                     </div>
                     {allJobs.length === 0 ? (
-                      <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-[13px] text-muted-foreground">
-                        No routines yet. Use{" "}
-                        <span className="font-semibold text-foreground">
-                          Add routine
-                        </span>{" "}
-                        above to create your first one.
-                      </p>
+                      // Audit #023: empty state was dead text. Make it a
+                      // clickable card that opens the Add-routine popover.
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trigger = document.querySelector<HTMLButtonElement>(
+                            "[data-add-routine-trigger]"
+                          );
+                          trigger?.click();
+                        }}
+                        className="group block w-full rounded-lg border border-dashed border-border/60 px-4 py-7 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
+                      >
+                        <Clock3 className="mx-auto mb-2 size-5 text-muted-foreground/70 group-hover:text-primary/80" />
+                        <div className="text-[13px] font-medium text-foreground">
+                          Schedule a routine
+                        </div>
+                        <div className="mt-0.5 text-[11.5px] text-muted-foreground">
+                          Pick an agent. Write a prompt. Set a cron. Run it forever.
+                        </div>
+                      </button>
                     ) : (
                       <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
                         {allJobs.map(({ job, agent: owner }) => (

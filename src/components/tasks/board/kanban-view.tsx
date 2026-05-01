@@ -422,8 +422,16 @@ export function KanbanView({
                           </p>
                         </button>
                       ) : (
-                        <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-[11px] text-muted-foreground">
-                          {lane.hint}
+                        // Audit #034: empty lanes carry an icon + the lane's
+                        // hint so they read as teaching, not as flat captions.
+                        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border/50 px-3 py-6 text-center">
+                          <lane.icon className={cn(
+                            "size-4 text-muted-foreground/50",
+                            lane.spin && "animate-spin"
+                          )} />
+                          <p className="text-[11px] text-muted-foreground/80">
+                            {lane.hint}
+                          </p>
                         </div>
                       )
                     ) : (

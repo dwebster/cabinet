@@ -582,9 +582,13 @@ export function SettingsPage() {
       >
         <div className="flex items-center gap-2">
           <Settings className="h-4 w-4" />
-          <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
+          {/*
+           * Audit #059: Settings is the page topic, so its top heading
+           * should be H1, not H2. Visual size kept identical via Tailwind.
+           */}
+          <h1 className="text-[15px] font-semibold tracking-[-0.02em]">
             Settings
-          </h2>
+          </h1>
         </div>
         <div className="flex items-center gap-1.5">
 <Button
