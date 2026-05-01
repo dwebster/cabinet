@@ -56,7 +56,20 @@ interface CompanyJson {
  */
 export async function readUserProfile(): Promise<UserProfile> {
   const existing = await readJson<UserProfile>(USER_FILE);
-  if (existing) return existing;
+  if (existing) {
+    // Audit #039: legacy installs shipped with `name: "You"` baked in. Upgrade
+    // those silently — re-seed from the workspace home name / OS username.
+    // Anything the user explicitly typed (even "you") wins, so we treat the
+    // upgrade as opt-out: only swap when name is exactly "You" (case-sensitive
+    // — matches the legacy literal, not user-typed variants).
+    if (existing.name === "You") {
+      const seeded = await seedProfileFromOnboarding();
+      const upgraded: UserProfile = { ...existing, name: seeded.name };
+      await writeJson(USER_FILE, upgraded);
+      return upgraded;
+    }
+    return existing;
+  }
 
   const seeded = await seedProfileFromOnboarding();
   await writeJson(USER_FILE, seeded);
