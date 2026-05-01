@@ -410,9 +410,15 @@ export function TreeNode({
             onDrop={handleDrop}
             disabled={isMoving}
             className={cn(
-              "group flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
+              "group relative flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
               "hover:bg-foreground/[0.03] hover:text-foreground !cursor-grab active:!cursor-grabbing",
-              isSelected && "bg-accent text-accent-foreground font-medium",
+              // Audit #015: active row needs two cues, not just background.
+              // Adds a 2px primary-color accent bar on the left edge via a
+              // before:: pseudo (does not fight the row's existing padding)
+              // and bumps the label weight to font-semibold. Row background
+              // stays subtle so hover (no bar, no weight) reads as lighter.
+              isSelected &&
+                "bg-accent/70 text-accent-foreground font-semibold before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[2px] before:rounded-r-full before:bg-primary",
               showInto &&
                 "bg-primary/10 ring-1 ring-primary/30 ring-inset",
               blink && "cabinet-tree-blink",

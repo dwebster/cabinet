@@ -1640,8 +1640,18 @@ function DetailsSection({
               <option value={persona.provider}>{persona.provider}</option>
             ) : (
               selectableProviders.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}{p.available ? "" : " (not installed)"}
+                /*
+                 * Audit #030: not-installed providers were selectable, which
+                 * meant a user could pick a provider their machine couldn't
+                 * actually run. Disable the option (still visible so users
+                 * see what's available) and prefix with a clear marker.
+                 */
+                <option
+                  key={p.id}
+                  value={p.id}
+                  disabled={!p.available && p.id !== persona.provider}
+                >
+                  {p.name}{p.available ? "" : " — install required"}
                 </option>
               ))
             )}
@@ -1801,9 +1811,14 @@ function SkillsMultiSelect({
                   <Sparkles className="size-3 text-muted-foreground/60" />
                 )}
                 {entry.name}
-                <span className="ml-0.5 font-mono text-[10.5px] opacity-60">
-                  {entry.slug}
-                </span>
+                {/* Audit #029: only show the slug subscript when it's
+                    actually different from the display name; otherwise the
+                    button reads "code-review-excellence code-review-excellence". */}
+                {entry.name !== entry.slug && (
+                  <span className="ml-0.5 font-mono text-[10.5px] opacity-60">
+                    {entry.slug}
+                  </span>
+                )}
               </button>
             );
           })}
