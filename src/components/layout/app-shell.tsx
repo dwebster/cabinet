@@ -36,6 +36,7 @@ import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 import { SearchPalette } from "@/components/search/search-palette";
 import { KeyboardShortcutsModal } from "@/components/help/keyboard-shortcuts-modal";
 import { WhatsNewCard } from "@/components/help/whats-new-card";
+import { NarrowViewportHint } from "@/components/layout/narrow-viewport-hint";
 import { ConfirmDialogHost } from "@/components/ui/confirm-dialog-host";
 import { useGlobalHotkeys } from "@/hooks/use-global-hotkeys";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
@@ -766,6 +767,7 @@ export function AppShell() {
         style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '2.25rem' : '0px' } as React.CSSProperties}
       >
         <DaemonHealthBanner />
+        <NarrowViewportHint />
         <main className="flex-1 flex flex-col overflow-hidden">
           {renderContent()}
         </main>

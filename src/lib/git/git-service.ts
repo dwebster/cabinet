@@ -176,6 +176,25 @@ export interface UncommittedFile {
 
 const MAX_UNCOMMITTED_LIST = 50;
 
+// Audit #058: Cabinet's own runtime state writes shouldn't count as
+// user-visible "uncommitted" changes — they confused users into thinking
+// they had pending edits when only the daemon had touched a runtime file.
+// Anything matching one of these prefixes (relative to repo root) is hidden
+// from the user-visible count. The list mirrors what `.gitignore` should
+// already exclude; this is defense-in-depth in case a project's gitignore
+// drifts.
+const INTERNAL_PATH_PATTERNS: RegExp[] = [
+  /(^|\/)\.cabinet-state(\/|$)/,
+  /(^|\/)\.cabinet\/runtime-ports\.json$/,
+  /(^|\/)\.next(\/|$)/,
+  /(^|\/)node_modules(\/|$)/,
+  /(^|\/)\.cabinet-cache(\/|$)/,
+];
+
+function isInternalPath(p: string): boolean {
+  return INTERNAL_PATH_PATTERNS.some((re) => re.test(p));
+}
+
 export async function getStatus(): Promise<{ uncommitted: number; files: UncommittedFile[]; truncated: boolean; isGit: boolean }> {
   const g = await getGit();
   if (!g) return { uncommitted: 0, files: [], truncated: false, isGit: false };
@@ -185,7 +204,7 @@ export async function getStatus(): Promise<{ uncommitted: number; files: Uncommi
     // Audit #015: include the file list so the status bar can show it on
     // hover/click, not just a bare count. Capped at 50 entries to keep
     // payloads small; UI surfaces a "+N more" hint when truncated.
-    const files: UncommittedFile[] = [
+    const allFiles: UncommittedFile[] = [
       ...status.modified.map((path): UncommittedFile => ({ path, status: "M" })),
       ...status.not_added.map((path): UncommittedFile => ({ path, status: "?" })),
       ...status.created.map((path): UncommittedFile => ({ path, status: "A" })),
@@ -195,6 +214,8 @@ export async function getStatus(): Promise<{ uncommitted: number; files: Uncommi
         status: "R",
       })),
     ];
+    // Audit #058: drop Cabinet-internal writes from the user-facing count.
+    const files = allFiles.filter((f) => !isInternalPath(f.path));
     return {
       uncommitted: files.length,
       files: files.slice(0, MAX_UNCOMMITTED_LIST),

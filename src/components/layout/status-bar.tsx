@@ -386,9 +386,22 @@ export function StatusBar() {
       void fetchGitStatus();
     }, 0);
     const interval = setInterval(fetchGitStatus, 15000);
+    // Audit #058: refresh on tab focus so a banner stuck at "1 uncommitted"
+    // updates the moment the user comes back. The 15s interval still
+    // catches background changes between focus events.
+    const onFocus = () => {
+      void fetchGitStatus();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void fetchGitStatus();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.clearTimeout(initialFetch);
       clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 

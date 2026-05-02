@@ -431,9 +431,19 @@ export function TreeNode({
             {hasChildren ? (
               <span
                 role="button"
+                tabIndex={0}
+                aria-label={isExpanded ? `Collapse ${title}` : `Expand ${title}`}
+                aria-expanded={isExpanded}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleExpand(node.path);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleExpand(node.path);
+                  }
                 }}
                 className="shrink-0 -ml-1 flex items-center justify-center w-3 h-3 rounded hover:bg-accent"
               >

@@ -131,6 +131,8 @@ export function TerminalTabs() {
               e.stopPropagation();
               removeTerminalTab(tab.id);
             }}
+            aria-label={`Close tab ${tab.label}`}
+            title={`Close tab ${tab.label}`}
             className="hover:text-destructive"
           >
             <X className="h-2.5 w-2.5" />
@@ -142,6 +144,8 @@ export function TerminalTabs() {
         size="icon"
         className="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
         onClick={() => addTerminalTab()}
+        aria-label="New terminal tab"
+        title="New terminal tab"
       >
         <Plus className="h-3 w-3" />
       </Button>
@@ -151,6 +155,7 @@ export function TerminalTabs() {
         size="icon"
         className="h-6 w-6 text-muted-foreground hover:text-foreground"
         title={terminalPosition === "bottom" ? "Move to right panel" : "Move to bottom panel"}
+        aria-label={terminalPosition === "bottom" ? "Move terminal to right panel" : "Move terminal to bottom panel"}
         onClick={() => setTerminalPosition(terminalPosition === "bottom" ? "right" : "bottom")}
       >
         {terminalPosition === "bottom"
@@ -162,6 +167,8 @@ export function TerminalTabs() {
         size="icon"
         className="h-6 w-6 text-muted-foreground hover:text-foreground"
         onClick={closeTerminal}
+        aria-label="Close terminal"
+        title="Close terminal"
       >
         <X className="h-3 w-3" />
       </Button>
