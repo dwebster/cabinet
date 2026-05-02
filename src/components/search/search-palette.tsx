@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { THEMES, applyTheme, storeThemeName, type ThemeDefinition } from "@/lib/themes";
+import { useTheme } from "@/components/theme-provider";
+import type { SectionType } from "@/stores/app-store";
+import { Command, Palette, Settings as SettingsIcon } from "lucide-react";
 import {
   FileText,
   Search as SearchIcon,
@@ -42,6 +46,102 @@ const SCOPES: Array<{ id: SearchScope; label: string }> = [
 ];
 
 const DEBOUNCE_MS = 180;
+
+// Audit #038: minimal slash-command surface inside the palette. When the
+// query starts with "/" the search call is suppressed and the left pane
+// renders matching commands. ↵ runs. The set is intentionally small —
+// `theme`, `open` — so the foundation is in place without committing to
+// a full Linear-grade command system in one PR.
+type SlashCommand = {
+  id: string;
+  label: string;
+  /** Lowercased keywords used to match against the query body after the slash. */
+  keywords: string[];
+  hint?: string;
+  /** Sort weight — higher commands appear first when tied on match. */
+  weight?: number;
+  run: (ctx: SlashRunContext) => void | Promise<void>;
+};
+
+interface SlashRunContext {
+  setSection: (s: { type: SectionType; slug?: string }) => void;
+  setNextTheme: (mode: "light" | "dark" | "system") => void;
+  closePalette: () => void;
+}
+
+const SECTION_COMMANDS: Array<{ id: string; label: string; section: SectionType }> = [
+  { id: "open-home", label: "Home", section: "home" },
+  { id: "open-agents", label: "Agents", section: "agents" },
+  { id: "open-tasks", label: "Tasks", section: "tasks" },
+  { id: "open-settings", label: "Settings", section: "settings" },
+  { id: "open-help", label: "Help", section: "help" },
+  { id: "open-registry", label: "Registry", section: "registry" },
+];
+
+function buildSlashCommands(): SlashCommand[] {
+  const themeCommands: SlashCommand[] = THEMES.map((theme) => ({
+    id: `theme-${theme.name}`,
+    label: `Theme: ${theme.name}`,
+    keywords: ["theme", theme.name.toLowerCase()],
+    hint: theme.type === "dark" ? "Dark" : "Light",
+    weight: 1,
+    run: (ctx) => {
+      applyTheme(theme as ThemeDefinition);
+      storeThemeName(theme.name);
+      ctx.setNextTheme(theme.type as "light" | "dark");
+      ctx.closePalette();
+    },
+  }));
+
+  const sectionCommands: SlashCommand[] = SECTION_COMMANDS.map((c) => ({
+    id: c.id,
+    label: `Open: ${c.label}`,
+    keywords: ["open", c.label.toLowerCase(), c.section],
+    weight: 2,
+    run: (ctx) => {
+      ctx.setSection({ type: c.section });
+      ctx.closePalette();
+    },
+  }));
+
+  return [...sectionCommands, ...themeCommands];
+}
+
+function matchSlashCommands(
+  commands: SlashCommand[],
+  rawQuery: string
+): SlashCommand[] {
+  // Strip the leading slash. Empty body → return everything.
+  const body = rawQuery.replace(/^\//, "").trim().toLowerCase();
+  if (!body) return commands.slice(0, 30);
+  const tokens = body.split(/\s+/).filter(Boolean);
+  const scored: Array<{ cmd: SlashCommand; score: number }> = [];
+  for (const cmd of commands) {
+    let score = 0;
+    for (const token of tokens) {
+      let matched = false;
+      for (const kw of cmd.keywords) {
+        if (kw.startsWith(token)) {
+          score += 3;
+          matched = true;
+          break;
+        }
+        if (kw.includes(token)) {
+          score += 1;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        score = -1;
+        break;
+      }
+    }
+    if (score > 0) scored.push({ cmd, score: score + (cmd.weight ?? 0) });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 30).map((s) => s.cmd);
+}
 
 function flatten(results: SearchResponse | null, scope: SearchScope): FlatEntry[] {
   if (!results) return [];
@@ -136,6 +236,21 @@ export function SearchPalette() {
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Audit #038: slash-command mode. When the query starts with "/" the
+  // palette suppresses search and renders commands in the left pane.
+  const isCommandMode = query.startsWith("/");
+  const { setTheme: setNextTheme } = useTheme();
+  const slashCommands = useMemo(() => buildSlashCommands(), []);
+  const matchedCommands = useMemo(
+    () => (isCommandMode ? matchSlashCommands(slashCommands, query) : []),
+    [isCommandMode, slashCommands, query]
+  );
+  const [commandIndex, setCommandIndex] = useState(0);
+  // Reset selection when the matched-list changes.
+  useEffect(() => {
+    setCommandIndex(0);
+  }, [query, isCommandMode]);
+
   const flat = useMemo(() => flatten(results, scope), [results, scope]);
   const selected = useMemo(() => findEntry(flat, selectedResultId), [flat, selectedResultId]);
 
@@ -181,13 +296,19 @@ export function SearchPalette() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    // Audit #038: skip the search API call entirely when in command mode.
+    if (isCommandMode) {
+      setLoading(false);
+      setResults(null);
+      return;
+    }
     debounceRef.current = setTimeout(() => {
       void performSearch(query, scope);
     }, DEBOUNCE_MS);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, scope, performSearch]);
+  }, [query, scope, performSearch, isCommandMode, setLoading, setResults]);
 
   useEffect(() => {
     if (open) {
@@ -212,11 +333,38 @@ export function SearchPalette() {
     [commitRecentQuery, commitRecentPage, selectPage, loadPage, setSection, closePalette, query]
   );
 
+  const runCommand = useCallback(
+    (cmd: SlashCommand) => {
+      void cmd.run({
+        setSection,
+        setNextTheme,
+        closePalette,
+      });
+    },
+    [setSection, setNextTheme, closePalette]
+  );
+
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         closePalette();
+        return;
+      }
+      // Audit #038: slash-command mode owns its own arrow-key + Enter.
+      if (isCommandMode) {
+        if (matchedCommands.length === 0) return;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setCommandIndex((i) => Math.min(matchedCommands.length - 1, i + 1));
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setCommandIndex((i) => Math.max(0, i - 1));
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          const cmd = matchedCommands[commandIndex];
+          if (cmd) runCommand(cmd);
+        }
         return;
       }
       if (flat.length === 0) return;
@@ -237,7 +385,17 @@ export function SearchPalette() {
         if (selected) openEntry(selected);
       }
     },
-    [flat, selected, setSelectedResultId, closePalette, openEntry]
+    [
+      flat,
+      selected,
+      setSelectedResultId,
+      closePalette,
+      openEntry,
+      isCommandMode,
+      matchedCommands,
+      commandIndex,
+      runCommand,
+    ]
   );
 
   const askAi = useCallback(async () => {
@@ -265,7 +423,8 @@ export function SearchPalette() {
   }, [query, setAiPending, setAiResult]);
 
   const hasAnyResults = flat.length > 0;
-  const showZeroState = !loading && query.trim().length > 0 && !hasAnyResults && !serviceError;
+  const showZeroState =
+    !isCommandMode && !loading && query.trim().length > 0 && !hasAnyResults && !serviceError;
   const showRecents = !query.trim() && !loading;
 
   return (
@@ -366,7 +525,53 @@ export function SearchPalette() {
             {/* Left pane */}
             <div className="flex w-[340px] flex-col overflow-hidden border-r border-border">
               <div className="flex-1 overflow-y-auto py-1">
-                {loading && !hasAnyResults && (
+                {/* Audit #038: slash-command mode renders the matched
+                    commands in this pane and bypasses the search loader. */}
+                {isCommandMode ? (
+                  matchedCommands.length === 0 ? (
+                    <div className="flex flex-col items-start gap-1 px-3 py-6 text-[12px] text-muted-foreground">
+                      <p>No commands match.</p>
+                      <p className="text-[11px] text-muted-foreground/70">
+                        Try <code className="rounded bg-muted px-1">/theme paper</code>{" "}
+                        or <code className="rounded bg-muted px-1">/open settings</code>.
+                      </p>
+                    </div>
+                  ) : (
+                    <ul className="px-1">
+                      {matchedCommands.map((cmd, i) => {
+                        const active = i === commandIndex;
+                        const isTheme = cmd.id.startsWith("theme-");
+                        const isOpen = cmd.id.startsWith("open-");
+                        const Icon = isTheme ? Palette : isOpen ? SettingsIcon : Command;
+                        return (
+                          <li key={cmd.id}>
+                            <button
+                              type="button"
+                              onMouseEnter={() => setCommandIndex(i)}
+                              onClick={() => runCommand(cmd)}
+                              className={cn(
+                                "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] transition-colors",
+                                active
+                                  ? "bg-accent text-accent-foreground"
+                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                              )}
+                            >
+                              <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+                              <span className="flex-1 truncate">{cmd.label}</span>
+                              {cmd.hint && (
+                                <span className="shrink-0 text-[10.5px] text-muted-foreground/70">
+                                  {cmd.hint}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )
+                ) : null}
+
+                {!isCommandMode && loading && !hasAnyResults && (
                   <div className="flex items-center gap-2 px-3 py-6 text-muted-foreground text-[12px]">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     Searching…
@@ -396,6 +601,13 @@ export function SearchPalette() {
                         </p>
                       ))}
                     </div>
+                    {/* Audit #038: teach the slash-command mode in the
+                        empty state. Most users only discover keyboard
+                        commands when something tells them. */}
+                    <p className="pt-2 text-[11px] text-muted-foreground/60">
+                      Type <code className="rounded bg-muted px-1 text-[10.5px]">/</code>{" "}
+                      to run a command (theme, open).
+                    </p>
                   </div>
                 )}
 
