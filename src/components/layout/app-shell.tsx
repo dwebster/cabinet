@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/layout/header";
+import { NavArrows } from "@/components/layout/nav-arrows";
 import { KBEditor } from "@/components/editor/editor";
 import { WebsiteViewer } from "@/components/editor/website-viewer";
 import { PdfViewer } from "@/components/editor/pdf-viewer";
@@ -44,6 +45,11 @@ import { StatusBar } from "@/components/layout/status-bar";
 import { DaemonHealthBanner } from "@/components/layout/daemon-health-banner";
 import { TourModal } from "@/components/onboarding/tour/tour-modal";
 import { useTour } from "@/components/onboarding/tour/use-tour";
+import {
+  DataDirPrompt,
+  isDataDirConfirmed,
+} from "@/components/onboarding/data-dir-prompt";
+import { FeedbackPopup } from "@/components/onboarding/feedback-popup";
 import { StartWorkDialog, type StartWorkMode } from "@/components/composer/start-work-dialog";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
@@ -150,10 +156,22 @@ export function AppShell() {
   // from localStorage in a layout effect (runs before paint, so cached users
   // still skip the blank-screen flash that used to appear on refresh).
   const [showWizard, setShowWizard] = useState<boolean | null>(null);
+  const [showDataDirPrompt, setShowDataDirPrompt] = useState<boolean>(false);
   useIsoLayoutEffect(() => {
     try {
-      if (window.localStorage.getItem(WIZARD_DONE_STORAGE_KEY) === "1") {
+      const wizardDone =
+        window.localStorage.getItem(WIZARD_DONE_STORAGE_KEY) === "1";
+      if (wizardDone) {
         setShowWizard(false);
+        // Existing user — silent-accept their current data dir choice so the
+        // first-launch picker never ambushes them post-update.
+        if (!isDataDirConfirmed()) {
+          window.localStorage.setItem("cabinet.dataDirConfirmed", "silent");
+        }
+      } else if (!isDataDirConfirmed()) {
+        // First-run users see the data-dir picker before the wizard so they
+        // can confirm or override the default before the wizard writes anything.
+        setShowDataDirPrompt(true);
       }
     } catch {
       // ignore
@@ -742,6 +760,13 @@ export function AppShell() {
     return <div className="flex h-screen bg-background" />;
   }
 
+  // Show data-dir picker before the wizard for true first-run users.
+  if (showDataDirPrompt) {
+    return (
+      <DataDirPrompt onConfirmed={() => setShowDataDirPrompt(false)} />
+    );
+  }
+
   // Show onboarding wizard for first-time users
   if (showWizard) {
     return <OnboardingWizard onComplete={handleWizardComplete} />;
@@ -764,11 +789,19 @@ export function AppShell() {
       <Sidebar />
       <div
         className="flex-1 flex flex-col overflow-hidden"
-        style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '2.25rem' : '0px' } as React.CSSProperties}
+        style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '6rem' : '4rem' } as React.CSSProperties}
       >
         <DaemonHealthBanner />
         <NarrowViewportHint />
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="relative flex-1 flex flex-col overflow-hidden">
+          <div
+            className="pointer-events-none absolute top-2 z-30 flex items-center"
+            style={{ left: sidebarCollapsed ? '2.75rem' : '0.5rem' }}
+          >
+            <div className="pointer-events-auto rounded-md border border-border/60 bg-background/80 backdrop-blur-sm shadow-sm">
+              <NavArrows />
+            </div>
+          </div>
           {renderContent()}
         </main>
         {terminalOpen && terminalPosition === "bottom" && <TerminalTabs />}
@@ -808,6 +841,7 @@ export function AppShell() {
       />
       <NotificationToasts />
       <SystemToasts />
+      <FeedbackPopup />
       <TourModal
         open={tour.open}
         onClose={tour.close}

@@ -35,19 +35,14 @@ type RuntimePortsState = {
 };
 
 function defaultElectronDataDir(): string {
-  if (process.platform === "darwin") {
-    return path.join(os.homedir(), "Library", "Application Support", "Cabinet");
+  // User-visible defaults: Cabinet stores user-owned content (cabinets, docs,
+  // conversations), so we put it where users can find and back it up — not in
+  // hidden app-data dirs. macOS/Windows → ~/Documents/Cabinet, Linux → ~/Cabinet
+  // (Linux distros vary on whether ~/Documents exists; home-root is safer).
+  if (process.platform === "darwin" || process.platform === "win32") {
+    return path.join(os.homedir(), "Documents", "Cabinet");
   }
-  if (process.platform === "win32") {
-    return path.join(
-      process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
-      "Cabinet"
-    );
-  }
-  return path.join(
-    process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"),
-    "cabinet"
-  );
+  return path.join(os.homedir(), "Cabinet");
 }
 
 export function getCabinetRuntime(): "source" | "electron" {

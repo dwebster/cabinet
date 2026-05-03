@@ -383,6 +383,9 @@ export function useHashRoute() {
         window.history.replaceState(null, "", canonical);
         saveToLocalStorage(canonical);
       }
+      // Seed the back/forward history with this initial route. recordNav is
+      // idempotent if the hash already matches the current entry.
+      useAppStore.getState().recordNav(window.location.hash || canonical);
       requestAnimationFrame(() => {
         suppressHashUpdate.current = false;
       });
@@ -403,6 +406,7 @@ export function useHashRoute() {
         if (window.location.hash !== hash) {
           window.history.replaceState(null, "", hash);
           saveToLocalStorage(hash);
+          useAppStore.getState().recordNav(hash);
         }
       }
     });
@@ -414,6 +418,7 @@ export function useHashRoute() {
         if (window.location.hash !== hash) {
           window.history.replaceState(null, "", hash);
           saveToLocalStorage(hash);
+          useAppStore.getState().recordNav(hash);
         }
       }
     });
@@ -430,6 +435,11 @@ export function useHashRoute() {
       suppressHashUpdate.current = true;
       void applyRoute(route).finally(() => {
         saveToLocalStorage(window.location.hash);
+        // recordNav is a no-op when the new hash matches the current history
+        // entry (the case for goBack/goForward), so this safely covers both
+        // user-driven hash changes (browser back, manual edit) and our own
+        // back/forward replays.
+        useAppStore.getState().recordNav(window.location.hash);
         requestAnimationFrame(() => {
           suppressHashUpdate.current = false;
         });

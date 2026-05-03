@@ -42,6 +42,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SkillLibrary } from "@/components/skills/skill-library";
 import { ApiKeysSection } from "@/components/settings/api-keys-section";
+import { DataLocationsSection } from "@/components/settings/data-locations-section";
 import { UninstallSection } from "@/components/settings/uninstall-section";
 import { CliMcpSection } from "@/components/settings/cli-mcp-section";
 import { ConnectedIntegrationsCard } from "@/components/settings/connected-integrations-card";
@@ -1099,6 +1100,10 @@ export function SettingsPage() {
               </div>
 
               <StorageBackendSection />
+
+              <div className="border-t border-border pt-6">
+                <DataLocationsSection />
+              </div>
             </div>
           )}
 

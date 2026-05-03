@@ -17,7 +17,81 @@ if (!gotSingleInstanceLock) {
 }
 
 const isDev = !app.isPackaged;
-const managedDataDir = path.join(app.getPath("userData"), "cabinet-data");
+
+const userDataDir = app.getPath("userData");
+const cabinetConfigPath = path.join(userDataDir, "cabinet-config.json");
+const legacyDataDir = path.join(userDataDir, "cabinet-data");
+
+function defaultUserVisibleDataDir() {
+  // User-visible default: Cabinet stores user-owned content, so we put it
+  // where users can find and back it up — not in hidden app-data dirs.
+  // macOS/Windows → ~/Documents/Cabinet; Linux → ~/Cabinet (Linux distros
+  // vary on whether ~/Documents exists; home-root is safer).
+  const home = app.getPath("home");
+  if (process.platform === "darwin" || process.platform === "win32") {
+    return path.join(home, "Documents", "Cabinet");
+  }
+  return path.join(home, "Cabinet");
+}
+
+function readPersistedDataDir() {
+  try {
+    const raw = fs.readFileSync(cabinetConfigPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.dataDir === "string" && parsed.dataDir.trim()) {
+      return parsed.dataDir.trim();
+    }
+  } catch {
+    // missing/invalid is fine
+  }
+  return null;
+}
+
+function writePersistedDataDir(dir) {
+  try {
+    fs.mkdirSync(userDataDir, { recursive: true });
+    let existing = {};
+    try {
+      existing = JSON.parse(fs.readFileSync(cabinetConfigPath, "utf8")) || {};
+    } catch {
+      // start fresh
+    }
+    existing.dataDir = dir;
+    fs.writeFileSync(cabinetConfigPath, JSON.stringify(existing, null, 2), "utf8");
+  } catch {
+    // best-effort
+  }
+}
+
+function dirHasContent(dir) {
+  try {
+    const entries = fs.readdirSync(dir);
+    return entries.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function resolveManagedDataDir() {
+  // 1) Persisted choice wins.
+  const persisted = readPersistedDataDir();
+  if (persisted) return persisted;
+
+  // 2) Silent-accept v0.4.3-and-earlier installs that already have data at
+  //    the legacy <userData>/cabinet-data location. Migrate the config so
+  //    next launch uses the persisted-choice path, but never move the bytes.
+  if (dirHasContent(legacyDataDir)) {
+    writePersistedDataDir(legacyDataDir);
+    return legacyDataDir;
+  }
+
+  // 3) New install — use the user-visible default.
+  const fresh = defaultUserVisibleDataDir();
+  writePersistedDataDir(fresh);
+  return fresh;
+}
+
+const managedDataDir = resolveManagedDataDir();
 const updateStatusPath = path.join(managedDataDir, ".cabinet-state", "update-status.json");
 let mainWindow = null;
 let backendChildren = [];
@@ -268,6 +342,7 @@ async function startEmbeddedCabinet() {
     CABINET_RUNTIME: "electron",
     CABINET_INSTALL_KIND: "electron-macos",
     CABINET_DATA_DIR: managedDataDir,
+    CABINET_USER_DATA: userDataDir,
     CABINET_APP_PORT: String(appPort),
     CABINET_DAEMON_PORT: String(daemonPort),
     CABINET_APP_ORIGIN: appOrigin,

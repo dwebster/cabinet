@@ -74,9 +74,24 @@ interface TerminalTab {
   cwd?: string;
 }
 
+const NAV_HISTORY_CAP = 50;
+
 interface AppState {
   section: SelectedSection;
   returnTo: SelectedSection | null;
+  // Hash-level navigation history. Each entry is a `window.location.hash` string
+  // (e.g. `#/p/audits/foo`). Hash-level history captures *every* user
+  // navigation — including page-to-page moves that share the same SelectedSection
+  // (the page path lives in tree-store, not in `section`). The hash is the
+  // canonical identity of "where the user is".
+  navHistory: string[];
+  navIndex: number;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  /** Called by `useHashRoute` after a non-replay hashchange. Idempotent. */
+  recordNav: (hash: string) => void;
+  goBack: () => void;
+  goForward: () => void;
   terminalOpen: boolean;
   terminalTabs: TerminalTab[];
   activeTerminalTab: string | null;
@@ -157,6 +172,10 @@ function loadCabinetVisibilityModes(): Record<string, CabinetVisibilityMode> {
 export const useAppStore = create<AppState>((set, get) => ({
   section: { type: "home" },
   returnTo: null,
+  navHistory: [],
+  navIndex: -1,
+  canGoBack: false,
+  canGoForward: false,
   terminalOpen: false,
   terminalTabs: [],
   activeTerminalTab: null,
@@ -237,6 +256,54 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { returnTo } = get();
     if (!returnTo) return;
     set({ section: returnTo, returnTo: null, taskPanelFullscreen: false });
+  },
+
+  recordNav: (hash) => {
+    const { navHistory, navIndex } = get();
+    // No-op if the hash matches the current entry (this is what fires when
+    // goBack/goForward set the hash; the resulting hashchange would otherwise
+    // pollute history).
+    if (navIndex >= 0 && navHistory[navIndex] === hash) return;
+    // Drop any forward entries — a new navigation invalidates the redo path.
+    const truncated = navHistory.slice(0, navIndex + 1);
+    const next = [...truncated, hash];
+    const trimmed =
+      next.length > NAV_HISTORY_CAP
+        ? next.slice(next.length - NAV_HISTORY_CAP)
+        : next;
+    const nextIndex = trimmed.length - 1;
+    set({
+      navHistory: trimmed,
+      navIndex: nextIndex,
+      canGoBack: nextIndex > 0,
+      canGoForward: false,
+    });
+  },
+
+  goBack: () => {
+    if (typeof window === "undefined") return;
+    const { navHistory, navIndex } = get();
+    if (navIndex <= 0) return;
+    const nextIndex = navIndex - 1;
+    set({
+      navIndex: nextIndex,
+      canGoBack: nextIndex > 0,
+      canGoForward: true,
+    });
+    window.location.hash = navHistory[nextIndex];
+  },
+
+  goForward: () => {
+    if (typeof window === "undefined") return;
+    const { navHistory, navIndex } = get();
+    if (navIndex >= navHistory.length - 1) return;
+    const nextIndex = navIndex + 1;
+    set({
+      navIndex: nextIndex,
+      canGoBack: true,
+      canGoForward: nextIndex < navHistory.length - 1,
+    });
+    window.location.hash = navHistory[nextIndex];
   },
 
   toggleTerminal: () => {

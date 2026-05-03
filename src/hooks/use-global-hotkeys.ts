@@ -132,9 +132,34 @@ export function useGlobalHotkeys(): void {
         if (e.key === "2") { e.preventDefault(); useAppStore.getState().setSidebarDrawer("agents"); return; }
         if (e.key === "3") { e.preventDefault(); useAppStore.getState().setSidebarDrawer("tasks"); return; }
       }
+
+      // Cmd+[ / Cmd+] — back/forward navigation
+      if (!e.shiftKey && !e.altKey) {
+        if (e.key === "[") { e.preventDefault(); useAppStore.getState().goBack(); return; }
+        if (e.key === "]") { e.preventDefault(); useAppStore.getState().goForward(); return; }
+      }
+    };
+
+    const handleAltArrow = (e: KeyboardEvent) => {
+      // Alt+Left / Alt+Right — back/forward (Win/Linux convention).
+      // Separate handler because the main handle() returns early when no Cmd/Ctrl
+      // modifier is present unless the event matches one of its `mod`-less cases.
+      if (!e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      if (isEditableTarget(e.target)) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        useAppStore.getState().goBack();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        useAppStore.getState().goForward();
+      }
     };
 
     window.addEventListener("keydown", handle);
-    return () => window.removeEventListener("keydown", handle);
+    window.addEventListener("keydown", handleAltArrow);
+    return () => {
+      window.removeEventListener("keydown", handle);
+      window.removeEventListener("keydown", handleAltArrow);
+    };
   }, []);
 }
