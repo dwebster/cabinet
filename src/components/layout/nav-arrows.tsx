@@ -11,28 +11,28 @@ export function NavArrows() {
   const goForward = useAppStore((s) => s.goForward);
 
   return (
-    <div className="flex shrink-0 items-center gap-0.5">
+    <div className="flex shrink-0 items-center">
       <Button
         variant="ghost"
         size="icon"
         aria-label="Go back"
-        title="Go back"
-        className="h-7 w-7"
+        title="Go back (⌘[)"
+        className="h-7 w-7 text-muted-foreground/60 hover:text-muted-foreground disabled:opacity-40"
         onClick={goBack}
         disabled={!canGoBack}
       >
-        <ArrowLeft className="h-3.5 w-3.5" />
+        <ArrowLeft className="h-3 w-3" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
         aria-label="Go forward"
-        title="Go forward"
-        className="h-7 w-7"
+        title="Go forward (⌘])"
+        className="h-7 w-7 text-muted-foreground/60 hover:text-muted-foreground disabled:opacity-40"
         onClick={goForward}
         disabled={!canGoForward}
       >
-        <ArrowRight className="h-3.5 w-3.5" />
+        <ArrowRight className="h-3 w-3" />
       </Button>
     </div>
   );

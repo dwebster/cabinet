@@ -3,7 +3,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/layout/header";
-import { NavArrows } from "@/components/layout/nav-arrows";
 import { KBEditor } from "@/components/editor/editor";
 import { WebsiteViewer } from "@/components/editor/website-viewer";
 import { PdfViewer } from "@/components/editor/pdf-viewer";
@@ -789,19 +788,11 @@ export function AppShell() {
       <Sidebar />
       <div
         className="flex-1 flex flex-col overflow-hidden"
-        style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '6rem' : '4rem' } as React.CSSProperties}
+        style={{ '--sidebar-toggle-offset': sidebarCollapsed ? '2.25rem' : '0px' } as React.CSSProperties}
       >
         <DaemonHealthBanner />
         <NarrowViewportHint />
-        <main className="relative flex-1 flex flex-col overflow-hidden">
-          <div
-            className="pointer-events-none absolute top-2 z-30 flex items-center"
-            style={{ left: sidebarCollapsed ? '2.75rem' : '0.5rem' }}
-          >
-            <div className="pointer-events-auto rounded-md border border-border/60 bg-background/80 backdrop-blur-sm shadow-sm">
-              <NavArrows />
-            </div>
-          </div>
+        <main className="flex-1 flex flex-col overflow-hidden">
           {renderContent()}
         </main>
         {terminalOpen && terminalPosition === "bottom" && <TerminalTabs />}

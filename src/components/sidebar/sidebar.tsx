@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { NavArrows } from "@/components/layout/nav-arrows";
 import { TreeView } from "./tree-view";
 import { NewPageDialog } from "./new-page-dialog";
 import { NewCabinetDialog } from "./new-cabinet-dialog";
@@ -174,10 +175,11 @@ export function Sidebar() {
         style={!isMobile && !collapsed ? { width: sidebarWidth } : undefined}
       >
         <div className="sidebar-header flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <NavArrows />
             <button
               onClick={() => setSection({ type: "home" })}
-              className="group flex items-center gap-1.5 rounded px-1 -ml-1 font-logo text-[22px] italic tracking-[-0.01em] text-foreground hover:text-foreground/80 hover:bg-accent/60 transition-colors cursor-pointer"
+              className="group ml-1 flex items-center gap-1.5 rounded px-1 font-logo text-[22px] italic tracking-[-0.01em] text-foreground hover:text-foreground/80 hover:bg-accent/60 transition-colors cursor-pointer"
               title="Go to home"
               aria-label="Go to home"
             >
