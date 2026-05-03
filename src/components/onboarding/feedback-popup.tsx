@@ -433,7 +433,7 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
               rel="noreferrer"
               className="text-[11.5px] text-muted-foreground hover:text-foreground"
             >
-              Want to talk directly, or hang with other Cabinet folks?
+              Want to talk directly, or hang with other Cabinet members?
               {" "}
               <span className="underline">Join the Discord</span> →
             </a>
