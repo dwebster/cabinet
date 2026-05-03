@@ -16,15 +16,12 @@ const POPUP_DEFER_MS = 5000;
 const FEEDBACK_FORWARD_URL = "https://reports.runcabinet.com/feedback";
 
 type Trigger = 2 | 6;
-type Background = "developer" | "tech" | "non-tech" | "business" | "";
 
-const BACKGROUND_OPTIONS: { value: Background; label: string }[] = [
-  { value: "", label: "Prefer not to say" },
-  { value: "developer", label: "Developer" },
-  { value: "tech", label: "Technical (non-dev)" },
-  { value: "non-tech", label: "Non-technical" },
-  { value: "business", label: "Business owner / founder" },
-];
+// Free-text length caps that match the backend (cabinet-backend FEEDBACK.md):
+// q1/q2 stay short enough to be readable as quotes in the dashboard, and the
+// background field is the new free-text replacement for the v1 select.
+const Q_MAX = 500;
+const BACKGROUND_MAX = 200;
 
 const COPY: Record<
   Trigger,
@@ -137,7 +134,7 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
   const [rating, setRating] = useState<number>(0);
   const [q1, setQ1] = useState("");
   const [q2, setQ2] = useState("");
-  const [background, setBackground] = useState<Background>("");
+  const [background, setBackground] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
   const copy = COPY[trigger];
@@ -297,11 +294,15 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
           </label>
           <textarea
             value={q1}
-            onChange={(e) => setQ1(e.target.value)}
+            onChange={(e) => setQ1(e.target.value.slice(0, Q_MAX))}
             placeholder={copy.q1Hint}
             rows={2}
+            maxLength={Q_MAX}
             className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-[12.5px] resize-none focus:outline-none focus:ring-2 focus:ring-ring/50"
           />
+          <div className="mt-0.5 text-right text-[10.5px] text-muted-foreground/60">
+            {q1.length} / {Q_MAX}
+          </div>
         </div>
 
         <div className="mb-3">
@@ -310,11 +311,15 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
           </label>
           <textarea
             value={q2}
-            onChange={(e) => setQ2(e.target.value)}
+            onChange={(e) => setQ2(e.target.value.slice(0, Q_MAX))}
             placeholder={copy.q2Hint}
             rows={2}
+            maxLength={Q_MAX}
             className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-[12.5px] resize-none focus:outline-none focus:ring-2 focus:ring-ring/50"
           />
+          <div className="mt-0.5 text-right text-[10.5px] text-muted-foreground/60">
+            {q2.length} / {Q_MAX}
+          </div>
         </div>
 
         <div className="mb-4">
@@ -324,17 +329,17 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
               (optional)
             </span>
           </label>
-          <select
+          <input
+            type="text"
             value={background}
-            onChange={(e) => setBackground(e.target.value as Background)}
+            onChange={(e) => setBackground(e.target.value.slice(0, BACKGROUND_MAX))}
+            placeholder="e.g. indie hacker, PM at a SaaS, design student, hobbyist…"
+            maxLength={BACKGROUND_MAX}
             className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-[12.5px] focus:outline-none focus:ring-2 focus:ring-ring/50"
-          >
-            {BACKGROUND_OPTIONS.map((opt) => (
-              <option key={opt.value || "blank"} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          />
+          <div className="mt-0.5 text-right text-[10.5px] text-muted-foreground/60">
+            {background.length} / {BACKGROUND_MAX}
+          </div>
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-border/60">
