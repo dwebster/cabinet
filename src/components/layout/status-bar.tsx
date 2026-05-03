@@ -13,6 +13,7 @@ import {
   useHealthStore,
 } from "@/stores/health-store";
 import { useGithubStatsStore } from "@/stores/github-stats-store";
+import { StarExplosion, formatGithubStars } from "@/components/layout/star-explosion";
 import { createConversation } from "@/lib/agents/conversation-client";
 import {
   TaskRuntimePicker,
@@ -92,10 +93,6 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
-function formatGithubStars(stars: number) {
-  if (stars >= 10_000) return `${(stars / 1000).toFixed(1)}k`;
-  return new Intl.NumberFormat("en-US").format(stars);
-}
 
 // Audit #092: surface the last successful health check in the popover so
 // users can see how stale "Running"/"Down" actually is. "5s ago" is fine,
@@ -111,35 +108,6 @@ function formatRelativeAgo(ts: number | null, now: number): string {
   return `${hr}h ago`;
 }
 
-/* ── Star burst explosion particles ── */
-const BURST_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
-
-function StarExplosion() {
-  return (
-    <span className="pointer-events-none absolute inset-0" aria-hidden="true">
-      {BURST_ANGLES.map((angle, i) => {
-        const rad = (angle * Math.PI) / 180;
-        const dist = i % 2 === 0 ? 18 : 14;
-        const tx = Math.round(Math.cos(rad) * dist);
-        const ty = Math.round(Math.sin(rad) * dist);
-        return (
-          <span
-            key={angle}
-            className="absolute left-1/2 top-1/2 text-[7px] leading-none text-amber-400"
-            style={{
-              "--sb-x": `${tx}px`,
-              "--sb-y": `${ty}px`,
-              animation: "cabinet-star-burst 0.65s ease-out forwards",
-              animationDelay: `${i * 25}ms`,
-            } as React.CSSProperties}
-          >
-            ✦
-          </span>
-        );
-      })}
-    </span>
-  );
-}
 
 // Audit #018: relative-time formatter for the persistent "Saved · Xs ago"
 // state. Returns short tokens (s/m/h) with "just now" for the first 5

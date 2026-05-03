@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Plus,
+  RefreshCw,
   Settings,
   UserPlus,
   Home,
@@ -21,7 +22,17 @@ import { TreeView } from "./tree-view";
 import { NewPageDialog } from "./new-page-dialog";
 import { NewCabinetDialog } from "./new-cabinet-dialog";
 import { useAppStore } from "@/stores/app-store";
+import { useTreeStore } from "@/stores/tree-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import type { TreeNode } from "@/types";
+
+function collectPaths(nodes: TreeNode[], out: Set<string> = new Set()): Set<string> {
+  for (const n of nodes) {
+    out.add(n.path);
+    if (n.children?.length) collectPaths(n.children, out);
+  }
+  return out;
+}
 
 function useIsMobile() {
   const isMobile = useSyncExternalStore(
@@ -51,6 +62,8 @@ export function Sidebar() {
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
   const sidebarDrawer = useAppStore((s) => s.sidebarDrawer);
+  const [refreshing, setRefreshing] = useState(false);
+  const lastRefreshAtRef = useRef(0);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
     const storedWidth = window.localStorage.getItem("cabinet-sidebar-width");
@@ -99,6 +112,44 @@ export function Sidebar() {
     document.body.style.userSelect = "none";
   }
 
+  async function refreshTree() {
+    const now = Date.now();
+    if (refreshing) return;
+    if (now - lastRefreshAtRef.current < 1000) return;
+    lastRefreshAtRef.current = now;
+    setRefreshing(true);
+    try {
+      const before = collectPaths(useTreeStore.getState().nodes);
+      await useTreeStore.getState().loadTree();
+      const after = collectPaths(useTreeStore.getState().nodes);
+      let added = 0;
+      let removed = 0;
+      after.forEach((p) => {
+        if (!before.has(p)) added++;
+      });
+      before.forEach((p) => {
+        if (!after.has(p)) removed++;
+      });
+      const message =
+        added === 0 && removed === 0
+          ? "Refreshed — no changes."
+          : `Refreshed — ${added} added, ${removed} removed.`;
+      window.dispatchEvent(
+        new CustomEvent("cabinet:toast", {
+          detail: { kind: "success", message },
+        })
+      );
+    } catch {
+      window.dispatchEvent(
+        new CustomEvent("cabinet:toast", {
+          detail: { kind: "error", message: "Refresh failed." },
+        })
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   const desktopClass = collapsed ? "w-0 overflow-hidden" : "shrink-0";
   const mobileClass = cn(
     "fixed left-0 top-0 bottom-0 z-40",
@@ -134,16 +185,31 @@ export function Sidebar() {
               <Home className="size-3.5 not-italic opacity-0 group-hover:opacity-50 transition-opacity shrink-0" />
             </button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Collapse sidebar"
-            title="Collapse sidebar"
-            className="h-7 w-7"
-            onClick={() => setCollapsed(true)}
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Refresh sidebar"
+              title="Refresh sidebar (re-read data folder)"
+              className="h-7 w-7 text-muted-foreground/60 hover:text-muted-foreground"
+              onClick={refreshTree}
+              disabled={refreshing}
+            >
+              <RefreshCw
+                className={cn("h-3 w-3", refreshing && "animate-spin")}
+              />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+              className="h-7 w-7"
+              onClick={() => setCollapsed(true)}
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <TreeView />
 

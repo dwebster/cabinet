@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Download, FileCode, FileDown } from "lucide-react";
+import { Copy, Download, FileCode, FileDown, Sparkles } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,27 @@ export function Header() {
   const handleCopyMarkdown = async () => {
     if (!content) return;
     await navigator.clipboard.writeText(content);
+  };
+
+  const handleCopyForLLM = async () => {
+    if (!content || !currentPath) return;
+    const title =
+      frontmatter?.title ||
+      currentPath.split("/").pop()?.replace(/\.md$/, "") ||
+      "Untitled";
+    const body = content.replace(
+      /\]\((\.\/)?([^)\s]+\.md)\)/g,
+      "]($2 — also in this cabinet)"
+    );
+    const out = `# ${title}\n\nSource: cabinet://${currentPath}\n\n---\n\n${body}`;
+    await navigator.clipboard.writeText(out);
+    const bytes = new TextEncoder().encode(out).length;
+    const display = bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+    window.dispatchEvent(
+      new CustomEvent("cabinet:toast", {
+        detail: { kind: "success", message: `Copied ${display} of Markdown for LLM` },
+      })
+    );
   };
 
   const handleCopyHTML = async () => {
@@ -54,6 +75,10 @@ export function Header() {
             <DropdownMenuItem onClick={handleCopyMarkdown}>
               <Copy className="h-4 w-4 mr-2" />
               Copy Markdown
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopyForLLM}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Copy for LLMs
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleCopyHTML}>
               <FileCode className="h-4 w-4 mr-2" />
