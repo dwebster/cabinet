@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { parseTranscript, type Block } from "@/lib/agents/transcript-parser";
+import { Markdown } from "@/components/tasks/conversation/markdown";
 
 const LABEL_COLORS: Record<string, string> = {
   SUMMARY: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
@@ -200,11 +201,10 @@ function ActionsBlock({ block }: { block: Extract<Block, { type: "actions" }> })
 
 function MarkdownBlock({ content }: { content: string }) {
   return (
-    <div className="my-1 whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-foreground">
-      {content.split("\n").map((line, index) => (
-        <div key={index}>{renderInlineFormatting(line)}</div>
-      ))}
-    </div>
+    <Markdown
+      content={content}
+      className="text-[14.5px] leading-[1.65] tracking-[-0.005em] text-foreground/95"
+    />
   );
 }
 
