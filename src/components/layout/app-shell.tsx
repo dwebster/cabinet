@@ -113,6 +113,21 @@ import { useEditorStore } from "@/stores/editor-store";
 
 const DISMISSED_UPDATE_STORAGE_KEY = "cabinet.dismissed-update-version";
 const WIZARD_DONE_STORAGE_KEY = "cabinet.wizard-done";
+// sessionStorage key set by Settings → Storage → Reset onboarding. While
+// present we (a) skip the silent-accept of dataDirConfirmed and (b) skip the
+// agents-config self-correction that would otherwise rewrite wizard-done="1"
+// from server state — both of which silently undid Reset before this guard.
+// Cleared when the wizard completes; auto-clears on tab close (sessionStorage).
+export const ONBOARDING_RESET_MARKER_KEY = "cabinet.onboarding-reset-in-progress";
+
+function isOnboardingResetInProgress(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(ONBOARDING_RESET_MARKER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 // useLayoutEffect logs a no-op warning during SSR; alias to useEffect on the
 // server so we get pre-paint sync on the client without console noise.
@@ -158,9 +173,20 @@ export function AppShell() {
   const [showDataDirPrompt, setShowDataDirPrompt] = useState<boolean>(false);
   useIsoLayoutEffect(() => {
     try {
+      const resetting = isOnboardingResetInProgress();
       const wizardDone =
         window.localStorage.getItem(WIZARD_DONE_STORAGE_KEY) === "1";
-      if (wizardDone) {
+      if (resetting) {
+        // Explicit reset in progress: re-show the data-dir picker (with the
+        // current folder pre-filled) so the user can confirm or change it
+        // before the wizard re-runs. Do NOT silent-accept dataDirConfirmed —
+        // that would skip the picker the user just asked to see again.
+        if (!isDataDirConfirmed()) {
+          setShowDataDirPrompt(true);
+        }
+        // Leave showWizard=null so the agents-config effect (below) can flip
+        // it to true regardless of whether workspace.json exists on disk.
+      } else if (wizardDone) {
         setShowWizard(false);
         // Existing user — silent-accept their current data dir choice so the
         // first-launch picker never ambushes them post-update.
@@ -389,6 +415,14 @@ export function AppShell() {
       dedupFetch("/api/agents/config")
         .then((r) => r.json())
         .then((data) => {
+          // While Reset onboarding is in progress, force the wizard to show
+          // even though workspace.json still exists on disk. Without this the
+          // self-correction below silently rewrites wizard-done="1" within a
+          // second of reload and undoes the reset the user just requested.
+          if (isOnboardingResetInProgress()) {
+            setShowWizard(true);
+            return;
+          }
           const done = !!data.exists;
           setShowWizard(!done);
           if (done) {
@@ -479,6 +513,9 @@ export function AppShell() {
       window.localStorage.setItem("cabinet.tasks.v2.view", "kanban");
       window.localStorage.setItem("cabinet.tasks.v2.trigger", "all");
       window.localStorage.removeItem("cabinet.tasks.v2.agent");
+      // Onboarding flow finished — drop the reset marker so the next page
+      // load goes through the normal silent-accept path.
+      window.sessionStorage.removeItem(ONBOARDING_RESET_MARKER_KEY);
     } catch {
       // ignore
     }

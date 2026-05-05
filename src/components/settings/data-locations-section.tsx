@@ -20,6 +20,7 @@ import {
   listMatchingLocalStorageKeys,
 } from "@/lib/data-locations/client-registry";
 import type { DataLocation, DataLocationSnapshot } from "@/lib/data-locations/types";
+import { ONBOARDING_RESET_MARKER_KEY } from "@/components/layout/app-shell";
 
 function formatBytes(bytes: number | undefined): string {
   if (bytes === undefined) return "";
@@ -107,6 +108,16 @@ export function DataLocationsSection() {
       destructive: true,
     });
     if (!ok) return;
+
+    // Set the reset marker BEFORE clearing localStorage. app-shell reads this
+    // on the next reload to (a) re-show the data-dir picker and (b) suppress
+    // the agents-config self-correction that would otherwise re-write
+    // wizard-done="1" within a second and silently undo the reset.
+    try {
+      window.sessionStorage.setItem(ONBOARDING_RESET_MARKER_KEY, "1");
+    } catch {
+      // ignore — fall back to best-effort clear-only behavior
+    }
 
     let cleared = 0;
     for (const loc of onboardingRows) {

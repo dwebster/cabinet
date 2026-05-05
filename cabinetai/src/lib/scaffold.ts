@@ -17,6 +17,15 @@ export interface ResolvedCabinetRoot {
   cabinetDir: string;
   name: string;
   bootstrapped: boolean;
+  /**
+   * The directory the user started from (typically process.cwd()).
+   * When upward traversal found a parent `.cabinet`, `cabinetDir !== startedFrom`
+   * and the caller can warn the user that an existing cabinet was reused
+   * instead of treating their current dir as a fresh cabinet.
+   */
+  startedFrom: string;
+  /** True when findCabinetRoot walked up to an ancestor, not cwd itself. */
+  resolvedFromAncestor: boolean;
 }
 
 function buildCabinetManifest(
@@ -99,30 +108,50 @@ export function scaffoldCabinetDir(
   return manifest;
 }
 
-export function resolveOrBootstrapCabinetRoot(
+export function resolveCabinetRoot(
   startDir = process.cwd()
-): ResolvedCabinetRoot {
-  const cabinetDir = findCabinetRoot(startDir);
-  if (cabinetDir) {
-    return {
-      cabinetDir,
-      name: inferCabinetName(cabinetDir),
-      bootstrapped: false,
-    };
-  }
+): { cabinetDir: string; startedFrom: string; resolvedFromAncestor: boolean } | null {
+  const startedFrom = path.resolve(startDir);
+  const cabinetDir = findCabinetRoot(startedFrom);
+  if (!cabinetDir) return null;
+  return {
+    cabinetDir,
+    startedFrom,
+    resolvedFromAncestor: path.resolve(cabinetDir) !== startedFrom,
+  };
+}
 
-  const targetDir = path.resolve(startDir);
-  const name = inferCabinetName(targetDir);
+export function bootstrapCabinetAt(targetDir: string): ResolvedCabinetRoot {
+  const resolved = path.resolve(targetDir);
+  const name = inferCabinetName(resolved);
   scaffoldCabinetDir({
-    targetDir,
+    targetDir: resolved,
     name,
     kind: "root",
     preserveIndex: true,
   });
-
   return {
-    cabinetDir: targetDir,
+    cabinetDir: resolved,
     name,
     bootstrapped: true,
+    startedFrom: resolved,
+    resolvedFromAncestor: false,
   };
+}
+
+export function resolveOrBootstrapCabinetRoot(
+  startDir = process.cwd()
+): ResolvedCabinetRoot {
+  const startedFrom = path.resolve(startDir);
+  const found = resolveCabinetRoot(startedFrom);
+  if (found) {
+    return {
+      cabinetDir: found.cabinetDir,
+      name: inferCabinetName(found.cabinetDir),
+      bootstrapped: false,
+      startedFrom,
+      resolvedFromAncestor: found.resolvedFromAncestor,
+    };
+  }
+  return bootstrapCabinetAt(startedFrom);
 }
