@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 make g++ git ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
+COPY scripts ./scripts
 RUN npm ci
 
 FROM node:20-bookworm-slim AS builder
