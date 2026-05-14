@@ -4,15 +4,25 @@ import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Check, Loader2, Play, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/agents/agent-avatar";
-import { Switch } from "@/components/ui/switch";
+import { LockedSwitch } from "@/components/ui/locked-switch";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import type { AgentListItem } from "@/types/agents";
 import type { JobConfig } from "@/types/jobs";
 import { useLocale } from "@/i18n/use-locale";
 
+const LOCKED_TOOLTIP =
+  "This agent is stopped. Open the agent's page and start it to fire its routines.";
+
 interface BaseRowProps {
   agent: AgentListItem;
+  /** Visual dim — the row reads as "effectively off". */
   disabled: boolean;
+  /** Switch position — defaults to !disabled so callers that don't split
+   *  effective vs. switch state still work. */
+  switchChecked?: boolean;
+  /** Lock the Switch (master is off — child can't be toggled until master
+   *  is back on). Renders gray + tooltip. */
+  switchLocked?: boolean;
   title: string;
   subtitle: string;
   schedule: string;
@@ -26,6 +36,8 @@ interface BaseRowProps {
 function ScheduleRow({
   agent,
   disabled,
+  switchChecked,
+  switchLocked = false,
   title,
   subtitle,
   schedule,
@@ -36,6 +48,7 @@ function ScheduleRow({
   onDelete,
 }: BaseRowProps) {
   const { t } = useLocale();
+  const isOn = switchChecked ?? !disabled;
   const [running, setRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -88,9 +101,9 @@ function ScheduleRow({
   }
 
   const actionSlotWidth = onDelete ? "w-[64px]" : "w-[36px]";
-  const toggleLabel = disabled
-    ? toggleVerb === "pause" ? "Resume" : "Enable"
-    : toggleVerb === "pause" ? "Pause" : "Disable";
+  const toggleLabel = isOn
+    ? toggleVerb === "pause" ? "Pause" : "Disable"
+    : toggleVerb === "pause" ? "Resume" : "Enable";
 
   return (
     <div
@@ -102,21 +115,26 @@ function ScheduleRow({
         "group relative flex w-full items-center gap-3 px-4 py-2.5 text-left outline-none transition-colors",
         confirming
           ? "bg-red-500/10"
-          : "hover:bg-muted/40 focus-visible:bg-muted/40",
-        disabled && !confirming && "opacity-60"
+          : "hover:bg-muted/40 focus-visible:bg-muted/40"
       )}
     >
       <AgentAvatar
         agent={agent}
         shape="circle"
         size="sm"
-        className={cn(disabled && "saturate-50")}
+        className={cn(disabled && "saturate-50 opacity-60")}
       />
       <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
-        <span className="truncate text-[12.5px] font-semibold text-foreground">
+        <span className={cn(
+          "truncate text-[12.5px] font-semibold",
+          disabled ? "text-muted-foreground/70" : "text-foreground"
+        )}>
           {title}
         </span>
-        <span className="truncate text-[11.5px] text-muted-foreground">
+        <span className={cn(
+          "truncate text-[11.5px]",
+          disabled ? "text-muted-foreground/60" : "text-muted-foreground"
+        )}>
           · {subtitle}
         </span>
       </div>
@@ -188,20 +206,22 @@ function ScheduleRow({
           </div>
         )}
 
-        <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+        <span className={cn(
+          "whitespace-nowrap text-[11px]",
+          disabled ? "text-muted-foreground/60" : "text-muted-foreground"
+        )}>
           {schedule ? cronToHuman(schedule) : ""}
         </span>
         <div
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
-          aria-label={toggleLabel}
-          title={toggleLabel}
         >
-          <Switch
-            checked={!disabled}
+          <LockedSwitch
+            checked={isOn}
             onCheckedChange={() => void handleToggle()}
-            disabled={toggling}
-            aria-label={toggleLabel}
+            locked={switchLocked}
+            tooltip={LOCKED_TOOLTIP}
+            ariaLabel={toggleLabel}
           />
         </div>
       </div>
@@ -225,10 +245,16 @@ export function RoutineRow({
   onDelete: () => void | Promise<void>;
 }) {
   const { t } = useLocale();
+  // Effective off when the agent is stopped or the job is disabled. The Switch
+  // is locked while the agent is stopped — the user has to start the agent
+  // before they can toggle children, mirroring the parent/child relationship.
+  const effectiveOn = agent.active && job.enabled;
   return (
     <ScheduleRow
       agent={agent}
-      disabled={!job.enabled}
+      disabled={!effectiveOn}
+      switchChecked={job.enabled}
+      switchLocked={!agent.active}
       title={job.name}
       subtitle={agent.name}
       schedule={job.schedule}
@@ -249,12 +275,21 @@ export function HeartbeatRow({
   agent: AgentListItem;
   onEdit: () => void;
   onRun: () => void | Promise<void>;
+  /** Toggles `agent.heartbeatEnabled` only. The master `agent.active`
+   *  switch is gated separately on the agent header / detail page. */
   onToggle: () => void | Promise<void>;
 }) {
+  const heartbeatOn = agent.heartbeatEnabled !== false;
+  const effectiveOn = agent.active && heartbeatOn;
   return (
     <ScheduleRow
       agent={agent}
-      disabled={!agent.active}
+      // Visual dim when *effectively* off (master or per-heartbeat off);
+      // the Switch is locked while the agent is stopped (same parent/child
+      // gating used for routines).
+      disabled={!effectiveOn}
+      switchChecked={heartbeatOn}
+      switchLocked={!agent.active}
       title={agent.name}
       subtitle="Heartbeat"
       schedule={agent.heartbeat || ""}
