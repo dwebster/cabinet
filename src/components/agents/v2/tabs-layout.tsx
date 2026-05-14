@@ -109,7 +109,8 @@ function Divider() {
  * — no JS handlers competing for the same element.
  */
 function MasterToggle() {
-  const { agents, toggleAllAgentsActive } = useAgentsContext();
+  const { agents, toggleAllAgentsActive, bulkToggleInFlight } =
+    useAgentsContext();
   const anyActive = agents.some((a) => a.active);
   const activeCount = agents.filter((a) => a.active).length;
   const totalCount = agents.length;
@@ -126,12 +127,14 @@ function MasterToggle() {
       <SwitchPrimitive.Root
         checked={anyActive}
         onCheckedChange={() => void toggleAllAgentsActive()}
-        disabled={totalCount === 0}
+        disabled={totalCount === 0 || bulkToggleInFlight}
         aria-label={anyActive ? "Stop every agent" : "Start every agent"}
+        aria-busy={bulkToggleInFlight}
         className={cn(
           "peer group/master relative inline-flex h-7 w-[5.5rem] shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors outline-none",
           "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-          "disabled:cursor-not-allowed disabled:opacity-50",
+          "disabled:cursor-not-allowed",
+          bulkToggleInFlight ? "opacity-80" : "disabled:opacity-50",
           "data-[checked]:bg-emerald-500 data-[unchecked]:bg-muted-foreground/30"
         )}
       >

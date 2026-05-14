@@ -16,10 +16,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { showError, showInfo, showSuccess } from "@/lib/ui/toast";
 import { useAppStore } from "@/stores/app-store";
 import type {
   CabinetAgentSummary,
@@ -66,6 +68,10 @@ interface AgentsContextValue {
    *  (which also gates their heartbeats and routines via PR #77). When
    *  none are active, this starts all. */
   toggleAllAgentsActive: () => Promise<void>;
+  /** True while the master start-all / stop-all request is in flight.
+   *  Used by the MasterToggle to disable the Switch and avoid double
+   *  submits during the optimistic-update window. */
+  bulkToggleInFlight: boolean;
 
   // Dialog openers
   heartbeatDialog: HeartbeatDialogState | null;
@@ -105,6 +111,13 @@ export function AgentsContextProvider({
   const [agents, setAgents] = useState<CabinetAgentSummary[]>([]);
   const [jobs, setJobs] = useState<CabinetJobSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bulkToggleInFlight, setBulkToggleInFlight] = useState(false);
+  // Daemon writes during a bulk toggle fire `cabinet:agents/agent_status`
+  // events. Each one would normally trigger refresh(), which races with
+  // the optimistic update and brings back mid-flight (still-active) state,
+  // causing the switch to flicker back to ON. This ref lets the event
+  // listener short-circuit while a bulk op is in flight.
+  const bulkInFlightRef = useRef(false);
 
   const [heartbeatDialog, setHeartbeatDialog] =
     useState<HeartbeatDialogState | null>(null);
@@ -139,7 +152,10 @@ export function AgentsContextProvider({
 
   // Refetch when other parts of the app touch agents/jobs
   useEffect(() => {
-    const onChange = () => void refresh();
+    const onChange = () => {
+      if (bulkInFlightRef.current) return;
+      void refresh();
+    };
     window.addEventListener("cabinet:agents/agent_status", onChange);
     window.addEventListener("cabinet:conversation-completed", onChange);
     return () => {
@@ -212,32 +228,146 @@ export function AgentsContextProvider({
   );
 
   const toggleAllAgentsActive = useCallback(async () => {
-    const anyActive = agents.some((a) => a.active);
-    await fetch("/api/agents/scheduler", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: anyActive ? "stop-all" : "start-all",
-        cabinetPath: effectivePath,
-      }),
-    }).catch(() => {});
-    await refresh();
-  }, [agents, effectivePath, refresh]);
+    if (bulkToggleInFlight) return;
+    const turningOff = agents.some((a) => a.active);
+    // Only flip the agents that actually need to change. Targets is
+    // also the list we'll write per-agent — bypassing the scheduler
+    // bulk endpoint, which filters by a single cabinetPath and silently
+    // skips agents in sibling cabinets / global scope (the bug that
+    // made the optimistic update revert on refresh).
+    const targets = turningOff
+      ? agents.filter((a) => a.active)
+      : agents.filter((a) => !a.active);
+    const affectedCount = targets.length;
+    if (affectedCount === 0) return;
+
+    const previousAgents = agents;
+    bulkInFlightRef.current = true;
+    setBulkToggleInFlight(true);
+    setAgents((prev) => prev.map((a) => ({ ...a, active: !turningOff })));
+    showInfo(
+      turningOff
+        ? `Pausing ${affectedCount} ${affectedCount === 1 ? "agent" : "agents"}…`
+        : `Starting ${affectedCount} ${affectedCount === 1 ? "agent" : "agents"}…`
+    );
+
+    try {
+      const results = await Promise.allSettled(
+        targets.map((agent) =>
+          fetch(`/api/agents/personas/${agent.slug}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              active: !turningOff,
+              cabinetPath: agent.cabinetPath || effectivePath,
+            }),
+          }).then((res) => {
+            if (!res.ok) throw new Error(`${agent.slug} ${res.status}`);
+          })
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      bulkInFlightRef.current = false;
+      await refresh();
+      if (failed === 0) {
+        showSuccess(
+          turningOff
+            ? `Team paused. Running tasks will finish on their own — nothing new fires until you switch the team back on.`
+            : `Team active. Heartbeats and routines will fire on their next scheduled tick.`
+        );
+      } else if (failed === affectedCount) {
+        setAgents(previousAgents);
+        showError(
+          `Couldn't ${turningOff ? "pause" : "start"} the team. Check that the daemon is running and try again.`
+        );
+      } else {
+        showError(
+          `${failed} of ${affectedCount} agents couldn't be ${turningOff ? "paused" : "started"} — the rest were updated.`
+        );
+      }
+    } catch {
+      setAgents(previousAgents);
+      showError(
+        `Couldn't reach the agent scheduler. Try again, or check that the daemon is running.`
+      );
+    } finally {
+      bulkInFlightRef.current = false;
+      setBulkToggleInFlight(false);
+    }
+  }, [agents, bulkToggleInFlight, effectivePath, refresh]);
 
   const toggleAllHeartbeats = useCallback(async () => {
-    const anyEnabled = agents.some(
-      (a) => !!a.heartbeat && a.heartbeatEnabled !== false
+    if (bulkToggleInFlight) return;
+    const withHeartbeat = agents.filter((a) => !!a.heartbeat);
+    const anyEnabled = withHeartbeat.some((a) => a.heartbeatEnabled !== false);
+    // Same scope-mismatch fix as toggleAllAgentsActive — write each
+    // persona directly with its own cabinetPath rather than going
+    // through the scheduler bulk endpoint.
+    const targets = anyEnabled
+      ? withHeartbeat.filter((a) => a.heartbeatEnabled !== false)
+      : withHeartbeat.filter((a) => a.heartbeatEnabled === false);
+    const affectedCount = targets.length;
+    if (affectedCount === 0) return;
+
+    const previousAgents = agents;
+    bulkInFlightRef.current = true;
+    setBulkToggleInFlight(true);
+    setAgents((prev) =>
+      prev.map((a) =>
+        !!a.heartbeat ? { ...a, heartbeatEnabled: !anyEnabled } : a
+      )
     );
-    await fetch("/api/agents/scheduler", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: anyEnabled ? "pause-heartbeats" : "resume-heartbeats",
-        cabinetPath: effectivePath,
-      }),
-    }).catch(() => {});
-    await refresh();
-  }, [agents, effectivePath, refresh]);
+    showInfo(
+      anyEnabled
+        ? `Pausing ${affectedCount} ${affectedCount === 1 ? "heartbeat" : "heartbeats"}…`
+        : `Resuming ${affectedCount} ${affectedCount === 1 ? "heartbeat" : "heartbeats"}…`
+    );
+
+    try {
+      const results = await Promise.allSettled(
+        targets.map((agent) =>
+          fetch(`/api/agents/personas/${agent.slug}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              heartbeat: agent.heartbeat || "",
+              heartbeatEnabled: !anyEnabled,
+              cabinetPath: agent.cabinetPath || effectivePath,
+            }),
+          }).then((res) => {
+            if (!res.ok) throw new Error(`${agent.slug} ${res.status}`);
+          })
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      bulkInFlightRef.current = false;
+      await refresh();
+      if (failed === 0) {
+        showSuccess(
+          anyEnabled
+            ? `Heartbeats paused. Agents stay online for manual work; their scheduled check-ins resume when you switch this back on.`
+            : `Heartbeats resumed. Each agent fires on its next scheduled tick.`
+        );
+      } else if (failed === affectedCount) {
+        setAgents(previousAgents);
+        showError(
+          `Couldn't ${anyEnabled ? "pause" : "resume"} heartbeats. Check that the daemon is running and try again.`
+        );
+      } else {
+        showError(
+          `${failed} of ${affectedCount} heartbeats couldn't be ${anyEnabled ? "paused" : "resumed"} — the rest were updated.`
+        );
+      }
+    } catch {
+      setAgents(previousAgents);
+      showError(
+        `Couldn't reach the agent scheduler. Try again, or check that the daemon is running.`
+      );
+    } finally {
+      bulkInFlightRef.current = false;
+      setBulkToggleInFlight(false);
+    }
+  }, [agents, bulkToggleInFlight, effectivePath, refresh]);
 
   const value = useMemo<AgentsContextValue>(
     () => ({
@@ -253,6 +383,7 @@ export function AgentsContextProvider({
       toggleJobEnabled,
       toggleAllHeartbeats,
       toggleAllAgentsActive,
+      bulkToggleInFlight,
       heartbeatDialog,
       setHeartbeatDialog,
       routineDialog,
@@ -275,6 +406,7 @@ export function AgentsContextProvider({
       toggleJobEnabled,
       toggleAllHeartbeats,
       toggleAllAgentsActive,
+      bulkToggleInFlight,
       heartbeatDialog,
       routineDialog,
       newAgentOpen,

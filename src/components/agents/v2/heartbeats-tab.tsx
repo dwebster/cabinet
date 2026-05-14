@@ -21,6 +21,7 @@ export function HeartbeatsTab() {
     agents,
     toggleHeartbeatEnabled,
     toggleAllHeartbeats,
+    bulkToggleInFlight,
     setHeartbeatDialog,
   } = useAgentsContext();
   const explainer = useExplainerState("heartbeats");
@@ -120,8 +121,9 @@ export function HeartbeatsTab() {
           <button
             type="button"
             onClick={() => void toggleAllHeartbeats()}
+            disabled={bulkToggleInFlight}
             title={anyEnabled ? "Pause every heartbeat" : "Resume every heartbeat"}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Pause className="size-3.5" />
             {anyEnabled ? "Pause all" : "Resume all"}
