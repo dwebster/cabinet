@@ -19,6 +19,7 @@ import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
 import { detectEmbed } from "@/lib/embeds/detect";
 import { cellAround, isInTable } from "@tiptap/pm/tables";
 import type { TreeNode } from "@/types";
+import { useLocale } from "@/i18n/use-locale";
 
 async function uploadFile(pagePath: string, file: File): Promise<string | null> {
   const formData = new FormData();
@@ -115,6 +116,7 @@ function resolveInternalLink(
 }
 
 export function KBEditor() {
+  const { t } = useLocale();
   const { currentPath, content, saveStatus, frontmatter, isLoading, loadStatus, createMissingPage } = useEditorStore();
   const nodes = useTreeStore((s) => s.nodes);
   const isRtl = frontmatter?.dir === "rtl";
@@ -166,6 +168,7 @@ export function KBEditor() {
       attributes: {
         class:
           "focus:outline-none min-h-[calc(100vh-12rem)] px-4 sm:px-8 py-6 max-w-3xl mx-auto",
+        dir: isRtl ? "rtl" : "ltr",
       },
       handleKeyDown: (view, event) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a" && isInTable(view.state)) {
@@ -351,6 +354,17 @@ export function KBEditor() {
     setContent();
   }, [editor, content, currentPath, isLoading, renderedPath]);
 
+  // Push frontmatter.dir into the ProseMirror contenteditable element so list
+  // indentation, table cell alignment, and block direction all flip when the
+  // user toggles RTL on the document. editorProps.attributes is read once at
+  // editor creation, so we have to mutate the DOM imperatively here.
+  useEffect(() => {
+    if (!editor) return;
+    const el = editor.view?.dom;
+    if (!el) return;
+    el.setAttribute("dir", isRtl ? "rtl" : "ltr");
+  }, [editor, isRtl]);
+
   const showLoadingOverlay =
     currentPath !== null && (isLoading || renderedPath !== currentPath);
 
@@ -534,7 +548,7 @@ export function KBEditor() {
                 className="group flex items-center gap-2 text-[13px] text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-pointer"
               >
                 <Sparkles className="h-3.5 w-3.5 group-hover:text-primary transition-colors" />
-                <span>Edit with AI</span>
+                <span>{t("editorExtras:editWithAi")}</span>
               </button>
               <span className="text-[11px] text-muted-foreground/30 select-none">
                 <kbd className="rounded px-1 py-0.5 font-mono text-[10px] ring-1 ring-foreground/10">/</kbd>

@@ -33,6 +33,7 @@ import { buildThemesDemo } from "./demos/themes-demo";
 import { buildShortcutsDemo } from "./demos/shortcuts-demo";
 import { buildSkillsDemo } from "./demos/skills-demo";
 import { buildApiKeysDemo } from "./demos/api-keys-demo";
+import { useLocale } from "@/i18n/use-locale";
 
 type DemoId =
   | "ai-team"
@@ -68,12 +69,12 @@ interface HelpItem {
   action: HelpAction;
 }
 
-const HELP_ITEMS: HelpItem[] = [
+function getHelpItems(t: (k: string) => string): HelpItem[] { return [
   {
     id: "tour",
     title: (
       <>
-        Meet your <span style={{ color: P.accent }}>Cabinet</span>.
+        Meet your <span style={{ color: P.accent }}>{t("help:page.cabinet")}</span>.
       </>
     ),
     description: "Your AI team. Your knowledge base. One place.",
@@ -85,7 +86,7 @@ const HELP_ITEMS: HelpItem[] = [
     id: "agents",
     title: (
       <>
-        Your <span style={{ color: P.accent }}>AI team</span>.
+        Your <span style={{ color: P.accent }}>{t("help:page.aiTeam")}</span>.
       </>
     ),
     description:
@@ -124,7 +125,7 @@ const HELP_ITEMS: HelpItem[] = [
     id: "cabinets",
     title: (
       <>
-        A team of <span style={{ color: P.accent }}>AI teams</span>.
+        A team of <span style={{ color: P.accent }}>{t("help:page.aiTeams")}</span>.
       </>
     ),
     description:
@@ -137,7 +138,7 @@ const HELP_ITEMS: HelpItem[] = [
     id: "routines",
     title: (
       <>
-        <span style={{ color: P.accent }}>Routines</span> & schedules.
+        <span style={{ color: P.accent }}>{t("help:page.routines")}</span> & schedules.
       </>
     ),
     description:
@@ -189,7 +190,7 @@ const HELP_ITEMS: HelpItem[] = [
     id: "shortcuts",
     title: (
       <>
-        <span style={{ color: P.accent }}>Keyboard</span> shortcuts.
+        <span style={{ color: P.accent }}>{t("helpPage:keyboard")}</span> shortcuts.
       </>
     ),
     description:
@@ -204,7 +205,7 @@ const HELP_ITEMS: HelpItem[] = [
     id: "skills",
     title: (
       <>
-        <span style={{ color: P.accent }}>Skills</span> for your agents.
+        <span style={{ color: P.accent }}>{t("helpPage:skills")}</span> for your agents.
       </>
     ),
     description:
@@ -217,7 +218,7 @@ const HELP_ITEMS: HelpItem[] = [
     id: "api-keys",
     title: (
       <>
-        <span style={{ color: P.accent }}>API keys</span> for your tools.
+        <span style={{ color: P.accent }}>{t("helpPage:apiKeys")}</span> for your tools.
       </>
     ),
     description:
@@ -230,7 +231,7 @@ const HELP_ITEMS: HelpItem[] = [
     id: "integrations",
     title: (
       <>
-        <span style={{ color: P.accent }}>MCP servers</span> & integrations.
+        <span style={{ color: P.accent }}>{t("helpPage:mcpServers")}</span> & integrations.
       </>
     ),
     description:
@@ -239,7 +240,7 @@ const HELP_ITEMS: HelpItem[] = [
     visual: <IntegrationsVisual />,
     action: { kind: "soon" },
   },
-];
+]; }
 
 function HelpCard({
   item,
@@ -341,6 +342,8 @@ function HelpCard({
 }
 
 export function HelpPage() {
+  const { t } = useLocale();
+  const HELP_ITEMS = getHelpItems(t);
   const [activeDemo, setActiveDemo] = useState<DemoConfig | null>(null);
 
   const launchDemo = (demoId: DemoId) => {

@@ -101,6 +101,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import { editorExtensions } from "@/components/editor/extensions";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
+import { useLocale } from "@/i18n/use-locale";
 
 interface AgentJob {
   id: string;
@@ -399,6 +400,7 @@ function StatusChip({
   color: string;
   onClick?: () => void;
 }) {
+  const { t } = useLocale();
   const label = status === "working" ? "Working" : status === "ready" ? "Ready" : "Paused";
   return (
     <button
@@ -454,6 +456,7 @@ function TopBar({
   onExport: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useLocale();
   const palette = persona.color
     ? tintFromHex(persona.color)
     : getAgentColor(persona.slug);
@@ -564,7 +567,7 @@ function TopBar({
                     </span>
                   </div>
                   {canDispatch && (
-                    <div className="text-muted-foreground">Click to turn off.</div>
+                    <div className="text-muted-foreground">{t("agents:detail.clickToTurnOff")}</div>
                   )}
                 </div>
               </TooltipContent>
@@ -640,6 +643,7 @@ function AvatarEditorPopover({
   onApplyOptimistic: (fields: Record<string, string>) => void;
   onClose: () => void;
 }) {
+  const { t } = useLocale();
   const [tab, setTab] = useState<"icon" | "avatar">("icon");
   const [uploading, setUploading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -739,7 +743,7 @@ function AvatarEditorPopover({
           </div>
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Color</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{t("agents:detail.color")}</p>
             <div className="flex flex-wrap gap-1.5 items-center">
               {COLOR_PRESETS.map((hex) => (
                 <button
@@ -754,7 +758,7 @@ function AvatarEditorPopover({
                 />
               ))}
               <label
-                title="Custom color"
+                title={t("agents:detail.customColor")}
                 className="relative h-6 w-6 rounded-full border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-foreground/60 transition-colors overflow-hidden"
               >
                 <input
@@ -771,7 +775,7 @@ function AvatarEditorPopover({
       ) : (
         <div className="p-3 space-y-3">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Preset</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{t("agents:detail.preset")}</p>
             <div className="grid grid-cols-8 gap-1 max-h-56 overflow-y-auto pr-1">
               {AVATAR_PRESETS.map((preset) => {
                 const isSelected = persona.avatar === preset.id;
@@ -853,6 +857,7 @@ function Hero({
   onSaveFields: (fields: Record<string, string>) => void;
   onApplyOptimistic: (fields: Record<string, string>) => void;
 }) {
+  const { t } = useLocale();
   const [editorOpen, setEditorOpen] = useState(false);
   const palette = persona.color
     ? tintFromHex(persona.color)
@@ -867,7 +872,7 @@ function Hero({
             type="button"
             onClick={() => setEditorOpen((v) => !v)}
             className="group relative focus:outline-none"
-            title="Edit icon, color, or avatar"
+            title={t("agents:detail.editIconColor")}
           >
             <AgentAvatar
               agent={{
@@ -918,7 +923,7 @@ function Hero({
                 <span className="opacity-40">·</span>
                 <span
                   className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] text-violet-300"
-                  title="Shared across all cabinets — edits apply everywhere"
+                  title={t("agents:detail.sharedAcrossCabinetsHint")}
                 >
                   Global
                 </span>
@@ -1144,13 +1149,14 @@ function InboxSection({
   onOpenTask: (task: AgentTask) => void;
   startingTaskId: string | null;
 }) {
+  const { t } = useLocale();
   if (tasks.length === 0) return null;
   const pending = tasks.filter((t) => t.status === "pending" || t.status === "in_progress");
   if (pending.length === 0) return null;
 
   return (
     <Section
-      title="Inbox"
+      title={t("agents:detail.inbox")}
       meta={`${pending.length} waiting`}
     >
       <ul className="space-y-0">
@@ -1239,10 +1245,11 @@ function ConversationsSection({
   onOpen: (c: ConversationMeta) => void;
   onSeeAll?: () => void;
 }) {
+  const { t } = useLocale();
   const top = conversations.slice(0, 7);
   return (
     <Section
-      title="Conversations"
+      title={t("agents:detail.conversations")}
       meta={`${conversations.length} total`}
       action={
         conversations.length > top.length && onSeeAll && (
@@ -1327,10 +1334,11 @@ function RecentWorkSection({
   artifacts: Artifact[];
   onOpenPath: (path: string) => void;
 }) {
+  const { t } = useLocale();
   const top = artifacts.slice(0, 5);
   return (
     <Section
-      title="Recent work"
+      title={t("agents:detail.recentWork")}
       meta={
         artifacts.length > 0
           ? `${artifacts.length} file${artifacts.length === 1 ? "" : "s"} touched`
@@ -1411,10 +1419,11 @@ function ScheduleSection({
   onToggleActive: () => void;
   onManage: () => void;
 }) {
+  const { t } = useLocale();
 
   return (
     <Section
-      title="Schedule"
+      title={t("agents:detail.schedule")}
       action={
         <button
           onClick={onManage}
@@ -1434,7 +1443,7 @@ function ScheduleSection({
             title="Edit heartbeat"
           >
             <Zap className={cn("h-3.5 w-3.5 shrink-0", persona.active ? "text-amber-500" : "text-muted-foreground/40")} />
-            <span className={cn("flex-1 text-[13px]", !persona.active && "text-muted-foreground/60")}>Heartbeat</span>
+            <span className={cn("flex-1 text-[13px]", !persona.active && "text-muted-foreground/60")}>{t("agents:detail.heartbeat")}</span>
             <span className="text-[11px] text-muted-foreground tabular-nums">
               {cronToHuman(persona.heartbeat)}
             </span>
@@ -1449,7 +1458,7 @@ function ScheduleSection({
             size="icon-sm"
             className="h-7 w-7"
             onClick={onRunHeartbeat}
-            title="Run now"
+            title={t("agents:detail.runNow")}
             disabled={!persona.active}
           >
             <Play className="h-3 w-3" />
@@ -1465,7 +1474,7 @@ function ScheduleSection({
               type="button"
               onClick={() => onEditRoutine(job)}
               className="flex flex-1 items-center gap-3 text-left"
-              title="Edit routine"
+              title={t("agents:detail.editRoutine")}
             >
               <Briefcase className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span className="flex-1 text-[13px] truncate">{job.name}</span>
@@ -1483,7 +1492,7 @@ function ScheduleSection({
               size="icon-sm"
               className="h-7 w-7"
               onClick={() => onRunJob(job.id)}
-              title="Run now"
+              title={t("agents:detail.runNow")}
             >
               <Play className="h-3 w-3" />
             </Button>
@@ -1496,7 +1505,7 @@ function ScheduleSection({
             className="w-full flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-md text-muted-foreground hover:bg-accent/30 hover:text-foreground transition-colors text-left"
           >
             <Plus className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 text-[13px]">Add routine</span>
+            <span className="flex-1 text-[13px]">{t("agents:detail.addRoutine")}</span>
           </button>
         </li>
       </ul>
@@ -1570,6 +1579,7 @@ function DetailsSection({
   onSaveField: (field: string, value: string) => void;
   onSaveSkills: (slugs: string[]) => void;
 }) {
+  const { t } = useLocale();
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   useEffect(() => {
     fetch("/api/agents/providers")
@@ -1580,47 +1590,47 @@ function DetailsSection({
   const selectableProviders = providers.filter(isAgentProviderSelectable);
 
   return (
-    <Section title="Details">
+    <Section title={t("agents:detail.details")}>
       {persona.scope === "global" && (
         <div className="mb-3 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-[12px] text-violet-200">
-          <span className="font-medium">Editing global agent</span> — changes
+          <span className="font-medium">{t("agents:detail.editingGlobalAgent")}</span> — changes
           apply across every cabinet that uses this agent.
         </div>
       )}
       <div className="grid grid-cols-6 gap-x-3 gap-y-3">
         <Field
-          label="Display name"
+          label={t("agents:detail.displayName")}
           value={persona.displayName || persona.name}
           className="col-span-3"
           onSave={(v) => onSaveField("displayName", v)}
         />
         <Field
-          label="Role"
+          label={t("agents:detail.role")}
           value={persona.role}
           className="col-span-3"
           onSave={(v) => onSaveField("role", v)}
         />
         <Field
-          label="Department"
+          label={t("agents:detail.department")}
           value={persona.department}
           className="col-span-2"
           onSave={(v) => onSaveField("department", v)}
         />
         <Field
-          label="Type"
+          label={t("agents:detail.type")}
           value={persona.type}
           className="col-span-2"
           onSave={(v) => onSaveField("type", v)}
         />
         <Field
-          label="Workspace"
+          label={t("agents:detail.workspace")}
           value={persona.workspace || "/"}
           className="col-span-2"
           mono
           onSave={(v) => onSaveField("workspace", v)}
         />
         <Field
-          label="Tags"
+          label={t("agents:detail.tags")}
           value={persona.tags.join(", ")}
           className="col-span-4"
           onSave={(v) => onSaveField("tags", v)}
@@ -1686,6 +1696,7 @@ function SkillsMultiSelect({
   agentSlug: string;
   onChange: (slugs: string[]) => void;
 }) {
+  const { t } = useLocale();
   const [catalog, setCatalog] = useState<SkillCatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1766,7 +1777,7 @@ function SkillsMultiSelect({
           useAppStore.getState().setSection({ type: "settings", slug: "skills" })
         }
         className="mb-1.5 block text-[12px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-        title="Open Settings → Skills"
+        title={t("agents:detail.openSkillsSettings")}
       >
         Skills →
       </button>
@@ -1825,7 +1836,7 @@ function SkillsMultiSelect({
               key={slug}
               type="button"
               onClick={() => toggle(slug)}
-              title="Not found in catalog — click to remove"
+              title={t("agents:detail.notInCatalog")}
               className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[12.5px] font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
             >
               <CircleAlert className="size-3" />
@@ -1849,7 +1860,7 @@ function SkillsMultiSelect({
                     key={rec.key}
                     type="button"
                     onClick={() => toggle(rec.key)}
-                    title="Recommended for this role — click to attach"
+                    title={t("agents:detail.recommendedForRole")}
                     className="inline-flex items-center gap-1 rounded-full border border-dashed border-violet-500/40 bg-violet-500/5 px-2.5 py-1 text-[12.5px] font-medium text-violet-700 dark:text-violet-300 hover:bg-violet-500/15"
                   >
                     <Sparkles className="size-3" />
@@ -2004,6 +2015,7 @@ function PersonaEditor({
   persona: AgentPersona;
   onSave: (body: string) => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -2111,7 +2123,7 @@ function PersonaEditor({
               Unsaved changes
             </span>
           ) : savedAt ? (
-            <span className="text-[11px] text-muted-foreground">Saved</span>
+            <span className="text-[11px] text-muted-foreground">{t("agents:detail.saved")}</span>
           ) : null}
           {dirty && (
             <Button
@@ -2165,6 +2177,7 @@ export function AgentDetailV2({
   onOpenConversation?: (c: ConversationMeta) => void;
   onSeeAllConversations?: () => void;
 }) {
+  const { t } = useLocale();
   const [persona, setPersona] = useState<AgentPersona | null>(null);
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [jobs, setJobs] = useState<AgentJob[]>([]);

@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { cronToHuman } from "@/lib/agents/cron-utils";
 import type { AgentListItem } from "@/types/agents";
 import type { JobConfig } from "@/types/jobs";
+import { useLocale } from "@/i18n/use-locale";
 
 interface BaseRowProps {
   agent: AgentListItem;
@@ -34,6 +35,7 @@ function ScheduleRow({
   onToggle,
   onDelete,
 }: BaseRowProps) {
+  const { t } = useLocale();
   const [running, setRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -122,13 +124,13 @@ function ScheduleRow({
       <div className="flex shrink-0 items-center gap-2">
         {confirming ? (
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-red-500">
-            <span>Delete?</span>
+            <span>{t("scheduleRow:deleteQ")}</span>
             <button
               type="button"
               onClick={handleConfirmDelete}
               disabled={deleting}
               className="inline-flex size-6 items-center justify-center rounded-md bg-red-500 text-white transition-colors hover:bg-red-600 disabled:opacity-60"
-              aria-label="Confirm delete"
+              aria-label={t("scheduleRow:confirmDelete")}
             >
               {deleting ? (
                 <Loader2 className="size-3 animate-spin" />
@@ -143,7 +145,7 @@ function ScheduleRow({
                 setConfirming(false);
               }}
               className="inline-flex size-6 items-center justify-center rounded-md border border-border/70 bg-background text-foreground transition-colors hover:bg-muted"
-              aria-label="Cancel delete"
+              aria-label={t("scheduleRow:cancelDelete")}
             >
               <X className="size-3" />
             </button>
@@ -160,8 +162,8 @@ function ScheduleRow({
               onClick={handleRun}
               disabled={running}
               className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 disabled:opacity-60"
-              aria-label="Run now"
-              title="Run now"
+              aria-label={t("scheduleRow:runNow")}
+              title={t("scheduleRow:runNow")}
             >
               {running ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -177,8 +179,8 @@ function ScheduleRow({
                   setConfirming(true);
                 }}
                 className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
-                aria-label="Delete"
-                title="Delete"
+                aria-label={t("scheduleRowPlus:delete")}
+                title={t("scheduleRowPlus:delete")}
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -222,6 +224,7 @@ export function RoutineRow({
   onToggle: () => void | Promise<void>;
   onDelete: () => void | Promise<void>;
 }) {
+  const { t } = useLocale();
   return (
     <ScheduleRow
       agent={agent}

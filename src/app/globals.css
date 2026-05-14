@@ -239,6 +239,18 @@ html[data-custom-theme] .font-logo,
   font-family: var(--font-logo), Georgia, serif !important;
 }
 
+/* RTL override: Cardo for the `cabinet` logo + any .font-logo surface
+   when the UI is in Hebrew. Cardo carries a calligraphic Latin italic
+   that pairs better with Hebrew chrome than Instrument Serif. */
+html[dir="rtl"] h1.font-logo,
+html[dir="rtl"] h2.font-logo,
+html[dir="rtl"] h3.font-logo,
+html[dir="rtl"] h4.font-logo,
+html[dir="rtl"] span.font-logo,
+html[dir="rtl"] .font-logo {
+  font-family: var(--font-logo-rtl), Cardo, Georgia, serif !important;
+}
+
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -338,9 +350,28 @@ html[data-custom-theme] .font-logo,
   line-height: 1.65;
 }
 
+/* Per-block automatic direction inference.
+
+   Each paragraph, heading, list item, blockquote, table cell, and
+   description-list term picks its own reading direction based on its
+   first strong directional character. The browser implements this
+   natively via Unicode Bidi paragraph algorithm P3 (`unicode-bidi:
+   plaintext`) — no JS, no markdown pollution.
+
+   `text-align: start` makes the alignment follow the inferred
+   direction: a Hebrew paragraph right-aligns, an English paragraph
+   left-aligns, even when they share the same parent doc with the
+   opposite `dir`. Mixed-language docs "just work" without the user
+   toggling RTL per block. */
+.tiptap :where(p, h1, h2, h3, h4, h5, h6, li, blockquote, td, th, dd, dt, figcaption),
+.registry-prose :where(p, h1, h2, h3, h4, h5, h6, li, blockquote, td, th, dd, dt, figcaption) {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
 .tiptap ul,
 .tiptap ol {
-  padding-left: 1.5rem;
+  padding-inline-start: 1.5rem;
   margin-bottom: 0.75rem;
 }
 
@@ -362,8 +393,8 @@ html[data-custom-theme] .font-logo,
 }
 
 .tiptap blockquote {
-  border-left: 2px solid var(--border);
-  padding-left: 1rem;
+  border-inline-start: 2px solid var(--border);
+  padding-inline-start: 1rem;
   margin: 1rem 0;
   color: var(--muted-foreground);
 }
@@ -561,7 +592,7 @@ html[data-custom-theme] .font-logo,
   border-radius: 0.5rem;
   padding: 0.75rem 1rem;
   margin: 1rem 0;
-  border-left: 3px solid;
+  border-inline-start: 3px solid;
 }
 
 .tiptap .callout-info {
@@ -846,17 +877,17 @@ em-emoji-picker {
 .registry-prose p { margin-top: 0; margin-bottom: 1em; }
 .registry-prose ul {
   list-style-type: disc;
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
   margin-bottom: 1em;
 }
 .registry-prose ol {
   list-style-type: decimal;
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
   margin-bottom: 1em;
 }
 .registry-prose li {
   margin-bottom: 0.4em;
-  padding-left: 0.15em;
+  padding-inline-start: 0.15em;
 }
 .registry-prose ul li::marker { color: var(--prose-link, #8b5e3c); }
 .registry-prose code {
@@ -887,9 +918,9 @@ em-emoji-picker {
   margin: 1.5em 0;
 }
 .registry-prose blockquote {
-  border-left: 3px solid var(--prose-border, #e8ddd0);
-  padding-left: 1em;
-  margin-left: 0;
+  border-inline-start: 3px solid var(--prose-border, #e8ddd0);
+  padding-inline-start: 1em;
+  margin-inline-start: 0;
   color: var(--prose-body, #6b5b4e);
   opacity: 0.8;
 }

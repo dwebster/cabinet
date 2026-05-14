@@ -59,6 +59,7 @@ import { LinkRepoDialog } from "./link-repo-dialog";
 import { NewCabinetDialog } from "./new-cabinet-dialog";
 import { useFileImport } from "./use-file-import";
 import { getDataDir } from "@/lib/data-dir-cache";
+import { useLocale } from "@/i18n/use-locale";
 
 interface TreeNodeProps {
   node: TreeNodeType;
@@ -87,6 +88,7 @@ export function TreeNode({
   onMoveToRequest,
   animationDelayMs,
 }: TreeNodeProps) {
+  const { t } = useLocale();
   const {
     selectedPath,
     expandedPaths,
@@ -389,14 +391,14 @@ export function TreeNode({
       >
       {showInsertBefore && (
         <div
-          className="pointer-events-none absolute -top-px right-1.5 z-10 h-0.5 rounded-full bg-primary"
-          style={{ left: `${depth * 16 + 8}px` }}
+          className="pointer-events-none absolute -top-px end-1.5 z-10 h-0.5 rounded-full bg-primary"
+          style={{ insetInlineStart: `${depth * 16 + 8}px` }}
         />
       )}
       {showInsertAfter && (
         <div
-          className="pointer-events-none absolute -bottom-px right-1.5 z-10 h-0.5 rounded-full bg-primary"
-          style={{ left: `${depth * 16 + 8}px` }}
+          className="pointer-events-none absolute -bottom-px end-1.5 z-10 h-0.5 rounded-full bg-primary"
+          style={{ insetInlineStart: `${depth * 16 + 8}px` }}
         />
       )}
       <ContextMenu>
@@ -412,23 +414,25 @@ export function TreeNode({
             onDrop={handleDrop}
             disabled={isMoving}
             className={cn(
-              "group relative flex items-center gap-2 w-full text-left py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
+              "group relative flex items-center gap-2 w-full text-start py-1 px-2 text-[12px] text-foreground/75 rounded-md transition-colors",
               "hover:bg-foreground/[0.03] hover:text-foreground !cursor-grab active:!cursor-grabbing",
               // Override the ContextMenuTrigger wrapper's user-select:none so HTML5 dragstart fires on first mousedown (Chromium quirk: draggable rows inheriting user-select:none need a focus pass before drag initiates).
               "select-text",
               // Audit #015: active row needs two cues, not just background.
-              // Adds a 2px primary-color accent bar on the left edge via a
+              // Adds a 2px primary-color accent bar on the start edge via a
               // before:: pseudo (does not fight the row's existing padding)
               // and bumps the label weight to font-semibold. Row background
               // stays subtle so hover (no bar, no weight) reads as lighter.
+              // Uses logical start/rounded-e so the bar flips to the
+              // right edge in RTL and stays rounded on its inner side.
               isSelected &&
-                "bg-accent/70 text-accent-foreground font-semibold before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[2px] before:rounded-r-full before:bg-primary",
+                "bg-accent/70 text-accent-foreground font-semibold before:absolute before:start-0 before:top-1 before:bottom-1 before:w-[2px] before:rounded-e-full before:bg-primary",
               showInto &&
                 "bg-primary/10 ring-1 ring-primary/30 ring-inset",
               blink && "cabinet-tree-blink",
               isMoving && "opacity-60 !cursor-progress pointer-events-none"
             )}
-            style={{ paddingLeft: `${depth * 16 + 8}px` }}
+            style={{ paddingInlineStart: `${depth * 16 + 8}px` }}
           >
             {hasChildren ? (
               <span
@@ -447,17 +451,17 @@ export function TreeNode({
                     toggleExpand(node.path);
                   }
                 }}
-                className="shrink-0 -ml-1 flex items-center justify-center w-3 h-3 rounded hover:bg-accent"
+                className="shrink-0 -ms-1 flex items-center justify-center w-3 h-3 rounded hover:bg-accent"
               >
                 <ChevronRight
                   className={cn(
                     "h-3 w-3 text-muted-foreground/70 transition-transform duration-150",
-                    isExpanded && "rotate-90"
+                    isExpanded ? "rotate-90" : "rtl:rotate-180"
                   )}
                 />
               </span>
             ) : (
-              <span className="w-3 -ml-1 shrink-0" />
+              <span className="w-3 -ms-1 shrink-0" />
             )}
             {node.type === "csv" ? (
               <Table className="h-3.5 w-3.5 shrink-0 text-green-400" />
@@ -519,7 +523,7 @@ export function TreeNode({
               {title}
             </span>
             {isMoving && (
-              <Loader2 className="ml-auto h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+              <Loader2 className="ms-auto h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
             )}
             {node.type === "cabinet" && !isMoving && (
               // Audit #016 (review feedback 2026-05-02 round 2):
@@ -533,7 +537,7 @@ export function TreeNode({
                 role="button"
                 tabIndex={0}
                 aria-label={`Open cabinet ${title}`}
-                title="Open cabinet view"
+                title={t("treeNode:openCabinet")}
                 onClick={handleOpenCabinet}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -542,7 +546,7 @@ export function TreeNode({
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
                 className={cn(
-                  "ml-auto shrink-0 rounded-md bg-foreground/[0.04] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80 transition-[opacity,background-color,color]",
+                  "ms-auto shrink-0 rounded-md bg-foreground/[0.04] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80 transition-[opacity,background-color,color]",
                   "opacity-0 group-hover:opacity-100 focus:opacity-100",
                   "hover:bg-accent hover:text-accent-foreground cursor-pointer"
                 )}
@@ -660,7 +664,7 @@ export function TreeNode({
             className="flex gap-2"
           >
             <Input
-              placeholder="Page title..."
+              placeholder={t("treeNode:pageTitlePlaceholder")}
               value={subPageTitle}
               onChange={(e) => setSubPageTitle(e.target.value)}
               autoFocus
@@ -675,7 +679,7 @@ export function TreeNode({
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Rename</DialogTitle>
+            <DialogTitle>{t("treeNode:rename")}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={async (e) => {

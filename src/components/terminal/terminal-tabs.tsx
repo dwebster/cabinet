@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
 import { WebTerminal } from "./web-terminal";
 import { useCallback, useRef, useState } from "react";
+import { useLocale } from "@/i18n/use-locale";
 
 export function TerminalTabs() {
+  const { t } = useLocale();
   const {
     terminalTabs,
     activeTerminalTab,
@@ -144,8 +146,8 @@ export function TerminalTabs() {
         size="icon"
         className="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
         onClick={() => addTerminalTab()}
-        aria-label="New terminal tab"
-        title="New terminal tab"
+        aria-label={t("terminalTabs:newTab")}
+        title={t("terminalTabs:newTab")}
       >
         <Plus className="h-3 w-3" />
       </Button>
@@ -167,8 +169,8 @@ export function TerminalTabs() {
         size="icon"
         className="h-6 w-6 text-muted-foreground hover:text-foreground"
         onClick={closeTerminal}
-        aria-label="Close terminal"
-        title="Close terminal"
+        aria-label={t("terminalTabs:closeTab")}
+        title={t("terminalTabs:closeTab")}
       >
         <X className="h-3 w-3" />
       </Button>
@@ -206,7 +208,7 @@ export function TerminalTabs() {
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize terminal panel"
+          aria-label={t("terminalTabsPlus:resize")}
           tabIndex={0}
           className="flex items-center justify-center w-1 cursor-col-resize hover:bg-primary/20 transition-colors group shrink-0 hover:w-1.5"
           onMouseDown={handleHorizontalMouseDown}
@@ -233,7 +235,7 @@ export function TerminalTabs() {
       <div
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Resize terminal panel"
+        aria-label={t("terminalTabsPlus:resize")}
         tabIndex={0}
         className="flex items-center justify-center h-1 cursor-row-resize hover:bg-primary/20 transition-colors group hover:h-1.5"
         onMouseDown={handleVerticalMouseDown}
