@@ -1,0 +1,26 @@
+# Local overrides for the Webster Solutions cabinet deployment.
+# Compose auto-merges this with docker-compose.yml on every `up`.
+# Not intended for upstream — do not commit to the cabinet repo.
+
+services:
+  cabinet:
+    environment:
+      # Pin the container clock to local time so cron schedules in agent
+      # personas (e.g. heartbeat: 0 9 * * 1-5) fire at 9 AM Central, not
+      # 9 AM UTC. DST handled automatically by tzdata.
+      TZ: America/Chicago
+
+    # Probe the personas route every 60s. Two reasons:
+    #   1. Forces Next.js to compile the /api/agents/personas/[slug] route
+    #      module shortly after boot so the daemon's first cron tick can't
+    #      hit a cold-route 404 (this dropped the 2026-05-15 09:00 heartbeat).
+    #   2. Keeps the route warm for the lifetime of the container.
+    # GET is side-effect free — returns persona metadata only.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS "http://127.0.0.1:${CABINET_APP_PORT}/api/agents/personas/ceo" > /dev/null
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
