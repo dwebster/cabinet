@@ -4,6 +4,15 @@
 
 services:
   cabinet:
+    # Build cabinet-tools:local on top of upstream cabinet:local. See
+    # Dockerfile.tools for what gets layered on (gh, doctl, jq).
+    # Upstream cabinet:local must exist first — `docker compose build` will
+    # produce both if needed.
+    build:
+      context: .
+      dockerfile: Dockerfile.tools
+    image: cabinet-tools:local
+
     environment:
       # Pin the container clock to local time so cron schedules in agent
       # personas (e.g. heartbeat: 0 9 * * 1-5) fire at 9 AM Central, not

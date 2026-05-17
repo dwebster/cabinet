@@ -1,0 +1,42 @@
+# Extends upstream cabinet:local with agent orchestration tools:
+#   - gh    : GitHub CLI (clone/push/PRs/secrets) — narrow-PAT scoped
+#   - doctl : DigitalOcean CLI (App Platform deploys, secrets)
+#   - jq    : JSON wrangling for scripted API responses
+#
+# Intentionally does NOT install ruby, docker, or other build runtimes.
+# Builds and tests run in CI (GitHub Actions), not inside cabinet.
+#
+# To rebuild after changing this file:
+#   docker compose build cabinet
+#   docker compose up -d --force-recreate cabinet
+
+FROM cabinet:local
+
+USER root
+
+# jq from Debian's default repos.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends jq \
+ && rm -rf /var/lib/apt/lists/*
+
+# gh (GitHub CLI) from GitHub's signed apt repo.
+RUN mkdir -p -m 755 /etc/apt/keyrings \
+ && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+ && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+ && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends gh \
+ && rm -rf /var/lib/apt/lists/*
+
+# doctl as a static binary download — published per-arch by DigitalOcean.
+# Pinned for reproducibility; bump explicitly when you want a newer version.
+ARG DOCTL_VERSION=1.122.0
+RUN ARCH=$(dpkg --print-architecture) \
+ && curl -fsSL "https://github.com/digitalocean/doctl/releases/download/v${DOCTL_VERSION}/doctl-${DOCTL_VERSION}-linux-${ARCH}.tar.gz" \
+      | tar -xz -C /usr/local/bin doctl \
+ && chmod +x /usr/local/bin/doctl
+
+# Drop back to the unprivileged runtime user the upstream image uses.
+USER node
